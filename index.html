@@ -934,7 +934,7 @@ img{max-width:100%;height:auto;}
           <button class="btn btn-out btn-sm" onclick="previewMilkitOrderPrint()">🖨️ 인쇄</button>
           <button class="btn btn-out btn-sm" onclick="document.getElementById('mk-order-import-file').click()" title="클릭하거나, 엑셀 파일을 이 화면에 끌어다 놓아도 업로드됩니다">📤 엑셀 업로드</button>
           <button class="btn btn-out btn-sm" onclick="exportMilkitOrders()">📥 엑셀 내보내기</button>
-          <button class="btn btn-out btn-sm" onclick="openMkOcrModal()">📷 사진으로 등록</button>
+          <button class="btn btn-out btn-sm" onclick="openMkOcrModal()">📷 사진/텍스트로 등록</button>
           <button class="btn btn-acc btn-sm" onclick="openMilkitOrderModal()">+ 주문 등록</button>
         </div>
       </div>
@@ -1678,19 +1678,28 @@ img{max-width:100%;height:auto;}
 <div class="modal-bg" id="mk-ocr-modal">
   <div class="modal">
     <div class="modal-hdr">
-      <h4>📷 사진으로 주문 등록</h4>
+      <h4>📷 사진/텍스트로 주문 등록</h4>
       <button class="btn btn-icon btn-out" onclick="closeModal('mk-ocr-modal')">✕</button>
     </div>
     <div class="modal-body">
-      <div style="font-size:12px;color:var(--sub);margin-bottom:12px;line-height:1.6;">문자·카톡 주문 내용이나 대화 캡처 이미지를 올리면 Claude AI가 주문자명·연락처·상품·수량 등을 읽어 <b>주문 등록 폼에 자동으로 채워</b>드립니다. 채워진 내용은 저장 전에 반드시 확인·수정하세요.</div>
+      <div style="font-size:12px;color:var(--sub);margin-bottom:12px;line-height:1.6;">문자·카톡 주문 내용 이미지를 올리거나 대화 내용을 그대로 붙여넣으면 Claude AI가 주문자명·연락처·상품·수량 등을 읽어 <b>주문 등록 폼에 자동으로 채워</b>드립니다. 채워진 내용은 저장 전에 반드시 확인·수정하세요.</div>
       <div style="margin-bottom:12px;">
         <input type="password" id="mk-ocr-api-key" placeholder="Claude API 키 (sk-ant-…)" oninput="saveOcrApiKey(this.value)" style="width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;">
         <div style="font-size:10.5px;color:var(--sub2);margin-top:4px;">이 브라우저에만 저장되며, 원부자재 명세서 인식(OCR)과 같은 키를 공유합니다. <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">키 발급받기 ↗</a></div>
       </div>
-      <input type="file" id="mk-ocr-file" accept="image/*" style="display:none;" onchange="handleMkOcrFile(this)">
-      <button class="btn btn-out" onclick="document.getElementById('mk-ocr-file').click()">🖼️ 이미지 선택</button>
-      <div id="mk-ocr-img-preview" style="display:none;margin-top:12px;">
-        <img id="mk-ocr-img" style="max-width:100%;max-height:280px;border-radius:8px;border:1px solid var(--border);">
+      <div style="display:flex;gap:4px;margin-bottom:14px;border-bottom:1px solid var(--border);">
+        <button type="button" class="tab active" id="mk-ocr-tabbtn-img" onclick="switchMkOcrMode('img')">🖼️ 이미지로 인식</button>
+        <button type="button" class="tab" id="mk-ocr-tabbtn-text" onclick="switchMkOcrMode('text')">📝 텍스트 붙여넣기</button>
+      </div>
+      <div id="mk-ocr-pane-img">
+        <input type="file" id="mk-ocr-file" accept="image/*" style="display:none;" onchange="handleMkOcrFile(this)">
+        <button class="btn btn-out" onclick="document.getElementById('mk-ocr-file').click()">🖼️ 이미지 선택</button>
+        <div id="mk-ocr-img-preview" style="display:none;margin-top:12px;">
+          <img id="mk-ocr-img" style="max-width:100%;max-height:280px;border-radius:8px;border:1px solid var(--border);">
+        </div>
+      </div>
+      <div id="mk-ocr-pane-text" style="display:none;">
+        <textarea id="mk-ocr-text-input" rows="7" placeholder="예) 홍길동입니다 010-1234-5678&#10;서울시 강남구 ...&#10;치즈 밀키트 2개 목요일까지 택배로 보내주세요" style="width:100%;padding:10px 11px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;" oninput="mkOcrUpdateParseBtnState()"></textarea>
       </div>
     </div>
     <div class="modal-footer">
@@ -3500,7 +3509,7 @@ async function runOcr(){
         'anthropic-dangerous-allow-browser':'true'
       },
       body: JSON.stringify({
-        model:'claude-haiku-4-5',
+        model:'claude-haiku-4-5-20251001',
         max_tokens:1500,
         messages:[{
           role:'user',
@@ -4284,13 +4293,36 @@ function confirmMilkitOrderImport(){
 /* --- 사진(문자·카톡 캡처)으로 주문 등록 — Claude AI 인식 --- */
 let mkOcrImageB64=null, mkOcrMimeType='image/jpeg';
 
+let mkOcrMode='img';
 function openMkOcrModal(){
   mkOcrImageB64=null;
+  mkOcrMode='img';
   document.getElementById('mk-ocr-img-preview').style.display='none';
+  const textInput=document.getElementById('mk-ocr-text-input');
+  if(textInput) textInput.value='';
+  document.getElementById('mk-ocr-tabbtn-img').classList.add('active');
+  document.getElementById('mk-ocr-tabbtn-text').classList.remove('active');
+  document.getElementById('mk-ocr-pane-img').style.display='';
+  document.getElementById('mk-ocr-pane-text').style.display='none';
   const btn=document.getElementById('mk-ocr-parse-btn');
   btn.disabled=true; btn.textContent='🤖 AI로 주문 인식';
   document.getElementById('mk-ocr-api-key').value=localStorage.getItem('jgp_claude_key')||'';
   openModal('mk-ocr-modal');
+}
+
+function switchMkOcrMode(mode){
+  mkOcrMode=mode;
+  document.getElementById('mk-ocr-tabbtn-img').classList.toggle('active', mode==='img');
+  document.getElementById('mk-ocr-tabbtn-text').classList.toggle('active', mode==='text');
+  document.getElementById('mk-ocr-pane-img').style.display = mode==='img' ? '' : 'none';
+  document.getElementById('mk-ocr-pane-text').style.display = mode==='text' ? '' : 'none';
+  mkOcrUpdateParseBtnState();
+}
+
+function mkOcrUpdateParseBtnState(){
+  const btn=document.getElementById('mk-ocr-parse-btn');
+  if(mkOcrMode==='img') btn.disabled=!mkOcrImageB64;
+  else btn.disabled=!(document.getElementById('mk-ocr-text-input').value||'').trim();
 }
 
 function handleMkOcrFile(input){
@@ -4302,35 +4334,49 @@ function handleMkOcrFile(input){
     mkOcrImageB64=dataUrl.split(',')[1];
     document.getElementById('mk-ocr-img').src=dataUrl;
     document.getElementById('mk-ocr-img-preview').style.display='';
-    document.getElementById('mk-ocr-parse-btn').disabled=false;
+    mkOcrUpdateParseBtnState();
   };
   reader.readAsDataURL(file);
+}
+
+function mkOcrPromptText(){
+  const productNames=milkitProducts.map(p=>p.name).join(', ');
+  const setNames=milkitSetRules.map(r=>r.name).join(', ');
+  return `아래 정보를 JSON 객체 하나로만 추출해서 응답하세요.
+형식: {"customer":"주문자명","phone":"연락처 숫자만","address":"배송주소","products":[{"name":"상품명","qty":수량}],"setType":"구성유형 또는 빈문자열","setQty":세트수량(기본1),"desiredDate":"YYYY-MM-DD 또는 빈문자열","deliveryMethod":"택배발송/직접배송/직접수령 중 하나 또는 빈문자열","note":"기타 특이사항"}
+- 상품명은 반드시 다음 중에서만 골라 사용: ${productNames}
+- 구성유형은 가능하면 다음 중에서 선택: ${setNames} (해당 없으면 빈 문자열)
+- 확실하지 않은 값은 빈 문자열 또는 0으로 두세요
+- JSON 객체만 반환하고 다른 텍스트 없이`;
 }
 
 async function runMkOcr(){
   const key=localStorage.getItem('jgp_claude_key')||document.getElementById('mk-ocr-api-key').value.trim();
   if(!key){ alert('Claude API 키를 입력하세요.\nconsole.anthropic.com/settings/keys 에서 발급받으세요.'); return; }
-  if(!mkOcrImageB64){ alert('이미지를 먼저 업로드하세요.'); return; }
+  let contentBlocks;
+  if(mkOcrMode==='img'){
+    if(!mkOcrImageB64){ alert('이미지를 먼저 업로드하세요.'); return; }
+    contentBlocks=[
+      {type:'image',source:{type:'base64',media_type:mkOcrMimeType,data:mkOcrImageB64}},
+      {type:'text',text:`이 이미지는 밀키트 피자 주문에 대한 문자메시지 또는 카톡 대화 캡처입니다. `+mkOcrPromptText()}
+    ];
+  } else {
+    const txt=(document.getElementById('mk-ocr-text-input').value||'').trim();
+    if(!txt){ alert('주문 내용 텍스트를 먼저 입력하세요.'); return; }
+    contentBlocks=[
+      {type:'text',text:`다음은 밀키트 피자 주문에 대한 문자메시지 또는 카톡 대화 내용입니다.\n\n"""\n${txt}\n"""\n\n`+mkOcrPromptText()}
+    ];
+  }
   const btn=document.getElementById('mk-ocr-parse-btn');
   btn.disabled=true; btn.textContent='⏳ 분석 중…';
-  const productNames=milkitProducts.map(p=>p.name).join(', ');
-  const setNames=milkitSetRules.map(r=>r.name).join(', ');
   try{
     const resp=await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
       headers:{'x-api-key':key,'anthropic-version':'2023-06-01','content-type':'application/json','anthropic-dangerous-allow-browser':'true'},
       body: JSON.stringify({
-        model:'claude-haiku-4-5',
+        model:'claude-haiku-4-5-20251001',
         max_tokens:1000,
-        messages:[{role:'user',content:[
-          {type:'image',source:{type:'base64',media_type:mkOcrMimeType,data:mkOcrImageB64}},
-          {type:'text',text:`이 이미지는 밀키트 피자 주문에 대한 문자메시지 또는 카톡 대화 캡처입니다. 아래 정보를 JSON 객체 하나로만 추출해서 응답하세요.
-형식: {"customer":"주문자명","phone":"연락처 숫자만","address":"배송주소","products":[{"name":"상품명","qty":수량}],"setType":"구성유형 또는 빈문자열","setQty":세트수량(기본1),"desiredDate":"YYYY-MM-DD 또는 빈문자열","deliveryMethod":"택배발송/직접배송/직접수령 중 하나 또는 빈문자열","note":"기타 특이사항"}
-- 상품명은 반드시 다음 중에서만 골라 사용: ${productNames}
-- 구성유형은 가능하면 다음 중에서 선택: ${setNames} (해당 없으면 빈 문자열)
-- 확실하지 않은 값은 빈 문자열 또는 0으로 두세요
-- JSON 객체만 반환하고 다른 텍스트 없이`}
-        ]}]
+        messages:[{role:'user',content:contentBlocks}]
       })
     });
     if(!resp.ok){ const e=await resp.json(); throw new Error(e.error?.message||resp.statusText); }
