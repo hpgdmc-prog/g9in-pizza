@@ -1078,23 +1078,29 @@ img{max-width:100%;height:auto;}
       <h3 style="font-size:14px;">☁️ 실시간 동기화 (PC · 모바일 자동 연동)</h3>
     </div>
     <div id="sync-status-banner" style="font-size:12px;color:var(--sub);margin-bottom:12px;line-height:1.6;"></div>
-    <div style="font-size:11.5px;color:var(--sub2);line-height:1.7;background:var(--bg2);border-radius:var(--r-md);padding:12px 14px;margin-bottom:14px;">
-      현재는 <b>원부자재·구입처·레시피·가맹점·발주·밀키트 판매(주문·고객·메뉴·비용) 등 앱의 모든 데이터</b>가 기기마다 따로 저장됩니다. 아래에 무료 Firebase 프로젝트를 연결하면, 한 기기에서 저장한 내용이 다른 기기(PC·휴대폰 등)에 <b>자동으로 실시간 반영</b>됩니다.<br><br>
-      <b>① Firestore 데이터베이스 만들기</b> — <a href="https://console.firebase.google.com/" target="_blank" rel="noopener">console.firebase.google.com</a> 접속 → 새 프로젝트 만들기(무료) → 왼쪽 메뉴에서 <b>Firestore Database</b> → <b>데이터베이스 만들기</b> → <b>테스트 모드에서 시작</b> 선택<br>
-      <b>② 웹 앱 등록 &amp; 설정값 복사</b> — 프로젝트 개요 화면에서 <b>&lt;/&gt; (웹)</b> 아이콘 클릭 → 앱 닉네임 입력 후 등록 → 화면에 나오는 <code>firebaseConfig</code> 값들을 아래에 그대로 입력<br><br>
-      ⚠️ 이미 다른 기기에서 연동해두셨다면, <b>같은 값</b>을 이 기기에도 입력해야 같은 데이터를 공유합니다. 처음 연결하는 기기의 로컬 데이터는 이미 저장된 클라우드 데이터로 대체될 수 있으니, 먼저 데이터 백업을 받아두는 것을 권장합니다.
+    <div id="sync-connected-actions" style="display:none;gap:8px;flex-wrap:wrap;margin-bottom:32px;">
+      <button class="btn btn-out btn-sm" onclick="toggleSyncConfigPanel()">⚙️ 설정 변경</button>
+      <button class="btn btn-out btn-sm" onclick="disconnectFirebase()">연동 해제</button>
     </div>
-    <div class="form-grid" style="margin-bottom:10px;">
-      <div class="form-row"><label>API Key</label><input type="text" id="fb-apiKey" placeholder="AIzaSy..."></div>
-      <div class="form-row"><label>Project ID</label><input type="text" id="fb-projectId" placeholder="my-project-id"></div>
-      <div class="form-row"><label>Auth Domain</label><input type="text" id="fb-authDomain" placeholder="xxx.firebaseapp.com"></div>
-      <div class="form-row"><label>Storage Bucket</label><input type="text" id="fb-storageBucket" placeholder="xxx.appspot.com"></div>
-      <div class="form-row"><label>Messaging Sender ID</label><input type="text" id="fb-messagingSenderId" placeholder="123456789"></div>
-      <div class="form-row"><label>App ID</label><input type="text" id="fb-appId" placeholder="1:123:web:abc..."></div>
-    </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:32px;">
-      <button class="btn btn-acc" onclick="saveFirebaseConfigAndConnect()">☁️ 저장 &amp; 연결</button>
-      <button class="btn btn-out" id="sync-disconnect-btn" onclick="disconnectFirebase()" style="display:none;">연동 해제</button>
+    <div id="sync-config-panel">
+      <div style="font-size:11.5px;color:var(--sub2);line-height:1.7;background:var(--bg2);border-radius:var(--r-md);padding:12px 14px;margin-bottom:14px;">
+        현재는 <b>원부자재·구입처·레시피·가맹점·발주·밀키트 판매(주문·고객·메뉴·비용) 등 앱의 모든 데이터</b>가 기기마다 따로 저장됩니다. 아래에 무료 Firebase 프로젝트를 연결하면, 한 기기에서 저장한 내용이 다른 기기(PC·휴대폰 등)에 <b>자동으로 실시간 반영</b>됩니다.<br><br>
+        <b>① Firestore 데이터베이스 만들기</b> — <a href="https://console.firebase.google.com/" target="_blank" rel="noopener">console.firebase.google.com</a> 접속 → 새 프로젝트 만들기(무료) → 왼쪽 메뉴에서 <b>Firestore Database</b> → <b>데이터베이스 만들기</b> → <b>테스트 모드에서 시작</b> 선택<br>
+        <b>② 웹 앱 등록 &amp; 설정값 복사</b> — 프로젝트 개요 화면에서 <b>&lt;/&gt; (웹)</b> 아이콘 클릭 → 앱 닉네임 입력 후 등록 → 화면에 나오는 <code>firebaseConfig</code> 값들을 아래에 그대로 입력<br><br>
+        ⚠️ 이미 다른 기기에서 연동해두셨다면, <b>같은 값</b>을 이 기기에도 입력해야 같은 데이터를 공유합니다. 처음 연결하는 기기의 로컬 데이터는 이미 저장된 클라우드 데이터로 대체될 수 있으니, 먼저 데이터 백업을 받아두는 것을 권장합니다.
+      </div>
+      <div class="form-grid" style="margin-bottom:10px;">
+        <div class="form-row"><label>API Key</label><input type="text" id="fb-apiKey" placeholder="AIzaSy..."></div>
+        <div class="form-row"><label>Project ID</label><input type="text" id="fb-projectId" placeholder="my-project-id"></div>
+        <div class="form-row"><label>Auth Domain</label><input type="text" id="fb-authDomain" placeholder="xxx.firebaseapp.com"></div>
+        <div class="form-row"><label>Storage Bucket</label><input type="text" id="fb-storageBucket" placeholder="xxx.appspot.com"></div>
+        <div class="form-row"><label>Messaging Sender ID</label><input type="text" id="fb-messagingSenderId" placeholder="123456789"></div>
+        <div class="form-row"><label>App ID</label><input type="text" id="fb-appId" placeholder="1:123:web:abc..."></div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:32px;">
+        <button class="btn btn-acc" onclick="saveFirebaseConfigAndConnect()">☁️ 저장 &amp; 연결</button>
+        <button class="btn btn-out" id="sync-disconnect-btn" onclick="disconnectFirebase()" style="display:none;">연동 해제</button>
+      </div>
     </div>
 
     <div class="page-hdr" style="border-bottom:none;margin-bottom:10px;padding-bottom:0;margin-top:28px;">
@@ -4964,6 +4970,7 @@ function connectFirebase(cfg){
     try{ fbDb.settings({experimentalAutoDetectLongPolling:true, merge:true, ignoreUndefinedProperties:true}); }catch(e){}
     try{ fbDb.enablePersistence({synchronizeTabs:true}).catch(()=>{}); }catch(e){}
     fbConnected=true;
+    syncPanelExpanded=false;
     SYNC_KEYS.forEach(attachSyncListener);
     renderSyncStatusBanner();
   }catch(e){
@@ -5000,9 +5007,18 @@ function disconnectFirebase(){
   location.reload();
 }
 
+let syncPanelExpanded=false;
+
+function toggleSyncConfigPanel(){
+  syncPanelExpanded=!syncPanelExpanded;
+  renderSyncStatusBanner();
+}
+
 function renderSyncStatusBanner(){
   const el=document.getElementById('sync-status-banner');
   const btn=document.getElementById('sync-disconnect-btn');
+  const connectedActions=document.getElementById('sync-connected-actions');
+  const configPanel=document.getElementById('sync-config-panel');
   if(!el) return;
   const cfg=(()=>{ try{ return JSON.parse(localStorage.getItem('jgp_firebaseConfig')||'null'); }catch(e){ return null; } })();
   if(cfg){
@@ -5012,14 +5028,20 @@ function renderSyncStatusBanner(){
     });
   }
   if(fbConnected){
-    el.innerHTML='✅ <b>실시간 동기화 연결됨</b> — 이 기기에서 저장한 밀키트 주문·고객·메뉴 정보가 다른 연결된 기기에도 자동으로 반영됩니다.';
+    el.innerHTML='✅ <b>실시간 동기화 연결됨</b> — 이 기기에서 저장한 모든 데이터가 다른 연결된 기기에도 자동으로 반영됩니다.';
     if(btn) btn.style.display='';
+    if(connectedActions) connectedActions.style.display='flex';
+    if(configPanel) configPanel.style.display=syncPanelExpanded?'':'none';
   } else if(cfg){
     el.innerHTML='⚠️ 연동 정보는 저장되어 있지만 아직 연결되지 않았습니다. "저장 & 연결"을 다시 눌러주세요.';
     if(btn) btn.style.display='';
+    if(connectedActions) connectedActions.style.display='none';
+    if(configPanel) configPanel.style.display='';
   } else {
     el.innerHTML='현재 이 기기에만 데이터가 저장되고 있습니다 (동기화 꺼짐).';
     if(btn) btn.style.display='none';
+    if(connectedActions) connectedActions.style.display='none';
+    if(configPanel) configPanel.style.display='';
   }
 }
 
