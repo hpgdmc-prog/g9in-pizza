@@ -2079,6 +2079,42 @@ function renderDashboard(){
   renderDashboardMilkitStats();
 }
 
+function computeMilkitStats(){
+  const now=new Date();
+  const ym = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  const total = milkitOrders.length;
+  const totalRevenue = milkitOrders.reduce((s,o)=>s+(Number(o.payTotal)||0),0);
+  const monthOrders = milkitOrders.filter(o=>(o.orderDate||'').startsWith(ym));
+  const monthRevenue = monthOrders.reduce((s,o)=>s+(Number(o.payTotal)||0),0);
+  const payWaiting = milkitOrders.filter(o=>o.payStatus!=='완료').length;
+  const trackingMissing = milkitOrders.filter(o=>o.deliveryMethod==='택배발송' && !o.tracking).length;
+  return {total, totalRevenue, monthOrders, monthRevenue, payWaiting, trackingMissing};
+}
+function milkitStatsCardsHtml(){
+  const {total, totalRevenue, monthOrders, monthRevenue, payWaiting, trackingMissing} = computeMilkitStats();
+  return `
+    <div class="stat-card acc-border">
+      <div class="s-label">전체 주문 건수 (누적)</div>
+      <div class="s-val num">${total}</div>
+      <div class="s-sub">이번달 ${monthOrders.length}건</div>
+    </div>
+    <div class="stat-card acc-border">
+      <div class="s-label">전체 매출 합계 (누적)</div>
+      <div class="s-val num">${comma(totalRevenue)}</div>
+      <div class="s-sub">결제금액 기준</div>
+    </div>
+    <div class="stat-card acc-border">
+      <div class="s-label">이번달 매출</div>
+      <div class="s-val num">${comma(monthRevenue)}</div>
+      <div class="s-sub">${monthOrders.length}건</div>
+    </div>
+    <div class="stat-card acc-border">
+      <div class="s-label">결제 대기</div>
+      <div class="s-val num">${payWaiting}</div>
+      <div class="s-sub">건 · 송장 미입력 ${trackingMissing}건</div>
+    </div>
+  `;
+}
 function renderDashboardMilkitStats(){
   const el=document.getElementById('dash-milkit-stats');
   if(!el) return;
@@ -2086,34 +2122,7 @@ function renderDashboardMilkitStats(){
     el.innerHTML=`<div class="stat-card" style="grid-column:1/-1;"><div style="color:var(--sub2);font-size:13px;padding:6px 0;">등록된 밀키트 주문이 없습니다.</div></div>`;
     return;
   }
-  const now=new Date();
-  const ym=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
-  const monthOrders=milkitOrders.filter(o=>(o.orderDate||'').startsWith(ym));
-  const monthRevenue=monthOrders.reduce((s,o)=>s+(Number(o.payTotal)||0),0);
-  const payWaiting=milkitOrders.filter(o=>o.payStatus!=='완료').length;
-  const trackingMissing=milkitOrders.filter(o=>o.deliveryMethod==='택배발송' && !o.tracking).length;
-  el.innerHTML=`
-    <div class="stat-card acc-border">
-      <div class="s-label">이번달 밀키트 주문</div>
-      <div class="s-val num">${monthOrders.length}</div>
-      <div class="s-sub">건</div>
-    </div>
-    <div class="stat-card acc-border">
-      <div class="s-label">이번달 밀키트 매출</div>
-      <div class="s-val num">${comma(monthRevenue)}</div>
-      <div class="s-sub">원</div>
-    </div>
-    <div class="stat-card acc-border">
-      <div class="s-label">결제 대기</div>
-      <div class="s-val num">${payWaiting}</div>
-      <div class="s-sub">건</div>
-    </div>
-    <div class="stat-card acc-border">
-      <div class="s-label">송장 미입력</div>
-      <div class="s-val num">${trackingMissing}</div>
-      <div class="s-sub">택배발송 건 중</div>
-    </div>
-  `;
+  el.innerHTML=milkitStatsCardsHtml();
 }
 
 /* ============================
@@ -2280,7 +2289,7 @@ function renderSuppliers(){
       <div class="mrow-inner" onclick="mrowClick(this,'openSupModal','${s.id}')">
         <div class="mrow-main">
           <div class="mrow-title">${s.name}</div>
-          <div class="mrow-meta">${s.contact?'👤 '+s.contact+'  ':''}${s.phone?'📞 '+formatPhone(s.phone):''}<br><span class="badge badge-blue">${s.cycle||'납품주기 미설정'}</span> <span class="badge badge-gray">${s.terms||'결제조건 미설정'}</span>${s.addr?'<br>📍 '+s.addr:''}</div>
+          <div class="mrow-meta">${s.contact?'👤 '+s.contact+'  ':''}${s.phone?'📞 '+formatPhone(s.phone):''}<br><span class="badge badge-blue">🔄 ${s.cycle||'납품주기 미설정'}</span> <span class="badge badge-gray">💰 ${s.terms||'결제조건 미설정'}</span>${s.addr?'<br>📍 '+s.addr:''}</div>
         </div>
       </div>
     </div>
@@ -3717,36 +3726,7 @@ function renderMilkit(){
 }
 
 function renderMilkitStats(){
-  const now=new Date();
-  const ym = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
-  const total = milkitOrders.length;
-  const totalRevenue = milkitOrders.reduce((s,o)=>s+(Number(o.payTotal)||0),0);
-  const monthOrders = milkitOrders.filter(o=>(o.orderDate||'').startsWith(ym));
-  const monthRevenue = monthOrders.reduce((s,o)=>s+(Number(o.payTotal)||0),0);
-  const payWaiting = milkitOrders.filter(o=>o.payStatus!=='완료').length;
-  const trackingMissing = milkitOrders.filter(o=>o.deliveryMethod==='택배발송' && !o.tracking).length;
-  document.getElementById('mk-stats').innerHTML=`
-    <div class="stat-card acc-border">
-      <div class="s-label">전체 주문 건수</div>
-      <div class="s-val num">${total}</div>
-      <div class="s-sub">누적</div>
-    </div>
-    <div class="stat-card acc-border">
-      <div class="s-label">전체 매출 합계</div>
-      <div class="s-val num">${comma(totalRevenue)}</div>
-      <div class="s-sub">결제금액 기준</div>
-    </div>
-    <div class="stat-card acc-border">
-      <div class="s-label">이번달 매출</div>
-      <div class="s-val num">${comma(monthRevenue)}</div>
-      <div class="s-sub">${monthOrders.length}건</div>
-    </div>
-    <div class="stat-card acc-border">
-      <div class="s-label">결제 대기</div>
-      <div class="s-val num">${payWaiting}</div>
-      <div class="s-sub">건 · 송장 미입력 ${trackingMissing}건</div>
-    </div>
-  `;
+  document.getElementById('mk-stats').innerHTML=milkitStatsCardsHtml();
 }
 
 /* --- 주문 내역 --- */
@@ -3803,7 +3783,9 @@ function renderMilkitOrders(){
     return;
   }
   const payBadge={'완료':'badge-green','대기':'badge-orange'};
+  const payBadgeTxt={'완료':'💳 결제완료','대기':'💳 결제대기'};
   const delBadge={'배송완료':'badge-green','배송중':'badge-blue','준비중':'badge-orange'};
+  const delBadgeTxt={'배송완료':'🚚 배송완료','배송중':'🚚 배송중','준비중':'🚚 배송준비중'};
   el.innerHTML=list.map(o=>{
     const items = milkitProducts.filter(p=>Number(o.qty?.[p.id])>0)
       .map(p=>`<span style="font-size:11px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:2px 8px;">${p.name} × ${o.qty[p.id]}</span>`).join('');
@@ -3814,8 +3796,8 @@ function renderMilkitOrders(){
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
           <div>
             <span style="font-weight:700;font-size:15px;">${o.customer||'(이름 없음)'}</span>
-            <span class="badge ${payBadge[o.payStatus]||'badge-orange'}" style="margin-left:6px;">${o.payStatus||'대기'}</span>
-            <span class="badge ${delBadge[o.deliveryStatus]||'badge-orange'}" style="margin-left:4px;">${o.deliveryStatus||'준비중'}</span>
+            <span class="badge ${payBadge[o.payStatus]||'badge-orange'}" style="margin-left:6px;">${payBadgeTxt[o.payStatus]||payBadgeTxt['대기']}</span>
+            <span class="badge ${delBadge[o.deliveryStatus]||'badge-orange'}" style="margin-left:4px;">${delBadgeTxt[o.deliveryStatus]||delBadgeTxt['준비중']}</span>
           </div>
           <span class="num" style="font-weight:700;font-size:15px;">${comma(o.payTotal)}원</span>
         </div>
