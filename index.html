@@ -106,13 +106,16 @@ h1,h2,h3,h4{font-family:var(--sans);letter-spacing:-.01em;}
 .toolbar input:focus,.toolbar select:focus{outline:none;border-color:var(--acc);}
 /* table */
 .table-wrap{background:#fff;border-radius:var(--r-lg);border:1px solid var(--border);overflow:auto;}
+.mobile-scroll-hint{display:none;font-size:11px;color:var(--sub2);margin-bottom:6px;}
+@media(max-width:600px){.mobile-scroll-hint{display:block;}}
 table{width:100%;border-collapse:collapse;font-size:13px;}
 th{background:var(--bg2);color:var(--sub);padding:10px 14px;text-align:left;white-space:nowrap;font-size:10px;letter-spacing:.15em;text-transform:uppercase;font-weight:600;border-bottom:1px solid var(--border);}
 td{padding:11px 14px;border-bottom:1px solid var(--border);vertical-align:middle;font-size:13px;}
 tr:last-child td{border-bottom:none;}
 tr:hover td{background:var(--bg2);}
 /* buttons */
-.btn{padding:9px 18px;border:none;border-radius:var(--r-sm);cursor:pointer;font-size:12.5px;font-weight:600;font-family:inherit;transition:background .15s,color .15s,border-color .15s,transform .1s,box-shadow .15s;letter-spacing:.05em;}
+.btn{padding:9px 18px;border:none;border-radius:var(--r-sm);cursor:pointer;font-size:12.5px;font-weight:600;font-family:inherit;transition:background .15s,color .15s,border-color .15s,transform .1s,box-shadow .15s;letter-spacing:.05em;white-space:nowrap;flex-shrink:0;}
+.page-hdr>div{flex-wrap:wrap;}
 .btn:not(.btn-sm):not(.btn-icon):hover{transform:translateY(-1px);box-shadow:var(--shadow-sm);}
 .btn:active{transform:translateY(0)!important;}
 .btn:focus-visible{outline:2px solid var(--acc);outline-offset:2px;}
@@ -293,10 +296,21 @@ tr:hover td{background:var(--bg2);}
   .fee-grid{grid-template-columns:1fr 1fr;}
   input:not([type=checkbox]):not([type=radio]),select,textarea{font-size:16px!important;}
 }
+@media(max-width:560px){
+  .theme-opt-grid{grid-template-columns:1fr;}
+  .fee-grid{grid-template-columns:1fr;}
+}
 @media(max-width:480px){
   .stat-grid{grid-template-columns:1fr 1fr;}
   .card-grid{grid-template-columns:1fr;}
-  .recipe-item-row{grid-template-columns:20px 1fr 66px 40px 60px;}
+  .recipe-item-row{grid-template-columns:14px 1fr 52px 30px 46px;gap:4px;padding:8px 6px;}
+  .recipe-item-row .ri-cost{font-size:10.5px;}
+  .recipe-item-row input{padding:6px 4px!important;}
+  th{padding:8px 8px;font-size:9px;}
+  td{padding:8px 8px;font-size:12px;}
+  .btn{padding:8px 12px;font-size:11.5px;}
+  .btn-sm{padding:5px 9px;font-size:10.5px;}
+  .cost-card{padding:14px;}
 }
 /* empty state */
 .empty-state{text-align:center;padding:60px 20px;color:var(--sub2);}
@@ -719,6 +733,7 @@ img{max-width:100%;height:auto;}
           <button class="btn btn-out btn-sm" onclick="renderOrderPlan()">🔄 새로고침</button>
         </div>
       </div>
+      <div class="mobile-scroll-hint">💡 표가 넓으면 좌우로 스크롤하세요</div>
       <div class="table-wrap">
         <table>
           <thead><tr>
@@ -767,6 +782,7 @@ img{max-width:100%;height:auto;}
             <button class="btn btn-out btn-sm" onclick="addRecvRow()">+ 재료 추가</button>
           </div>
         </div>
+        <div class="mobile-scroll-hint">💡 표가 넓으면 좌우로 스크롤하세요</div>
         <div class="table-wrap" style="max-height:300px;overflow-y:auto;">
           <table>
             <thead><tr>
@@ -839,6 +855,7 @@ img{max-width:100%;height:auto;}
             <button class="btn btn-out btn-sm" onclick="backToOcrStep1()">← 다시 스캔</button>
           </div>
           <p style="font-size:12px;color:var(--sub2);margin-bottom:10px;">재료명이 목록에 없으면 새로 등록됩니다. 수량·금액을 직접 수정할 수 있습니다.</p>
+          <div class="mobile-scroll-hint">💡 표가 넓으면 좌우로 스크롤하세요</div>
           <div class="table-wrap" style="max-height:300px;overflow-y:auto;">
             <table>
               <thead><tr>
@@ -965,6 +982,7 @@ img{max-width:100%;height:auto;}
         <h3 style="font-size:14px;">상품 · 가격</h3>
         <button class="btn btn-out btn-sm" onclick="addMilkitProductRow()">+ 상품 추가</button>
       </div>
+      <div class="mobile-scroll-hint">💡 표가 넓으면 좌우로 스크롤하세요</div>
       <div class="table-wrap" style="margin-bottom:20px;">
         <table>
           <thead><tr><th>상품명</th><th>구분</th><th>가격(원)</th><th>레시피</th><th></th></tr></thead>
@@ -990,6 +1008,7 @@ img{max-width:100%;height:auto;}
         <h3 style="font-size:14px;">제품별 판매 현황</h3>
         <button class="btn btn-out btn-sm" onclick="previewMilkitStatsPrint()">🖨️ 판매현황 인쇄</button>
       </div>
+      <div class="mobile-scroll-hint">💡 표가 넓으면 좌우로 스크롤하세요</div>
       <div class="table-wrap" style="margin-bottom:20px;">
         <table>
           <thead><tr><th>구분</th><th>상품명</th><th>단가(원)</th><th>판매수량</th><th>판매금액(정가기준)</th><th>판매비중</th></tr></thead>
@@ -1059,9 +1078,11 @@ img{max-width:100%;height:auto;}
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
       <button class="btn btn-acc" onclick="refreshApp()">🔄 화면 새로고침</button>
       <button class="btn btn-out" onclick="exportAllData()">📦 전체 데이터 백업 (JSON)</button>
+      <input type="file" id="import-data-file" accept="application/json" style="display:none;" onchange="importAllData(this)">
+      <button class="btn btn-out" onclick="document.getElementById('import-data-file').click()">📥 백업 불러오기 (다른 기기 데이터 동기화)</button>
       <button class="btn btn-del" onclick="resetAllAppData()">⚠️ 전체 데이터 초기화</button>
     </div>
-    <div style="font-size:11px;color:var(--sub2);">※ 화면 새로고침은 최신 저장 데이터를 다시 불러옵니다. 전체 데이터 초기화는 이 기기에 저장된 모든 정보(재료·레시피·발주·밀키트 주문·고객 등)를 삭제하며 되돌릴 수 없으니, 먼저 백업 후 진행하세요.</div>
+    <div style="font-size:11px;color:var(--sub2);">※ 화면 새로고침은 최신 저장 데이터를 다시 불러옵니다. 전체 데이터 초기화는 이 기기에 저장된 모든 정보(재료·레시피·발주·밀키트 주문·고객 등)를 삭제하며 되돌릴 수 없으니, 먼저 백업 후 진행하세요.<br>※ 이 앱은 기기·브라우저마다 데이터가 따로 저장됩니다(자동 동기화 없음). 다른 기기에서 입력한 내용을 반영하려면, 그 기기에서 "전체 데이터 백업"으로 받은 파일을 이 기기에서 "백업 불러오기"로 열어주세요 (불러오면 이 기기의 기존 데이터는 덮어써집니다).</div>
   </div>
 </main>
 </div><!-- #app -->
@@ -1598,6 +1619,7 @@ img{max-width:100%;height:auto;}
     </div>
     <div class="modal-body">
       <div id="mk-import-summary" style="font-size:13px;margin-bottom:12px;line-height:1.7;"></div>
+      <div class="mobile-scroll-hint">💡 표가 넓으면 좌우로 스크롤하세요</div>
       <div class="table-wrap" style="max-height:340px;">
         <table>
           <thead><tr><th>주문일자</th><th>주문자명</th><th>상품구성</th><th>결제금액</th><th>결제상태</th></tr></thead>
@@ -4357,22 +4379,22 @@ function deleteMilkitCustomer(id){
 function renderMilkitProductSettings(){
   document.getElementById('mk-product-rows').innerHTML = milkitProducts.map((p,idx)=>`
     <tr data-idx="${idx}">
-      <td><input type="text" value="${p.name}" data-f="name" style="width:140px;"></td>
+      <td><input type="text" value="${p.name}" data-f="name" style="width:90px;"></td>
       <td>
-        <select data-f="category">
+        <select data-f="category" style="width:76px;">
           <option value="피자" ${p.category==='피자'?'selected':''}>피자</option>
           <option value="추가품목" ${p.category==='추가품목'?'selected':''}>추가품목</option>
         </select>
       </td>
-      <td><input type="text" inputmode="numeric" value="${commaFmt(p.price)}" data-f="price" oninput="this.value=commaFmt(this.value)" style="width:100px;"></td>
-      <td><button class="btn btn-sm ${(p.items&&p.items.length)?'btn-edit':'btn-out'}" onclick="openMkProductRecipeModal('${p.id}')">${(p.items&&p.items.length)?'✓ 레시피 '+p.items.length+'개':'+ 레시피 등록'}</button></td>
+      <td><input type="text" inputmode="numeric" value="${commaFmt(p.price)}" data-f="price" oninput="this.value=commaFmt(this.value)" style="width:70px;"></td>
+      <td><button class="btn btn-sm ${(p.items&&p.items.length)?'btn-edit':'btn-out'}" onclick="openMkProductRecipeModal('${p.id}')">${(p.items&&p.items.length)?'✓ 레시피 '+p.items.length:'+ 레시피'}</button></td>
       <td><button class="btn btn-sm btn-del" onclick="removeMilkitProductRow(${idx})">삭제</button></td>
     </tr>
   `).join('');
   document.getElementById('mk-setrule-rows').innerHTML = milkitSetRules.map((r,idx)=>`
     <tr data-idx="${idx}">
-      <td><input type="text" value="${r.name}" data-f="name" style="width:140px;"></td>
-      <td><input type="text" inputmode="numeric" value="${commaFmt(r.discount)}" data-f="discount" oninput="this.value=commaFmt(this.value)" style="width:100px;"></td>
+      <td><input type="text" value="${r.name}" data-f="name" style="width:90px;"></td>
+      <td><input type="text" inputmode="numeric" value="${commaFmt(r.discount)}" data-f="discount" oninput="this.value=commaFmt(this.value)" style="width:70px;"></td>
       <td><button class="btn btn-sm btn-del" onclick="removeMilkitSetRuleRow(${idx})">삭제</button></td>
     </tr>
   `).join('');
@@ -4715,6 +4737,26 @@ function exportAllData(){
   a.href=url; a.download=`지구인피자_백업_${new Date().toISOString().slice(0,10)}.json`;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+function importAllData(input){
+  const file=input.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const data=JSON.parse(e.target.result);
+      const keys=Object.keys(data).filter(k=>k.startsWith('jgp_'));
+      if(!keys.length){ alert('올바른 백업 파일이 아닙니다.'); input.value=''; return; }
+      if(!confirm(`백업 파일에서 ${keys.length}개 항목을 찾았습니다.\n불러오면 이 기기에 저장된 기존 데이터를 덮어씁니다. 계속할까요?`)){ input.value=''; return; }
+      keys.forEach(k=>localStorage.setItem(k, JSON.stringify(data[k])));
+      alert('데이터를 불러왔습니다. 화면을 새로고침합니다.');
+      location.reload();
+    }catch(err){
+      alert('백업 파일을 읽는 중 오류가 발생했습니다: '+err.message);
+    }
+    input.value='';
+  };
+  reader.readAsText(file);
 }
 
 function resetAllAppData(){
