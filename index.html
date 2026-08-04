@@ -109,6 +109,9 @@ h1,h2,h3,h4{font-family:var(--sans);letter-spacing:-.01em;}
 /* table */
 .table-wrap{background:#fff;border-radius:var(--r-lg);border:1px solid var(--border);overflow:auto;}
 .mobile-scroll-hint{display:none;font-size:11px;color:var(--sub2);margin-bottom:6px;}
+#mk-pane-orders{position:relative;border-radius:var(--r-lg);transition:background .15s;}
+#mk-pane-orders.mk-drop-active{background:var(--acc-pale);outline:2px dashed var(--acc);outline-offset:-2px;}
+#mk-pane-orders.mk-drop-active::after{content:'📥 여기에 엑셀 파일을 놓으세요';position:fixed;inset:0;z-index:150;display:flex;align-items:center;justify-content:center;background:rgba(217,79,43,.08);color:var(--acc-dark);font-size:20px;font-weight:700;pointer-events:none;}
 @media(max-width:600px){.mobile-scroll-hint{display:block;}}
 table{width:100%;border-collapse:collapse;font-size:13px;}
 th{background:var(--bg2);color:var(--sub);padding:10px 14px;text-align:left;white-space:nowrap;font-size:10px;letter-spacing:.15em;text-transform:uppercase;font-weight:600;border-bottom:1px solid var(--border);}
@@ -913,13 +916,6 @@ img{max-width:100%;height:auto;}
   <div class="section" id="sec-milkit">
     <div class="page-hdr">
       <h3>밀키트 판매 관리</h3>
-      <div style="display:flex;gap:8px;">
-        <button class="btn btn-out btn-sm" onclick="previewMilkitOrderPrint()">🖨️ 주문내역 인쇄</button>
-        <button class="btn btn-out btn-sm" onclick="document.getElementById('mk-order-import-file').click()">📤 엑셀 업로드</button>
-        <button class="btn btn-out btn-sm" onclick="exportMilkitOrders()">📥 엑셀 내보내기</button>
-        <button class="btn btn-out btn-sm" onclick="openMkOcrModal()">📷 사진으로 주문 등록</button>
-        <button class="btn btn-acc" onclick="openMilkitOrderModal()">+ 주문 등록</button>
-      </div>
     </div>
     <div class="stat-grid" id="mk-stats"></div>
     <div class="tabs">
@@ -932,6 +928,16 @@ img{max-width:100%;height:auto;}
 
     <!-- 주문 내역 -->
     <div id="mk-pane-orders">
+      <div class="page-hdr" style="border-bottom:none;margin-bottom:10px;padding-bottom:0;">
+        <h3 style="font-size:14px;">주문 내역</h3>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-out btn-sm" onclick="previewMilkitOrderPrint()">🖨️ 인쇄</button>
+          <button class="btn btn-out btn-sm" onclick="document.getElementById('mk-order-import-file').click()" title="클릭하거나, 엑셀 파일을 이 화면에 끌어다 놓아도 업로드됩니다">📤 엑셀 업로드</button>
+          <button class="btn btn-out btn-sm" onclick="exportMilkitOrders()">📥 엑셀 내보내기</button>
+          <button class="btn btn-out btn-sm" onclick="openMkOcrModal()">📷 사진으로 등록</button>
+          <button class="btn btn-acc btn-sm" onclick="openMilkitOrderModal()">+ 주문 등록</button>
+        </div>
+      </div>
       <div class="toolbar">
         <input type="text" id="mk-order-search" placeholder="주문자명 검색…" oninput="renderMilkitOrders()" style="width:180px;">
         <select id="mk-order-paystatus-filter" onchange="renderMilkitOrders()">
@@ -960,8 +966,8 @@ img{max-width:100%;height:auto;}
     <div id="mk-pane-customers" style="display:none;">
       <div class="page-hdr" style="border-bottom:none;margin-bottom:10px;padding-bottom:0;">
         <h3 style="font-size:14px;">고객 정보</h3>
-        <div style="display:flex;gap:8px;">
-          <button class="btn btn-out btn-sm" onclick="previewMilkitCustomerPrint()">🖨️ 고객목록 인쇄</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-out btn-sm" onclick="previewMilkitCustomerPrint()">🖨️ 인쇄</button>
           <button class="btn btn-acc btn-sm" onclick="openMilkitCustomerModal()">+ 고객 등록</button>
         </div>
       </div>
@@ -1009,7 +1015,7 @@ img{max-width:100%;height:auto;}
     <div id="mk-pane-stats" style="display:none;">
       <div class="page-hdr" style="border-bottom:none;margin-bottom:10px;padding-bottom:0;">
         <h3 style="font-size:14px;">제품별 판매 현황</h3>
-        <button class="btn btn-out btn-sm" onclick="previewMilkitStatsPrint()">🖨️ 판매현황 인쇄</button>
+        <button class="btn btn-out btn-sm" onclick="previewMilkitStatsPrint()">🖨️ 인쇄</button>
       </div>
       <div class="mobile-scroll-hint">💡 표가 넓으면 좌우로 스크롤하세요</div>
       <div class="table-wrap" style="margin-bottom:20px;">
@@ -1034,6 +1040,7 @@ img{max-width:100%;height:auto;}
       <button class="btn btn-acc btn-sm" onclick="saveMilkitFees()" style="margin-bottom:24px;">비용 설정 저장</button>
       <div class="page-hdr" style="border-bottom:none;margin-bottom:10px;padding-bottom:0;">
         <h3 style="font-size:14px;">상품별 원가 분석</h3>
+        <button class="btn btn-out btn-sm" onclick="previewMilkitCostsPrint()">🖨️ 인쇄</button>
       </div>
       <div id="mk-cost-cards"></div>
     </div>
@@ -3706,6 +3713,7 @@ function renderMilkit(){
   renderMilkitStats();
   renderMilkitOrders();
   showMilkitTab('orders');
+  initMilkitDragDrop();
 }
 
 function renderMilkitStats(){
@@ -3955,6 +3963,42 @@ function previewMilkitStatsPrint(){
   mkPreviewPrint('밀키트 판매현황 인쇄 미리보기', '전체 누적 데이터 기준입니다 · 인쇄 시 흰 배경으로 출력됩니다', mkStatsPrintHtml());
 }
 
+function mkCostsPrintHtml(){
+  const f=milkitFees;
+  const rows=milkitProducts.map(p=>{
+    const c=calcMkTotalCostPerItem(p);
+    const price=Number(p.price)||0;
+    return {
+      category:p.category, name:p.name, hasRecipe:!!(p.items&&p.items.length),
+      price, total:c.total, ratio:price>0?c.total/price:0, margin:c.margin, marginRate:c.marginRate
+    };
+  });
+  const rowsHtml=rows.map(r=>`
+    <tr>
+      <td>${r.category}</td>
+      <td>${r.name}${r.hasRecipe?'':' <span style="color:#b23;">(레시피 미등록)</span>'}</td>
+      <td style="text-align:right;">${comma(r.price)}원</td>
+      <td style="text-align:right;">${comma(Math.round(r.total))}원</td>
+      <td style="text-align:right;">${pct(r.ratio)}</td>
+      <td style="text-align:right;">${comma(Math.round(r.margin))}원</td>
+      <td style="text-align:right;">${pct(r.marginRate)}</td>
+    </tr>
+  `).join('');
+  return `
+    <div class="mk-print-sheet">
+      ${mkPrintHeader('지구인피자 · 밀키트 원가·수익 분석', `포장재비용 ${comma(f.packagingCost)}원 · 택배비용 ${comma(f.shippingCost)}원 (주문 1건 기준)<br>카드수수료 ${f.cardFee}% · 부가세 ${f.vat}% · 지방세 ${f.localTax}%`)}
+      <table>
+        <thead><tr><th>구분</th><th>상품명</th><th>판매가</th><th>총원가</th><th>원가율</th><th>순마진</th><th>마진율</th></tr></thead>
+        <tbody>${rowsHtml || `<tr><td colspan="7" style="text-align:center;color:#999;">등록된 상품이 없습니다</td></tr>`}</tbody>
+      </table>
+      <div class="mp-foot">지구인피자 밀키트 판매관리 시스템에서 출력됨</div>
+    </div>
+  `;
+}
+function previewMilkitCostsPrint(){
+  mkPreviewPrint('밀키트 원가·수익 분석 인쇄 미리보기', '현재 설정된 비용 기준입니다 · 인쇄 시 흰 배경으로 출력됩니다', mkCostsPrintHtml());
+}
+
 function mkAutofillCustomer(){
   const name=document.getElementById('mk-order-customer').value.trim();
   const c=milkitCustomers.find(x=>x.name===name);
@@ -4104,6 +4148,15 @@ let mkImportParsed=[];
 function handleMilkitOrderImport(input){
   const file=input.files && input.files[0];
   if(!file) return;
+  processMilkitImportFile(file);
+  input.value='';
+}
+
+function processMilkitImportFile(file){
+  if(!/\.(xlsx|xls|csv)$/i.test(file.name)){
+    alert('엑셀(.xlsx, .xls) 또는 CSV 파일만 업로드할 수 있습니다.');
+    return;
+  }
   const reader=new FileReader();
   reader.onload=function(e){
     try{
@@ -4114,9 +4167,37 @@ function handleMilkitOrderImport(input){
     }catch(err){
       alert('엑셀 파일을 읽는 중 오류가 발생했습니다: '+err.message);
     }
-    input.value='';
   };
   reader.readAsArrayBuffer(file);
+}
+
+let mkDragCounter=0;
+function initMilkitDragDrop(){
+  const zone=document.getElementById('mk-pane-orders');
+  if(!zone || zone.dataset.dndReady) return;
+  zone.dataset.dndReady='1';
+  zone.addEventListener('dragenter', e=>{
+    if(!e.dataTransfer || !Array.from(e.dataTransfer.types||[]).includes('Files')) return;
+    e.preventDefault();
+    mkDragCounter++;
+    zone.classList.add('mk-drop-active');
+  });
+  zone.addEventListener('dragover', e=>{
+    if(!e.dataTransfer || !Array.from(e.dataTransfer.types||[]).includes('Files')) return;
+    e.preventDefault();
+  });
+  zone.addEventListener('dragleave', e=>{
+    mkDragCounter=Math.max(0, mkDragCounter-1);
+    if(mkDragCounter===0) zone.classList.remove('mk-drop-active');
+  });
+  zone.addEventListener('drop', e=>{
+    if(!e.dataTransfer) return;
+    e.preventDefault();
+    mkDragCounter=0;
+    zone.classList.remove('mk-drop-active');
+    const file=e.dataTransfer.files && e.dataTransfer.files[0];
+    if(file) processMilkitImportFile(file);
+  });
 }
 
 function parseMilkitImportRows(rows){
