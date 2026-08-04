@@ -305,8 +305,9 @@ tr:hover td{background:var(--bg2);}
 @media(max-width:480px){
   .stat-grid{grid-template-columns:1fr 1fr;}
   .card-grid{grid-template-columns:1fr;}
-  .recipe-item-row{grid-template-columns:14px 1fr 52px 30px 46px;gap:4px;padding:8px 6px;}
-  .recipe-item-row .ri-cost{font-size:10.5px;}
+  .recipe-items-list{overflow-x:auto;}
+  .recipe-item-row{grid-template-columns:16px 150px 66px 54px 56px;gap:6px;padding:8px 6px;min-width:348px;}
+  .recipe-item-row .ri-cost{font-size:11px;}
   .recipe-item-row input{padding:6px 4px!important;}
   th{padding:8px 8px;font-size:9px;}
   td{padding:8px 8px;font-size:12px;}
@@ -1294,6 +1295,7 @@ img{max-width:100%;height:auto;}
       </div>
       <div class="form-row">
         <label>재료 구성</label>
+        <div class="mobile-scroll-hint">💡 표가 넓으면 좌우로 스크롤하세요</div>
         <div class="recipe-items-list" id="rec-items-list">
           <div class="recipe-item-row" style="background:var(--bg2);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--sub);padding:6px 10px;font-weight:600;">
             <span></span><span>재료</span><span>사용량 · 단위</span><span style="text-align:right;">소계</span><span></span>
@@ -1694,6 +1696,7 @@ img{max-width:100%;height:auto;}
     </div>
     <div class="modal-body">
       <div style="font-size:12px;color:var(--sub);margin-bottom:12px;line-height:1.6;">이 상품 1개를 만들 때 들어가는 재료와 사용량을 입력하세요. 재료원가는 <b>원부자재 관리</b>에 등록된 단가를 기준으로 자동 계산되어, 원가·수익 분석에 반영됩니다.</div>
+      <div class="mobile-scroll-hint">💡 표가 넓으면 좌우로 스크롤하세요</div>
       <div class="recipe-items-list" id="mk-recipe-items"></div>
       <button class="btn btn-out btn-sm" style="margin-top:8px;" onclick="addMkRecipeItem()">+ 재료 추가</button>
       <div style="margin-top:16px;padding:12px 16px;background:var(--bg2);border-radius:var(--r-md);display:flex;justify-content:space-between;align-items:center;">
@@ -4939,7 +4942,14 @@ function syncPush(key, value){
 
 function attachSyncListener(key){
   fbDb.collection('sync').doc(key).onSnapshot(doc=>{
-    if(!doc.exists){ syncPush(key, getSyncLocalValue(key)); return; }
+    if(!doc.exists){
+      // 클라우드에 아직 데이터가 없는 경우 — 이 기기에 실제 데이터가 있을 때만 시드로 올림
+      // (빈 상태인 새 기기가 먼저 연결되면서 기존 데이터를 가진 다른 기기를 덮어쓰는 것을 방지)
+      const local=getSyncLocalValue(key);
+      const hasData=Array.isArray(local) ? local.length>0 : (local && typeof local==='object' && Object.keys(local).length>0);
+      if(hasData) syncPush(key, local);
+      return;
+    }
     const data=doc.data();
     if(!data || data.value===undefined) return;
     applySyncedData(key, data.value);
