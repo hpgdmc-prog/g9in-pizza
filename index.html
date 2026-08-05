@@ -1602,19 +1602,21 @@ img{max-width:100%;height:auto;}
     </div>
     <div class="modal-body">
       <div style="font-size:12px;color:var(--sub);margin-bottom:12px;line-height:1.6;">실제로 세어 본 <b>현재 재고 수량</b>을 입력하세요. 계산된 재고와 차이가 나면 그 차이만큼 <b>조정 기록</b>이 남아 이력을 확인할 수 있습니다.</div>
-      <div class="form-row">
-        <label>일자 *</label>
-        <input type="date" id="mk-stockedit-date">
+      <div class="form-grid">
+        <div class="form-row">
+          <label>일자 *</label>
+          <input type="date" id="mk-stockedit-date">
+        </div>
+        <div class="form-row">
+          <label>메모</label>
+          <input type="text" id="mk-stockedit-note" placeholder="예: 월말 재고 실사">
+        </div>
       </div>
       <div class="form-row" style="margin-bottom:6px;">
         <label>상품별 실제 재고</label>
       </div>
       <div id="mk-stockedit-rows" style="border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:6px;"></div>
-      <div id="mk-stockedit-summary" style="font-size:12px;color:var(--sub);text-align:right;margin-bottom:4px;"></div>
-      <div class="form-row">
-        <label>메모</label>
-        <input type="text" id="mk-stockedit-note" placeholder="예: 월말 재고 실사">
-      </div>
+      <div id="mk-stockedit-summary" style="font-size:12px;color:var(--sub);text-align:right;"></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-out" onclick="closeModal('mk-stockedit-modal')">취소</button>
@@ -1631,17 +1633,19 @@ img{max-width:100%;height:auto;}
       <button class="btn btn-icon btn-out" onclick="closeModal('mk-production-modal')">✕</button>
     </div>
     <div class="modal-body">
-      <div class="form-row">
-        <label>일자 *</label>
-        <input type="date" id="mk-prod-date">
-      </div>
-      <div class="form-row">
-        <label>구분 *</label>
-        <select id="mk-prod-type">
-          <option value="생산">생산 (재고 증가)</option>
-          <option value="폐기">폐기 · 손실 (재고 감소)</option>
-          <option value="조정">재고 수정 (실사 조정)</option>
-        </select>
+      <div class="form-grid">
+        <div class="form-row">
+          <label>일자 *</label>
+          <input type="date" id="mk-prod-date">
+        </div>
+        <div class="form-row">
+          <label>구분 *</label>
+          <select id="mk-prod-type">
+            <option value="생산">생산 (재고 증가)</option>
+            <option value="폐기">폐기 · 손실 (재고 감소)</option>
+            <option value="조정">재고 수정 (실사 조정)</option>
+          </select>
+        </div>
       </div>
 
       <!-- 여러 상품 한 번에 입력 (신규 등록 시) -->
@@ -1662,13 +1666,15 @@ img{max-width:100%;height:auto;}
 
       <!-- 기존 기록 수정 시에는 해당 상품 하나만 -->
       <div id="mk-prod-single" style="display:none;">
-        <div class="form-row">
-          <label>상품 *</label>
-          <select id="mk-prod-product"></select>
-        </div>
-        <div class="form-row">
-          <label>수량 *</label>
-          <input type="number" id="mk-prod-qty" step="1" value="1">
+        <div class="form-grid">
+          <div class="form-row">
+            <label>상품 *</label>
+            <select id="mk-prod-product"></select>
+          </div>
+          <div class="form-row">
+            <label>수량 *</label>
+            <input type="number" id="mk-prod-qty" step="1" value="1">
+          </div>
         </div>
       </div>
 
