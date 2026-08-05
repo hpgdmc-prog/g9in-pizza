@@ -205,13 +205,59 @@ tr:hover td{background:var(--bg2);}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
 /* recipe items builder */
 .recipe-items-list{border:1px solid var(--border);border-radius:var(--r-md);overflow:hidden;margin-bottom:8px;}
-.recipe-item-row{display:grid;grid-template-columns:22px 1fr 86px 46px 64px;gap:8px;align-items:center;padding:8px 10px;border-bottom:1px solid var(--border);background:#fff;}
+.recipe-item-row{display:grid;grid-template-columns:22px 1fr 86px 46px 92px;gap:8px;align-items:center;padding:8px 10px;border-bottom:1px solid var(--border);background:#fff;}
 .recipe-item-row.item-hidden{opacity:.5;}
 .recipe-item-row.item-est{background:#FFF7E6;}
 .recipe-item-row:last-child{border-bottom:none;}
 .recipe-item-row:hover{background:var(--bg2);}
 .ri-handle{cursor:grab;color:var(--sub2);font-size:15px;display:flex;align-items:center;justify-content:center;height:100%;touch-action:none;user-select:none;-webkit-user-select:none;}
 .ri-handle:active{cursor:grabbing;}
+/* 설정용 표(상품·가격, 세트 할인) — 좁은 화면에서는 표 대신 카드로 쌓아 가로 스크롤 제거 */
+@media(max-width:640px){
+  .settings-tbl-wrap{border:none;background:transparent;overflow:visible;}
+  .settings-tbl thead{display:none;}
+  .settings-tbl, .settings-tbl tbody, .settings-tbl tr, .settings-tbl td{display:block;width:100%;}
+  .settings-tbl tr{border:1px solid var(--border);border-radius:var(--r-md);background:#fff;
+    padding:10px 12px;margin-bottom:8px;}
+  .settings-tbl td{border:none!important;padding:5px 0;display:flex;align-items:center;gap:10px;font-size:13px;}
+  .settings-tbl td::before{content:attr(data-label);flex:0 0 68px;font-size:11px;color:var(--sub2);
+    font-weight:600;letter-spacing:.04em;}
+  .settings-tbl td:empty{display:none;}
+  .settings-tbl td input, .settings-tbl td select{width:100%!important;flex:1;min-width:0;}
+  .settings-tbl td .btn{flex:1;}
+  /* 삭제는 파괴적 동작이라 전체 폭을 차지하지 않도록 오른쪽에 작게 */
+  .settings-tbl td[data-label=""]{justify-content:flex-end;padding-top:8px;margin-top:3px;
+    border-top:1px dashed var(--border)!important;}
+  .settings-tbl td[data-label=""]::before{display:none;}
+  .settings-tbl td[data-label=""] .btn{flex:0 0 auto;min-width:84px;}
+}
+/* 밀키트 레시피 재료 행 — 좁은 화면에서는 2줄로 접어 가로 스크롤 없이 다 보이게 */
+.mk-recipe-row{display:grid;grid-template-columns:1fr 210px 62px;gap:8px;align-items:center;
+  padding:8px 10px;border-bottom:1px solid var(--border);background:#fff;}
+.mk-recipe-row:last-child{border-bottom:none;}
+.mk-recipe-row input{width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:var(--r-sm);
+  font-size:12.5px;font-family:inherit;background:#fff;color:var(--text);min-width:0;}
+.mk-recipe-row input:focus{outline:none;border-color:var(--acc);}
+.mkr-name{min-width:0;}
+.mkr-mid{display:flex;align-items:center;gap:6px;min-width:0;}
+.mkr-mid input{flex:1;min-width:0;text-align:right;}
+.mkr-unit{font-size:11px;color:var(--sub);white-space:nowrap;flex-shrink:0;min-width:14px;}
+.mk-recipe-row .ri-cost{font-size:11.5px;color:var(--sub);white-space:nowrap;text-align:right;
+  flex-shrink:0;min-width:58px;}
+.mkr-act{display:flex;gap:3px;justify-content:flex-end;align-items:center;}
+@media(max-width:560px){
+  .mk-recipe-row{grid-template-columns:1fr auto;grid-template-areas:"name name" "mid act";row-gap:7px;}
+  .mkr-name{grid-area:name;}
+  .mkr-mid{grid-area:mid;}
+  .mkr-act{grid-area:act;}
+  .mk-recipe-row input{font-size:16px;padding:8px 10px;}
+}
+/* 순서 변경 버튼 — 드래그가 어려운 모바일 대비 */
+.ri-move{display:flex;flex-direction:column;gap:1px;flex-shrink:0;}
+.ri-move-btn{width:22px;height:15px;padding:0;border:1px solid var(--border);background:#fff;color:var(--sub);
+  font-size:8px;line-height:1;cursor:pointer;border-radius:3px;font-family:inherit;display:flex;align-items:center;justify-content:center;}
+.ri-move-btn:hover:not(:disabled){border-color:var(--acc);color:var(--acc);}
+.ri-move-btn:disabled{opacity:.3;cursor:default;}
 .recipe-item-row.dragging{opacity:.95;background:var(--acc-pale);box-shadow:var(--shadow-md);border-radius:var(--r-sm);position:relative;z-index:5;}
 .recipe-item-row.drop-target{box-shadow:inset 0 2px 0 0 var(--acc);}
 .recipe-item-row select,.recipe-item-row input{padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:12px;font-family:inherit;width:100%;}
@@ -354,7 +400,7 @@ tr:hover td{background:var(--bg2);}
   .stat-grid{grid-template-columns:1fr 1fr;}
   .card-grid{grid-template-columns:1fr;}
   .recipe-items-list{overflow-x:auto;}
-  .recipe-item-row{grid-template-columns:16px 150px 66px 54px 56px;gap:6px;padding:8px 6px;min-width:348px;}
+  .recipe-item-row{grid-template-columns:16px 132px 62px 44px 86px;gap:6px;padding:8px 6px;min-width:348px;}
   .recipe-item-row .ri-cost{font-size:11px;}
   .recipe-item-row input{padding:6px 4px!important;}
   th{padding:8px 8px;font-size:9px;}
@@ -1099,9 +1145,8 @@ img{max-width:100%;height:auto;}
         <h3 style="font-size:14px;">상품 · 가격</h3>
         <button class="btn btn-out btn-sm" onclick="addMilkitProductRow()">+ 상품 추가</button>
       </div>
-      <div class="mobile-scroll-hint">💡 표가 넓으면 좌우로 스크롤하세요</div>
-      <div class="table-wrap" style="margin-bottom:20px;">
-        <table>
+      <div class="table-wrap settings-tbl-wrap" style="margin-bottom:20px;">
+        <table class="settings-tbl">
           <thead><tr><th>상품명</th><th>구분</th><th>가격(원)</th><th>레시피</th><th></th></tr></thead>
           <tbody id="mk-product-rows"></tbody>
         </table>
@@ -1110,8 +1155,8 @@ img{max-width:100%;height:auto;}
         <h3 style="font-size:14px;">세트 구성별 할인</h3>
         <button class="btn btn-out btn-sm" onclick="addMilkitSetRuleRow()">+ 구성 추가</button>
       </div>
-      <div class="table-wrap" style="margin-bottom:16px;">
-        <table>
+      <div class="table-wrap settings-tbl-wrap" style="margin-bottom:16px;">
+        <table class="settings-tbl">
           <thead><tr><th>구성유형</th><th>세트당 할인(원)</th><th></th></tr></thead>
           <tbody id="mk-setrule-rows"></tbody>
         </table>
@@ -2062,7 +2107,6 @@ img{max-width:100%;height:auto;}
     </div>
     <div class="modal-body">
       <div style="font-size:12px;color:var(--sub);margin-bottom:12px;line-height:1.6;">이 상품 1개를 만들 때 들어가는 재료와 사용량을 입력하세요. 재료원가는 <b>원부자재 관리</b>에 등록된 단가를 기준으로 자동 계산되어, 원가·수익 분석에 반영됩니다.</div>
-      <div class="mobile-scroll-hint">💡 표가 넓으면 좌우로 스크롤하세요</div>
       <div class="recipe-items-list" id="mk-recipe-items"></div>
       <button class="btn btn-out btn-sm" style="margin-top:8px;" onclick="addMkRecipeItem()">+ 재료 추가</button>
       <div style="margin-top:16px;padding:12px 16px;background:var(--bg2);border-radius:var(--r-md);display:flex;justify-content:space-between;align-items:center;">
@@ -2967,6 +3011,8 @@ function renderRecipes(){
   const byCat={}, cOrder=[];
   list.forEach(r=>{ const c=r.category||'기타'; if(!byCat[c]){byCat[c]=[];cOrder.push(c);} byCat[c].push(r); });
   cOrder.sort((a,b)=>catRank(a)-catRank(b));
+  // 검색 중에는 화면 순서와 실제 순서가 달라 혼란스러우므로 순서 변경 버튼을 숨긴다
+  const reorderable = !q;
   const rowHtml=r=>{
     const cost=calcRecipeCost(r);
     const price=Number(r.price)||0;
@@ -2985,6 +3031,10 @@ function renderRecipes(){
           <div class="mrow-side-val">${comma(Math.round(price))}원</div>
           <div class="mrow-side-sub ${margin>0?'color-green':'color-red'}">마진 ${margin>0?'+':''}${comma(Math.round(margin))}원</div>
         </div>
+        ${reorderable?`<div class="ri-move" style="margin-left:8px;" onclick="event.stopPropagation();">
+          <button class="ri-move-btn" title="위로" onclick="event.stopPropagation();moveRecipe('${r.id}',-1)">▲</button>
+          <button class="ri-move-btn" title="아래로" onclick="event.stopPropagation();moveRecipe('${r.id}',1)">▼</button>
+        </div>`:''}
       </div>
     </div>`;
   };
@@ -3024,7 +3074,13 @@ function renderRecipeItems(){
         <div style="font-weight:600;color:var(--acc-dark);">🔥 오븐 (굽기 단계)</div>
         <div style="font-size:11px;color:var(--sub);text-align:center;">굽기</div>
         <div></div>
-        <button class="btn btn-del btn-sm btn-icon" style="min-width:30px;min-height:30px;padding:2px 4px;" onclick="removeRecipeItem(${idx})">✕</button>
+        <div style="display:flex;gap:2px;justify-content:flex-end;align-items:center;">
+          <div class="ri-move">
+            <button class="ri-move-btn" title="위로" ${idx===0?'disabled':''} onclick="moveRecipeItem(${idx},-1)">▲</button>
+            <button class="ri-move-btn" title="아래로" ${idx===recipeItems.length-1?'disabled':''} onclick="moveRecipeItem(${idx},1)">▼</button>
+          </div>
+          <button class="btn btn-del btn-sm btn-icon" style="min-width:28px;min-height:30px;padding:2px;" onclick="removeRecipeItem(${idx})">✕</button>
+        </div>
       </div>`;
     }
     const cost=ingCostPer(it.ingredientId)*Number(it.amount||0);
@@ -3039,6 +3095,10 @@ function renderRecipeItems(){
       </div>
       <div class="ri-cost num">${comma(Math.round(cost))}원</div>
       <div style="display:flex;gap:2px;justify-content:flex-end;align-items:center;">
+        <div class="ri-move">
+          <button class="ri-move-btn" title="위로" ${idx===0?'disabled':''} onclick="moveRecipeItem(${idx},-1)">▲</button>
+          <button class="ri-move-btn" title="아래로" ${idx===recipeItems.length-1?'disabled':''} onclick="moveRecipeItem(${idx},1)">▼</button>
+        </div>
         <button class="btn btn-edit btn-sm btn-icon" style="min-width:28px;min-height:30px;padding:2px;" title="${it.hidden?'레시피북에 표시':'레시피북에서 숨김'}" onclick="toggleHideItem(${idx})">${it.hidden?'🚫':'👁'}</button>
         <button class="btn btn-del btn-sm btn-icon" style="min-width:28px;min-height:30px;padding:2px;" onclick="removeRecipeItem(${idx})">✕</button>
       </div>
@@ -3074,6 +3134,20 @@ function removeRecipeItem(idx){
   recipeItems.splice(idx,1);
   renderRecipeItems();
   updateRecipeModalCost();
+}
+
+/* 레시피 목록 순서 변경 — 같은 카테고리 안에서 위/아래로 이동
+   (목록이 카테고리별로 묶여 표시되므로 다른 카테고리 항목은 건너뛴다) */
+function moveRecipe(id, dir){
+  const idx=recipes.findIndex(r=>r.id===id);
+  if(idx<0) return;
+  const cat=recipes[idx].category||'기타';
+  let j=idx+dir;
+  while(j>=0 && j<recipes.length && (recipes[j].category||'기타')!==cat) j+=dir;
+  if(j<0||j>=recipes.length) return;
+  const t=recipes[idx]; recipes[idx]=recipes[j]; recipes[j]=t;
+  DB.save('recipes',recipes);
+  renderRecipes();
 }
 
 function moveRecipeItem(idx,dir){
@@ -5770,23 +5844,23 @@ function deleteMilkitCustomer(id){
 function renderMilkitProductSettings(){
   document.getElementById('mk-product-rows').innerHTML = milkitProducts.map((p,idx)=>`
     <tr data-idx="${idx}">
-      <td><input type="text" value="${p.name}" data-f="name" style="width:90px;"></td>
-      <td>
+      <td data-label="상품명"><input type="text" value="${p.name}" data-f="name" style="width:90px;"></td>
+      <td data-label="구분">
         <select data-f="category" style="width:76px;">
           <option value="피자" ${p.category==='피자'?'selected':''}>피자</option>
           <option value="추가품목" ${p.category==='추가품목'?'selected':''}>추가품목</option>
         </select>
       </td>
-      <td><input type="text" inputmode="numeric" value="${commaFmt(p.price)}" data-f="price" oninput="this.value=commaFmt(this.value)" style="width:70px;"></td>
-      <td><button class="btn btn-sm ${(p.items&&p.items.length)?'btn-edit':'btn-out'}" onclick="openMkProductRecipeModal('${p.id}')">${(p.items&&p.items.length)?'✓ 레시피 '+p.items.length:'+ 레시피'}</button></td>
-      <td><button class="btn btn-sm btn-del" onclick="removeMilkitProductRow(${idx})">삭제</button></td>
+      <td data-label="가격(원)"><input type="text" inputmode="numeric" value="${commaFmt(p.price)}" data-f="price" oninput="this.value=commaFmt(this.value)" style="width:70px;"></td>
+      <td data-label="레시피"><button class="btn btn-sm ${(p.items&&p.items.length)?'btn-edit':'btn-out'}" onclick="openMkProductRecipeModal('${p.id}')">${(p.items&&p.items.length)?'✓ 레시피 '+p.items.length:'+ 레시피'}</button></td>
+      <td data-label=""><button class="btn btn-sm btn-del" onclick="removeMilkitProductRow(${idx})">삭제</button></td>
     </tr>
   `).join('');
   document.getElementById('mk-setrule-rows').innerHTML = milkitSetRules.map((r,idx)=>`
     <tr data-idx="${idx}">
-      <td><input type="text" value="${r.name}" data-f="name" style="width:90px;"></td>
-      <td><input type="text" inputmode="numeric" value="${commaFmt(r.discount)}" data-f="discount" oninput="this.value=commaFmt(this.value)" style="width:70px;"></td>
-      <td><button class="btn btn-sm btn-del" onclick="removeMilkitSetRuleRow(${idx})">삭제</button></td>
+      <td data-label="구성유형"><input type="text" value="${r.name}" data-f="name" style="width:90px;"></td>
+      <td data-label="할인(원)"><input type="text" inputmode="numeric" value="${commaFmt(r.discount)}" data-f="discount" oninput="this.value=commaFmt(this.value)" style="width:70px;"></td>
+      <td data-label=""><button class="btn btn-sm btn-del" onclick="removeMilkitSetRuleRow(${idx})">삭제</button></td>
     </tr>
   `).join('');
 }
@@ -6266,14 +6340,24 @@ function renderMkRecipeItems(){
     ? `<div style="padding:16px;text-align:center;color:var(--sub2);font-size:12px;">등록된 재료가 없습니다. + 재료 추가를 눌러주세요.</div>`
     : mkRecipeItems.map((it,idx)=>{
         const cost=ingCostPer(it.ingredientId)*Number(it.amount||0);
-        return `<div class="recipe-item-row" style="grid-template-columns:1fr 80px 34px 74px 32px;">
-          <input list="mk-recipe-ing-datalist" placeholder="재료 검색·입력…" value="${it.ingredientId?ingName(it.ingredientId).replace(/"/g,'&quot;'):''}"
-            onchange="setMkRecipeItemIng(${idx}, this.value)">
-          <input type="text" inputmode="numeric" value="${it.amount?commaFmt(it.amount):''}" placeholder="0"
-            oninput="this.value=commaFmt(this.value);mkRecipeItems[${idx}].amount=unComma(this.value);updateMkRecipeModalCost();">
-          <span style="font-size:11px;color:var(--sub);white-space:nowrap;">${it.ingredientId?ingUnit(it.ingredientId):''}</span>
-          <span class="ri-cost">${comma(Math.round(cost))}원</span>
-          <button class="btn btn-del btn-sm btn-icon" style="min-width:28px;min-height:30px;padding:2px;" onclick="removeMkRecipeItem(${idx})">✕</button>
+        return `<div class="mk-recipe-row">
+          <div class="mkr-name">
+            <input list="mk-recipe-ing-datalist" placeholder="재료 검색·입력…" value="${it.ingredientId?ingName(it.ingredientId).replace(/"/g,'&quot;'):''}"
+              onchange="setMkRecipeItemIng(${idx}, this.value)">
+          </div>
+          <div class="mkr-mid">
+            <input type="text" inputmode="numeric" value="${it.amount?commaFmt(it.amount):''}" placeholder="0"
+              oninput="this.value=commaFmt(this.value);mkRecipeItems[${idx}].amount=unComma(this.value);updateMkRecipeModalCost();">
+            <span class="mkr-unit">${it.ingredientId?ingUnit(it.ingredientId):''}</span>
+            <span class="ri-cost">${comma(Math.round(cost))}원</span>
+          </div>
+          <div class="mkr-act">
+            <div class="ri-move">
+              <button class="ri-move-btn" title="위로" ${idx===0?'disabled':''} onclick="moveMkRecipeItem(${idx},-1)">▲</button>
+              <button class="ri-move-btn" title="아래로" ${idx===mkRecipeItems.length-1?'disabled':''} onclick="moveMkRecipeItem(${idx},1)">▼</button>
+            </div>
+            <button class="btn btn-del btn-sm btn-icon" style="min-width:28px;min-height:30px;padding:2px;" onclick="removeMkRecipeItem(${idx})">✕</button>
+          </div>
         </div>`;
       }).join('');
   const datalist='<datalist id="mk-recipe-ing-datalist">'+ingredients.map(i=>`<option value="${i.name.replace(/"/g,'&quot;')}"></option>`).join('')+'</datalist>';
@@ -6294,6 +6378,13 @@ function addMkRecipeItem(){
 }
 function removeMkRecipeItem(idx){
   mkRecipeItems.splice(idx,1);
+  renderMkRecipeItems();
+}
+/* 밀키트 레시피 재료 순서 변경 */
+function moveMkRecipeItem(idx,dir){
+  const j=idx+dir;
+  if(j<0||j>=mkRecipeItems.length) return;
+  const t=mkRecipeItems[idx]; mkRecipeItems[idx]=mkRecipeItems[j]; mkRecipeItems[j]=t;
   renderMkRecipeItems();
 }
 function updateMkRecipeModalCost(){
