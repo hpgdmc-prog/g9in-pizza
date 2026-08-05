@@ -596,6 +596,11 @@ img{max-width:100%;height:auto;}
       <button class="btn btn-out btn-sm" onclick="navigate('milkit')">밀키트 판매관리로 이동 →</button>
     </div>
     <div class="stat-grid" id="dash-milkit-stats"></div>
+    <div class="page-hdr" style="margin:24px 0 12px;border-bottom:none;padding-bottom:0;">
+      <h3 style="font-size:15px;">📦 밀키트 재고 현황</h3>
+      <button class="btn btn-out btn-sm" onclick="navigate('milkit');showMilkitTab('inventory');">재고 관리로 이동 →</button>
+    </div>
+    <div id="dash-milkit-inventory"></div>
   </div>
 
   <!-- ===INGREDIENTS=== -->
@@ -918,6 +923,7 @@ img{max-width:100%;height:auto;}
       <h3>밀키트 판매 관리</h3>
     </div>
     <div class="stat-grid" id="mk-stats"></div>
+    <div class="stat-grid" id="mk-inv-summary" style="margin-top:12px;"></div>
     <div class="tabs">
       <button class="tab active" id="mk-tabbtn-orders" onclick="showMilkitTab('orders')">📝 주문 내역</button>
       <button class="tab" id="mk-tabbtn-customers" onclick="showMilkitTab('customers')">👤 고객 관리</button>
@@ -1747,29 +1753,65 @@ img{max-width:100%;height:auto;}
       <button class="btn btn-icon btn-out" onclick="closeModal('mk-ocr-modal')">✕</button>
     </div>
     <div class="modal-body">
-      <div style="font-size:12px;color:var(--sub);margin-bottom:12px;line-height:1.6;">문자·카톡 주문 내용 이미지를 올리거나 대화 내용을 그대로 붙여넣으면 Claude AI가 주문자명·연락처·상품·수량 등을 읽어 <b>주문 등록 폼에 자동으로 채워</b>드립니다. 채워진 내용은 저장 전에 반드시 확인·수정하세요.</div>
-      <div style="margin-bottom:12px;">
-        <input type="password" id="mk-ocr-api-key" placeholder="Claude API 키 (sk-ant-…)" oninput="saveOcrApiKey(this.value)" style="width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;">
-        <div style="font-size:10.5px;color:var(--sub2);margin-top:4px;">이 브라우저에만 저장되며, 원부자재 명세서 인식(OCR)과 같은 키를 공유합니다. <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">키 발급받기 ↗</a></div>
+      <div style="display:flex;gap:4px;margin-bottom:14px;border-bottom:1px solid var(--border);flex-wrap:wrap;">
+        <button type="button" class="tab active" id="mk-ocr-tabbtn-text" onclick="switchMkOcrMode('text')">📝 텍스트 붙여넣기</button>
+        <button type="button" class="tab" id="mk-ocr-tabbtn-img" onclick="switchMkOcrMode('img')">🖼️ 이미지로 인식</button>
       </div>
-      <div style="display:flex;gap:4px;margin-bottom:14px;border-bottom:1px solid var(--border);">
-        <button type="button" class="tab active" id="mk-ocr-tabbtn-img" onclick="switchMkOcrMode('img')">🖼️ 이미지로 인식</button>
-        <button type="button" class="tab" id="mk-ocr-tabbtn-text" onclick="switchMkOcrMode('text')">📝 텍스트 붙여넣기</button>
+
+      <div id="mk-ocr-pane-text">
+        <div style="font-size:12px;color:var(--sub);margin-bottom:10px;line-height:1.6;">문자·카톡 주문 내용을 그대로 붙여넣으면 주문자명·연락처·주소·상품·수량을 자동으로 읽어 <b>주문 등록 폼에 채워</b>드립니다. <b style="color:var(--acc-dark);">무료이며 API 키가 필요 없습니다.</b> 여러 건을 한 번에 붙여넣으면 각각 나눠서 등록할 수 있습니다.</div>
+        <textarea id="mk-ocr-text-input" rows="8" placeholder="예) 홍길동입니다 010-1234-5678&#10;서울시 강남구 테헤란로 123 우리아파트 101동 202호&#10;고르곤졸라 2개 목요일까지 택배로 보내주세요" style="width:100%;padding:10px 11px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;" oninput="mkOcrUpdateParseBtnState()"></textarea>
       </div>
-      <div id="mk-ocr-pane-img">
+
+      <div id="mk-ocr-pane-img" style="display:none;">
+        <div style="font-size:12px;color:var(--sub);margin-bottom:10px;line-height:1.6;">주문 내용 캡처 이미지에서 글자를 읽어 자동으로 채워드립니다. 아래 <b>무료 인식</b>은 기기 안에서 처리되어 API 키가 필요 없습니다.</div>
+        <div style="background:var(--acc-pale);border-radius:8px;padding:10px 12px;font-size:11.5px;color:var(--sub);line-height:1.6;margin-bottom:12px;">
+          💡 <b>더 정확한 방법</b> — 휴대폰 사진첩에서 이미지를 열고 글자를 길게 눌러 <b>복사</b>한 뒤, 위 <b>텍스트 붙여넣기</b> 탭에 붙여넣으면 인식률이 가장 좋습니다. (아이폰·안드로이드 기본 기능)
+        </div>
         <input type="file" id="mk-ocr-file" accept="image/*" style="display:none;" onchange="handleMkOcrFile(this)">
         <button class="btn btn-out" onclick="document.getElementById('mk-ocr-file').click()">🖼️ 이미지 선택</button>
         <div id="mk-ocr-img-preview" style="display:none;margin-top:12px;">
           <img id="mk-ocr-img" style="max-width:100%;max-height:280px;border-radius:8px;border:1px solid var(--border);">
         </div>
+        <div id="mk-ocr-progress" style="display:none;margin-top:10px;font-size:12px;color:var(--sub);"></div>
       </div>
-      <div id="mk-ocr-pane-text" style="display:none;">
-        <textarea id="mk-ocr-text-input" rows="7" placeholder="예) 홍길동입니다 010-1234-5678&#10;서울시 강남구 ...&#10;치즈 밀키트 2개 목요일까지 택배로 보내주세요" style="width:100%;padding:10px 11px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;" oninput="mkOcrUpdateParseBtnState()"></textarea>
-      </div>
+
+      <details id="mk-ocr-ai-box" style="margin-top:16px;border-top:1px solid var(--border);padding-top:12px;">
+        <summary style="cursor:pointer;font-size:12px;color:var(--sub);font-weight:600;">🤖 AI 정밀 인식 사용하기 (선택 · 유료)</summary>
+        <div style="font-size:11.5px;color:var(--sub2);margin:10px 0 8px;line-height:1.6;">문장이 복잡하거나 위 무료 인식이 잘 안 될 때 Claude AI로 더 정확하게 읽을 수 있습니다. Anthropic 계정에 <b>API 크레딧 충전이 필요</b>합니다.</div>
+        <input type="password" id="mk-ocr-api-key" placeholder="Claude API 키 (sk-ant-…)" oninput="saveOcrApiKey(this.value)" style="width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;">
+        <div style="font-size:10.5px;color:var(--sub2);margin-top:4px;">이 브라우저에만 저장됩니다. <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">키 발급 ↗</a> · <a href="https://console.anthropic.com/settings/billing" target="_blank" rel="noopener">크레딧 충전 ↗</a></div>
+        <button class="btn btn-out btn-sm" id="mk-ocr-ai-btn" onclick="runMkOcr()" style="margin-top:10px;">🤖 AI로 정밀 인식</button>
+      </details>
     </div>
     <div class="modal-footer">
       <button class="btn btn-out" onclick="closeModal('mk-ocr-modal')">취소</button>
-      <button class="btn btn-acc" id="mk-ocr-parse-btn" onclick="runMkOcr()" disabled>🤖 AI로 주문 인식</button>
+      <button class="btn btn-acc" id="mk-ocr-parse-btn" onclick="runMkFreeParse()" disabled>✨ 자동 인식 (무료)</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===MILKIT 여러 건 자동 인식 결과 확인=== -->
+<div class="modal-bg" id="mk-bulkparse-modal">
+  <div class="modal" style="max-width:760px;">
+    <div class="modal-hdr">
+      <h4>자동 인식 결과 확인</h4>
+      <button class="btn btn-icon btn-out" onclick="closeModal('mk-bulkparse-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="mk-bulkparse-summary" style="font-size:13px;margin-bottom:12px;line-height:1.7;"></div>
+      <div class="mobile-scroll-hint">💡 표가 넓으면 좌우로 스크롤하세요</div>
+      <div class="table-wrap" style="max-height:340px;">
+        <table>
+          <thead><tr><th style="width:34px;"><input type="checkbox" id="mk-bulkparse-all" checked onchange="toggleMkBulkParseAll(this)"></th><th>주문자</th><th>연락처</th><th>주소</th><th>상품</th></tr></thead>
+          <tbody id="mk-bulkparse-rows"></tbody>
+        </table>
+      </div>
+      <div style="font-size:11.5px;color:var(--sub2);margin-top:10px;line-height:1.6;">⚠️ 자동 인식 결과는 <b>저장 전에 반드시 확인</b>하세요. 등록 후 주문 내역에서 각 건을 눌러 수정할 수 있습니다.</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-out" onclick="closeModal('mk-bulkparse-modal')">취소</button>
+      <button class="btn btn-acc" id="mk-bulkparse-save-btn" onclick="saveMkBulkParsed()">선택한 주문 등록</button>
     </div>
   </div>
 </div>
@@ -2159,6 +2201,7 @@ function renderDashboard(){
     }
   }
   renderDashboardMilkitStats();
+  renderDashboardMilkitInventory();
 }
 
 function computeMilkitStats(){
@@ -3810,6 +3853,8 @@ function renderMilkit(){
 
 function renderMilkitStats(){
   document.getElementById('mk-stats').innerHTML=milkitStatsCardsHtml();
+  const invEl=document.getElementById('mk-inv-summary');
+  if(invEl) invEl.innerHTML=milkitInventorySummaryHtml();
 }
 
 /* --- 주문 내역 --- */
@@ -4367,19 +4412,18 @@ function confirmMilkitOrderImport(){
 /* --- 사진(문자·카톡 캡처)으로 주문 등록 — Claude AI 인식 --- */
 let mkOcrImageB64=null, mkOcrMimeType='image/jpeg';
 
-let mkOcrMode='img';
+let mkOcrMode='text';
 function openMkOcrModal(){
   mkOcrImageB64=null;
-  mkOcrMode='img';
+  mkOcrMode='text';
   document.getElementById('mk-ocr-img-preview').style.display='none';
   const textInput=document.getElementById('mk-ocr-text-input');
   if(textInput) textInput.value='';
-  document.getElementById('mk-ocr-tabbtn-img').classList.add('active');
-  document.getElementById('mk-ocr-tabbtn-text').classList.remove('active');
-  document.getElementById('mk-ocr-pane-img').style.display='';
-  document.getElementById('mk-ocr-pane-text').style.display='none';
-  const btn=document.getElementById('mk-ocr-parse-btn');
-  btn.disabled=true; btn.textContent='🤖 AI로 주문 인식';
+  const prog=document.getElementById('mk-ocr-progress');
+  if(prog){ prog.style.display='none'; prog.textContent=''; }
+  const aiBox=document.getElementById('mk-ocr-ai-box');
+  if(aiBox) aiBox.open=false;
+  switchMkOcrMode('text');
   document.getElementById('mk-ocr-api-key').value=localStorage.getItem('jgp_claude_key')||'';
   openModal('mk-ocr-modal');
 }
@@ -4393,10 +4437,152 @@ function switchMkOcrMode(mode){
   mkOcrUpdateParseBtnState();
 }
 
+/* ---- 무료 자동 인식 (규칙 기반, API 불필요) ---- */
+let mkBulkParsed=[];
+
+function runMkFreeParse(){
+  if(mkOcrMode==='img'){ runMkFreeOcr(); return; }
+  const txt=(document.getElementById('mk-ocr-text-input').value||'').trim();
+  if(!txt){ alert('주문 내용 텍스트를 먼저 붙여넣으세요.'); return; }
+  applyMkFreeParse(txt);
+}
+
+function applyMkFreeParse(txt){
+  const results=mkpParseOrders(txt, milkitProducts, new Date());
+  const useful=results.filter(r=>r.customer||r.phone||r.products.length);
+  if(!useful.length){
+    alert('주문 정보를 찾지 못했습니다.\n\n주문자명·연락처·상품명이 포함되어 있는지 확인해 주세요.\n인식이 어려우면 아래 "AI 정밀 인식"을 사용할 수 있습니다.');
+    return;
+  }
+  if(useful.length===1){
+    closeModal('mk-ocr-modal');
+    applyMkOcrResult(toMkOcrShape(useful[0]));
+    return;
+  }
+  mkBulkParsed=useful;
+  showMkBulkParseModal();
+}
+
+/* 파서 결과를 기존 AI 결과 적용 함수와 같은 모양으로 변환 */
+function toMkOcrShape(r){
+  return {
+    customer:r.customer, phone:r.phone, address:r.address,
+    products:r.products.map(it=>{
+      const p=milkitProducts.find(x=>x.id===it.id);
+      return {name:p?p.name:'', qty:it.qty};
+    }),
+    setType:'', setQty:1,
+    desiredDate:r.desiredDate, deliveryMethod:r.deliveryMethod, note:r.note||''
+  };
+}
+
+function showMkBulkParseModal(){
+  document.getElementById('mk-bulkparse-summary').innerHTML=
+    `주문 <b>${mkBulkParsed.length}건</b>을 인식했습니다. 등록할 항목을 확인 후 선택하세요.`;
+  document.getElementById('mk-bulkparse-all').checked=true;
+  document.getElementById('mk-bulkparse-rows').innerHTML=mkBulkParsed.map((r,i)=>{
+    const items=r.products.map(it=>{
+      const p=milkitProducts.find(x=>x.id===it.id);
+      return `${p?p.name:'?'}×${it.qty}`;
+    }).join(', ');
+    return `<tr>
+      <td><input type="checkbox" class="mk-bulkparse-chk" data-idx="${i}" checked></td>
+      <td>${r.customer||'<span style="color:var(--sub2);">(미인식)</span>'}</td>
+      <td>${r.phone?formatPhone(r.phone):'<span style="color:var(--sub2);">-</span>'}</td>
+      <td style="font-size:11.5px;">${r.address||'<span style="color:var(--sub2);">-</span>'}</td>
+      <td style="font-size:11.5px;">${items||'<span style="color:var(--sub2);">(미인식)</span>'}</td>
+    </tr>`;
+  }).join('');
+  closeModal('mk-ocr-modal');
+  openModal('mk-bulkparse-modal');
+}
+
+function toggleMkBulkParseAll(el){
+  document.querySelectorAll('.mk-bulkparse-chk').forEach(c=>{ c.checked=el.checked; });
+}
+
+function saveMkBulkParsed(){
+  const picked=[...document.querySelectorAll('.mk-bulkparse-chk')]
+    .filter(c=>c.checked).map(c=>mkBulkParsed[Number(c.dataset.idx)]);
+  if(!picked.length){ alert('등록할 주문을 선택하세요.'); return; }
+  let nextNo=milkitOrders.reduce((m,o)=>Math.max(m, Number(o.no)||0), 0);
+  const today=todayStr();
+  picked.forEach(r=>{
+    const qty={};
+    r.products.forEach(it=>{ qty[it.id]=(qty[it.id]||0)+(Number(it.qty)||0); });
+    const {listTotal,discount,payTotal}=mkCalcTotals(qty,'',1);
+    nextNo+=1;
+    milkitOrders.push({
+      id:uid(), no:nextNo, orderDate:today,
+      customer:r.customer||'(미입력)', phone:r.phone||'', address:r.address||'',
+      qty, setType:'', setQty:1, listTotal, discount, payTotal,
+      payMethod:'', payStatus:'대기',
+      desiredDate:r.desiredDate||'', deliveryMethod:r.deliveryMethod||'택배발송',
+      deliveryStatus:'준비중', tracking:'', note:r.note||''
+    });
+    if(r.customer && !milkitCustomers.find(c=>c.name===r.customer)){
+      milkitCustomers.push({id:uid(), name:r.customer, phone:r.phone||'', address:r.address||'', notes:''});
+    }
+  });
+  DB.save('milkitOrders', milkitOrders);
+  DB.save('milkitCustomers', milkitCustomers);
+  mkBulkParsed=[];
+  closeModal('mk-bulkparse-modal');
+  renderMilkitStats();
+  renderMilkitOrders();
+  alert(`주문 ${picked.length}건이 등록되었습니다.\n내용을 확인하고 필요하면 수정해 주세요.`);
+}
+
+/* ---- 무료 이미지 OCR (Tesseract.js — 기기 내에서 처리) ---- */
+let mkTesseractLoading=null;
+function loadTesseract(){
+  if(window.Tesseract) return Promise.resolve();
+  if(mkTesseractLoading) return mkTesseractLoading;
+  mkTesseractLoading=new Promise((resolve,reject)=>{
+    const s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
+    s.onload=()=>resolve();
+    s.onerror=()=>{ mkTesseractLoading=null; reject(new Error('무료 인식 모듈을 불러오지 못했습니다. 인터넷 연결을 확인해 주세요.')); };
+    document.head.appendChild(s);
+  });
+  return mkTesseractLoading;
+}
+
+async function runMkFreeOcr(){
+  if(!mkOcrImageB64){ alert('이미지를 먼저 선택하세요.'); return; }
+  const btn=document.getElementById('mk-ocr-parse-btn');
+  const prog=document.getElementById('mk-ocr-progress');
+  btn.disabled=true; btn.textContent='⏳ 인식 중…';
+  prog.style.display=''; prog.textContent='인식 모듈 준비 중… (첫 실행 시 다소 걸립니다)';
+  try{
+    await loadTesseract();
+    const dataUrl='data:'+mkOcrMimeType+';base64,'+mkOcrImageB64;
+    const res=await Tesseract.recognize(dataUrl, 'kor+eng', {
+      logger:m=>{
+        if(m.status==='recognizing text') prog.textContent=`글자 인식 중… ${Math.round((m.progress||0)*100)}%`;
+        else if(m.status) prog.textContent=m.status+'…';
+      }
+    });
+    const text=(res && res.data && res.data.text||'').trim();
+    if(!text){ alert('이미지에서 글자를 찾지 못했습니다.\n\n더 선명한 이미지를 쓰거나, 휴대폰에서 글자를 복사해 "텍스트 붙여넣기" 탭에 넣어보세요.'); return; }
+    prog.textContent='인식 완료 — 주문 정보를 분석하는 중…';
+    applyMkFreeParse(text);
+  }catch(e){
+    alert('무료 이미지 인식 오류: '+e.message+'\n\n휴대폰에서 이미지의 글자를 복사해 "텍스트 붙여넣기" 탭에 붙여넣으면 더 정확합니다.');
+  }finally{
+    btn.disabled=false; btn.textContent='✨ 자동 인식 (무료)';
+    prog.style.display='none';
+  }
+}
+
 function mkOcrUpdateParseBtnState(){
   const btn=document.getElementById('mk-ocr-parse-btn');
-  if(mkOcrMode==='img') btn.disabled=!mkOcrImageB64;
-  else btn.disabled=!(document.getElementById('mk-ocr-text-input').value||'').trim();
+  const aiBtn=document.getElementById('mk-ocr-ai-btn');
+  const ready = mkOcrMode==='img'
+    ? !!mkOcrImageB64
+    : !!(document.getElementById('mk-ocr-text-input').value||'').trim();
+  btn.disabled=!ready;
+  if(aiBtn) aiBtn.disabled=!ready;
 }
 
 function handleMkOcrFile(input){
@@ -4428,6 +4614,199 @@ function friendlyAiError(e){
   return 'AI 인식 오류: '+raw;
 }
 
+/* ============================================================
+   규칙 기반 한글 주문 텍스트 파서 — API 키 없이 무료로 동작
+   ============================================================ */
+const MKP_PHONE_RE = /01[016789][-\s.)]?\d{3,4}[-\s.]?\d{4}/;
+const MKP_NAME_TAIL = /(입니다|이에요|예요|이라고|라고|이구요|구요|인데요|인데|님|씨)$/;
+const MKP_NAME_STOP = /^(연락처|전화|전화번호|휴대폰|핸드폰|번호|주소|배송지|품목|상품|주문|수량|배송|결제|합계|금액|메모|비고|받는분|보내는분)$/;
+
+function mkpNorm(s){ return String(s||'').replace(/[\s·・]/g,''); }
+
+function mkpStripNameTail(s){
+  let v=String(s||'').trim();
+  for(let i=0;i<3;i++){ const n=v.replace(MKP_NAME_TAIL,''); if(n===v) break; v=n.trim(); }
+  return v;
+}
+
+/* 상품 약칭 매칭: "치즈"→허니리얼치즈, "고르곤"→고르곤졸라 */
+function mkpMatchProduct(token, products){
+  const t=mkpNorm(token);
+  if(!t) return null;
+  let hit=products.find(p=>mkpNorm(p.name)===t);
+  if(hit) return hit;
+  const contains=products.filter(p=>mkpNorm(p.name).includes(t));
+  if(contains.length===1) return contains[0];
+  const rev=products.filter(p=>t.includes(mkpNorm(p.name)));
+  if(rev.length===1) return rev[0];
+  if(contains.length>1) return contains.sort((a,b)=>mkpNorm(b.name).length-mkpNorm(a.name).length)[0];
+  return null;
+}
+
+/* 주소 가능성 점수 — 대화체·상품 나열 줄을 주소로 오인하지 않도록 */
+function mkpAddressScore(line, products){
+  const l=String(line||'').trim();
+  if(!l || MKP_PHONE_RE.test(l)) return 0;
+  let s=0;
+  if(/(특별시|광역시|[가-힣]{2,}도)\s/.test(l)) s+=3;
+  if(/[가-힣]{2,}시(\s|$)/.test(l)) s+=2;
+  if(/[가-힣]{2,}[구군](\s|$)/.test(l)) s+=3;
+  if(/[가-힣]{2,}[읍면리](\s|$)/.test(l)) s+=2;
+  if(/[가-힣]{2,}[로길]\s*\d/.test(l)) s+=3;
+  if(/[가-힣]{2,}동(\s|$|\d)/.test(l)) s+=2;
+  if(/\d+\s*동\s*\d+\s*호|\d+호/.test(l)) s+=2;
+  if(/아파트|빌라|오피스텔|타워|단지/.test(l)) s+=2;
+  if(/(주세요|보내|부탁|해주|결제|입금)/.test(l)) s-=6;
+  if(products.some(p=>mkpNorm(l).includes(mkpNorm(p.name)))) s-=6;
+  if(/\d+\s*(개|판|ea|EA)/.test(l)) s-=3;
+  return s;
+}
+
+function mkpParseDate(text, base){
+  const now=base||new Date();
+  const pad=n=>String(n).padStart(2,'0');
+  const fmt=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+  let m=text.match(/(\d{4})[-.\/](\d{1,2})[-.\/](\d{1,2})/);
+  if(m) return `${m[1]}-${pad(m[2])}-${pad(m[3])}`;
+  m=text.match(/(\d{1,2})\s*월\s*(\d{1,2})\s*일/);
+  if(m){
+    const mo=Number(m[1]), da=Number(m[2]);
+    let y=now.getFullYear();
+    if(mo < now.getMonth()+1-6) y++;
+    return `${y}-${pad(mo)}-${pad(da)}`;
+  }
+  if(/오늘/.test(text)) return fmt(now);
+  if(/내일/.test(text)){ const d=new Date(now); d.setDate(d.getDate()+1); return fmt(d); }
+  if(/모레/.test(text)){ const d=new Date(now); d.setDate(d.getDate()+2); return fmt(d); }
+  const WD=['일','월','화','수','목','금','토'];
+  m=text.match(/([일월화수목금토])\s*요일/);
+  if(m){
+    const t=WD.indexOf(m[1]); const d=new Date(now);
+    let diff=(t-d.getDay()+7)%7; if(diff===0) diff=7;
+    d.setDate(d.getDate()+diff); return fmt(d);
+  }
+  return '';
+}
+
+function mkpParseDelivery(text){
+  if(/택배/.test(text)) return '택배발송';
+  if(/직접\s*배송|배달/.test(text)) return '직접배송';
+  if(/방문|직접\s*수령|픽업|가지러/.test(text)) return '직접수령';
+  return '';
+}
+
+function mkpParseProducts(text, products){
+  const found={};
+  const norm=mkpNorm(text);
+  products.forEach(p=>{
+    const v=mkpNorm(p.name);
+    const idx=norm.indexOf(v);
+    if(idx>=0){
+      const after=norm.slice(idx+v.length, idx+v.length+8);
+      const qm=after.match(/^[^0-9]{0,3}(\d{1,3})\s*(개|판|ea|EA|x|X)?/);
+      const q=qm?Number(qm[1]):1;
+      found[p.id]=(found[p.id]||0)+(q>0?q:1);
+    }
+  });
+  // 괄호 안 약칭 나열: (치즈 + 고르곤)
+  (text.match(/[（(\[]([^)）\]]+)[)）\]]/g)||[]).forEach(b=>{
+    const inner=b.replace(/[（()）\[\]]/g,'');
+    if(MKP_PHONE_RE.test(inner)) return;
+    inner.split(/[+＋,·/、]|\s{2,}/).forEach(tok=>{
+      const t=tok.trim(); if(!t) return;
+      const qm=t.match(/(\d{1,3})\s*(개|판|ea|EA)?$/);
+      const q=qm?Number(qm[1]):1;
+      const nameOnly=t.replace(/(\d{1,3})\s*(개|판|ea|EA)?$/,'').trim();
+      const p=mkpMatchProduct(nameOnly, products);
+      if(p && !found[p.id]) found[p.id]=q>0?q:1;
+    });
+  });
+  // "치즈 2개" 형태
+  text.split(/[\n,·]/).forEach(line=>{
+    const m=line.match(/([가-힣A-Za-z]{2,10})\s*[xX×]?\s*(\d{1,3})\s*(개|판|ea|EA)/);
+    if(m){ const p=mkpMatchProduct(m[1], products); if(p) found[p.id]=Number(m[2]); }
+  });
+  return found;
+}
+
+function mkpParseName(text, phoneRaw){
+  const lines=text.split('\n');
+  let m=text.match(/(?:주문자|성함|받는\s*분|수령인|이름)\s*[:：]\s*([가-힣]{2,4})/);
+  if(m) return m[1];
+  for(const line of lines){
+    const mm=line.match(/([가-힣]{2,4})\s*[（(]\s*01[016789]/);
+    if(mm && !MKP_NAME_STOP.test(mm[1])) return mm[1];
+  }
+  if(phoneRaw){
+    for(const line of lines){
+      if(line.includes(phoneRaw)){
+        const before=line.split(phoneRaw)[0];
+        const mm=before.match(/([가-힣]{2,10})\s*[（(\-:：]?\s*$/);
+        if(mm){
+          const nm=mkpStripNameTail(mm[1]);
+          if(MKP_NAME_STOP.test(nm)) continue;
+          if(nm.length>=2 && nm.length<=4) return nm;
+          if(nm.length>4){ const t=nm.slice(-3); if(!MKP_NAME_STOP.test(t)) return t; }
+        }
+      }
+    }
+  }
+  m=text.match(/(?:주문자|성함|이름)\s*[:：]?\s*([가-힣]{2,4})/);
+  if(m && !MKP_NAME_STOP.test(m[1])) return m[1];
+  m=text.match(/([가-힣]{2,4})\s*님/);
+  if(m && !MKP_NAME_STOP.test(m[1])) return m[1];
+  m=text.match(/([가-힣]{2,4})(?:입니다|이에요|예요|이라고)/);
+  if(m && !MKP_NAME_STOP.test(m[1])) return m[1];
+  for(const line of lines){
+    const t=mkpStripNameTail(line.trim());
+    if(/^[가-힣]{2,4}$/.test(t) && !MKP_NAME_STOP.test(t)) return t;
+  }
+  return '';
+}
+
+function mkpParseSingle(text, products, base){
+  const pm=text.match(MKP_PHONE_RE);
+  const phoneRaw=pm?pm[0]:'';
+  const scored=text.split('\n')
+    .map(l=>({line:l, score:mkpAddressScore(l, products)}))
+    .filter(x=>x.score>=3)
+    .sort((a,b)=>b.score-a.score || b.line.length-a.line.length);
+  let address='';
+  if(scored.length){
+    address=scored[0].line.replace(MKP_PHONE_RE,'').replace(/[（(]\s*[)）]/g,'').trim();
+    address=address.replace(/^([가-힣]{2,4})\s*[:：\-]\s*/,(m,nm)=>/[시군구읍면동리로길]$/.test(nm)?m:'').trim();
+  }
+  return {
+    customer: mkpParseName(text, phoneRaw),
+    phone: phoneRaw.replace(/\D/g,''),
+    address,
+    products: Object.entries(mkpParseProducts(text, products)).map(([id,qty])=>({id,qty})),
+    desiredDate: mkpParseDate(text, base),
+    deliveryMethod: mkpParseDelivery(text),
+    note:''
+  };
+}
+
+/* 여러 건이 한 번에 붙여넣어진 경우 전화번호 기준으로 분리 */
+function mkpSplitBlocks(text){
+  const lines=text.split('\n');
+  const blocks=[]; let cur=[]; let curHasPhone=false;
+  for(const line of lines){
+    const hasPhone=MKP_PHONE_RE.test(line);
+    if(hasPhone && curHasPhone){ blocks.push(cur.join('\n')); cur=[line]; continue; }
+    if(hasPhone) curHasPhone=true;
+    cur.push(line);
+  }
+  if(cur.length) blocks.push(cur.join('\n'));
+  return blocks.map(b=>b.trim()).filter(b=>b && MKP_PHONE_RE.test(b));
+}
+
+function mkpParseOrders(text, products, base){
+  const blocks=mkpSplitBlocks(text);
+  if(blocks.length<=1) return [mkpParseSingle(text, products, base)];
+  return blocks.map(b=>mkpParseSingle(b, products, base));
+}
+
 function mkOcrPromptText(){
   const productNames=milkitProducts.map(p=>p.name).join(', ');
   const setNames=milkitSetRules.map(r=>r.name).join(', ');
@@ -4456,7 +4835,7 @@ async function runMkOcr(){
       {type:'text',text:`다음은 밀키트 피자 주문에 대한 문자메시지 또는 카톡 대화 내용입니다.\n\n"""\n${txt}\n"""\n\n`+mkOcrPromptText()}
     ];
   }
-  const btn=document.getElementById('mk-ocr-parse-btn');
+  const btn=document.getElementById('mk-ocr-ai-btn');
   btn.disabled=true; btn.textContent='⏳ 분석 중…';
   try{
     const resp=await fetch('https://api.anthropic.com/v1/messages',{
@@ -4479,7 +4858,7 @@ async function runMkOcr(){
   }catch(e){
     alert(friendlyAiError(e));
   }finally{
-    btn.disabled=false; btn.textContent='🤖 AI로 주문 인식';
+    btn.disabled=false; btn.textContent='🤖 AI로 정밀 인식';
   }
 }
 
@@ -4693,6 +5072,42 @@ function computeMilkitInventory(){
   });
 }
 
+/* 대시보드·밀키트 상단에 공통으로 쓰는 요약 위젯 (한 곳에서 계산해 값이 어긋나지 않도록) */
+function milkitInventorySummaryHtml(){
+  const inv=computeMilkitInventory();
+  const active=inv.filter(r=>r.produced>0||r.shipped>0||r.pending>0);
+  if(!active.length){
+    return `<div class="stat-card" style="grid-column:1/-1;"><div style="color:var(--sub2);font-size:13px;padding:6px 0;">아직 생산 기록이 없습니다. 밀키트 판매관리 → 재고 관리에서 만든 수량을 등록하세요.</div></div>`;
+  }
+  const short=active.filter(r=>r.available<0);
+  const totStock=inv.reduce((s,r)=>s+r.stock,0);
+  const totPending=inv.reduce((s,r)=>s+r.pending,0);
+  const chips=active.map(r=>{
+    const cls=r.available<0?'badge-red':(r.stock<=0?'badge-gray':(r.available===0?'badge-orange':'badge-green'));
+    const extra=r.available<0?` <b>(${comma(Math.abs(r.available))} 부족)</b>`:'';
+    return `<span class="badge ${cls}" style="margin:0 6px 6px 0;display:inline-block;">${r.product.name} ${comma(r.stock)}개${extra}</span>`;
+  }).join('');
+  const warn = short.length
+    ? `<div style="margin-top:10px;padding:9px 11px;border-radius:8px;background:#F5E6E6;color:#9E2828;font-size:12px;line-height:1.6;">⚠️ <b>${short.map(r=>r.product.name).join(', ')}</b> 재고가 대기 주문보다 부족합니다. 추가 생산이 필요합니다.</div>`
+    : '';
+  return `
+    <div class="stat-card" style="grid-column:1/-1;">
+      <div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:10px;">
+        <div><div class="s-label">현재 재고</div><div class="s-val num" style="font-size:24px;">${comma(totStock)}</div></div>
+        <div><div class="s-label">출고 대기</div><div class="s-val num" style="font-size:24px;">${comma(totPending)}</div></div>
+      </div>
+      <div>${chips}</div>
+      ${warn}
+    </div>`;
+}
+
+function renderDashboardMilkitInventory(){
+  const el=document.getElementById('dash-milkit-inventory');
+  if(!el) return;
+  el.className='stat-grid';
+  el.innerHTML=milkitInventorySummaryHtml();
+}
+
 function renderMilkitInventory(){
   const inv=computeMilkitInventory();
   const totProduced=inv.reduce((s,r)=>s+r.produced,0);
@@ -4805,6 +5220,7 @@ function deleteMkProduction(id){
   if(!confirm('이 생산 기록을 삭제하시겠습니까?')) return;
   milkitProduction=milkitProduction.filter(r=>r.id!==id);
   DB.save('milkitProduction',milkitProduction);
+  renderMilkitStats();
   renderMilkitInventory();
 }
 
