@@ -84,7 +84,7 @@ h1,h2,h3,h4{font-family:var(--sans);letter-spacing:-.01em;}
 .nav-item .nav-icon{width:18px;height:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px;}
 #sidebar-footer{padding:14px 18px;padding-bottom:max(14px,calc(12px + var(--sai-bottom)));border-top:1px solid var(--sidebar-border);font-size:11px;color:var(--sidebar-text-sub);}
 #main{flex:1;min-width:0;margin-left:var(--sidebar);display:flex;flex-direction:column;min-height:100vh;}
-#topbar{background:var(--topbar-bg);backdrop-filter:saturate(180%) blur(16px);-webkit-backdrop-filter:saturate(180%) blur(16px);border-bottom:1px solid var(--border);padding:14px 28px;padding-top:max(14px,var(--sai-top));display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:50;}
+#topbar{background:var(--topbar-bg);backdrop-filter:saturate(180%) blur(16px);-webkit-backdrop-filter:saturate(180%) blur(16px);border-bottom:1px solid var(--border);padding:14px 28px;padding-top:calc(14px + var(--sai-top));display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:50;}
 #topbar h2{font-family:var(--serif);font-size:16px;color:var(--dark);font-weight:700;letter-spacing:.05em;}
 #menu-btn{display:none;background:none;border:none;font-size:22px;cursor:pointer;padding:0;color:var(--p);}
 #sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:90;}
@@ -479,7 +479,7 @@ tr:hover td{background:var(--bg2);}
 #main{padding-bottom:var(--sai-bottom);}
 table{max-width:100%;}
 img{max-width:100%;height:auto;}
-.modal-bg{padding:max(16px,var(--sai-top)) max(16px,var(--sai-right)) max(16px,var(--sai-bottom)) max(16px,var(--sai-left));}
+.modal-bg{padding:calc(16px + var(--sai-top)) calc(16px + var(--sai-right)) calc(16px + var(--sai-bottom)) calc(16px + var(--sai-left));}
 @media(max-width:768px){
   .section{padding-left:max(16px,var(--sai-left));padding-right:max(16px,var(--sai-right));}
   .rb-sheet{padding:18px 16px;}
@@ -922,6 +922,7 @@ img{max-width:100%;height:auto;}
       <button class="tab active" id="mk-tabbtn-orders" onclick="showMilkitTab('orders')">📝 주문 내역</button>
       <button class="tab" id="mk-tabbtn-customers" onclick="showMilkitTab('customers')">👤 고객 관리</button>
       <button class="tab" id="mk-tabbtn-products" onclick="showMilkitTab('products')">💰 메뉴 · 가격 설정</button>
+      <button class="tab" id="mk-tabbtn-inventory" onclick="showMilkitTab('inventory')">📦 재고 관리</button>
       <button class="tab" id="mk-tabbtn-stats" onclick="showMilkitTab('stats')">📊 판매 현황</button>
       <button class="tab" id="mk-tabbtn-costs" onclick="showMilkitTab('costs')">🧮 원가 · 수익 분석</button>
     </div>
@@ -1012,6 +1013,30 @@ img{max-width:100%;height:auto;}
     </div>
 
     <!-- 판매 현황 -->
+    <!-- 재고 관리 -->
+    <div id="mk-pane-inventory" style="display:none;">
+      <div style="font-size:12px;color:var(--sub);margin-bottom:16px;line-height:1.6;">만들어 놓은 <b>생산 수량</b>에서 주문 배송이 나간 <b>출고 수량</b>을 빼서 현재 재고를 계산합니다. 출고는 배송상태가 <b>배송중·배송완료</b>인 주문에서 자동으로 집계되므로, 생산한 수량만 등록하면 됩니다.</div>
+      <div class="stat-grid" id="mk-inv-stats" style="margin-bottom:20px;"></div>
+      <div class="page-hdr" style="border-bottom:none;margin-bottom:10px;padding-bottom:0;">
+        <h3 style="font-size:14px;">상품별 재고 현황</h3>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-out btn-sm" onclick="previewMilkitInventoryPrint()">🖨️ 인쇄</button>
+          <button class="btn btn-acc btn-sm" onclick="openMkProductionModal()">+ 생산 등록</button>
+        </div>
+      </div>
+      <div class="mobile-scroll-hint">💡 표가 넓으면 좌우로 스크롤하세요</div>
+      <div class="table-wrap" style="margin-bottom:24px;">
+        <table>
+          <thead><tr><th>상품명</th><th>생산</th><th>출고</th><th>현재고</th><th>출고대기</th><th>여유</th><th>상태</th></tr></thead>
+          <tbody id="mk-inv-rows"></tbody>
+        </table>
+      </div>
+      <div class="page-hdr" style="border-bottom:none;margin-bottom:10px;padding-bottom:0;">
+        <h3 style="font-size:14px;">생산 · 폐기 이력</h3>
+      </div>
+      <div id="mk-prod-list"></div>
+    </div>
+
     <div id="mk-pane-stats" style="display:none;">
       <div class="page-hdr" style="border-bottom:none;margin-bottom:10px;padding-bottom:0;">
         <h3 style="font-size:14px;">제품별 판매 현황</h3>
@@ -1397,7 +1422,7 @@ img{max-width:100%;height:auto;}
 </div>
 
 <!-- Label preview overlay (백라벨 미리보기) -->
-<div id="label-preview-overlay" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(30,26,23,.72);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);overflow-y:auto;padding:24px 14px calc(24px + var(--sai-bottom));">
+<div id="label-preview-overlay" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(30,26,23,.72);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);overflow-y:auto;padding:calc(24px + var(--sai-top)) calc(14px + var(--sai-right)) calc(24px + var(--sai-bottom)) calc(14px + var(--sai-left));">
   <div style="max-width:720px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px;">
     <div style="color:#F5EFE8;font-family:var(--serif);font-size:15px;font-weight:700;letter-spacing:.03em;">백라벨 미리보기</div>
     <div style="display:flex;gap:8px;">
@@ -1410,10 +1435,10 @@ img{max-width:100%;height:auto;}
 </div>
 
 <!-- 밀키트 인쇄 미리보기 (주문내역 · 고객관리 · 판매현황 공용) -->
-<div id="mk-print-overlay" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(30,26,23,.72);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);overflow-y:auto;padding:24px 14px calc(24px + var(--sai-bottom));">
-  <div style="max-width:960px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px;">
+<div id="mk-print-overlay" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(30,26,23,.72);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);overflow-y:auto;padding:calc(24px + var(--sai-top)) calc(14px + var(--sai-right)) calc(24px + var(--sai-bottom)) calc(14px + var(--sai-left));">
+  <div style="max-width:960px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
     <div id="mk-print-title" style="color:#F5EFE8;font-family:var(--serif);font-size:15px;font-weight:700;letter-spacing:.03em;">인쇄 미리보기</div>
-    <div style="display:flex;gap:8px;">
+    <div style="display:flex;gap:8px;flex-shrink:0;margin-left:auto;">
       <button class="btn btn-acc btn-sm" onclick="printMkFromPreview()">🖨 인쇄 / PDF 저장</button>
       <button class="btn btn-out btn-sm" style="background:rgba(255,255,255,.12);color:#F5EFE8;border-color:rgba(255,255,255,.35);" onclick="closeMkPrintPreview()">✕ 닫기</button>
     </div>
@@ -1422,6 +1447,46 @@ img{max-width:100%;height:auto;}
   <div id="mk-print-hint" style="max-width:960px;margin:12px auto 0;color:rgba(245,239,232,.55);font-size:11px;text-align:center;line-height:1.6;">현재 화면의 검색·필터 조건이 그대로 반영됩니다 · 인쇄 시 흰 배경으로 출력됩니다</div>
 </div>
 <div id="mk-print-target"></div>
+
+<!-- 밀키트 생산/폐기 등록 Modal -->
+<div class="modal-bg" id="mk-production-modal">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-hdr">
+      <h4 id="mk-production-modal-title">생산 등록</h4>
+      <button class="btn btn-icon btn-out" onclick="closeModal('mk-production-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <label>일자 *</label>
+        <input type="date" id="mk-prod-date">
+      </div>
+      <div class="form-row">
+        <label>상품 *</label>
+        <select id="mk-prod-product"></select>
+      </div>
+      <div class="form-row">
+        <label>구분 *</label>
+        <select id="mk-prod-type">
+          <option value="생산">생산 (재고 증가)</option>
+          <option value="폐기">폐기 · 손실 (재고 감소)</option>
+          <option value="조정">실사 조정 (재고 증가)</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>수량 *</label>
+        <input type="number" id="mk-prod-qty" min="1" step="1" value="1">
+      </div>
+      <div class="form-row">
+        <label>메모</label>
+        <input type="text" id="mk-prod-note" placeholder="예: 오전 생산분">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-out" onclick="closeModal('mk-production-modal')">취소</button>
+      <button class="btn btn-acc" onclick="saveMkProduction()">저장</button>
+    </div>
+  </div>
+</div>
 
 <!-- Bulk amount Modal -->
 <div class="modal-bg" id="bulk-modal">
@@ -1771,7 +1836,10 @@ let milkitSetRules = DB.load('milkitSetRules', [
 ]);
 let milkitCustomers = DB.load('milkitCustomers', []);
 let milkitOrders = DB.load('milkitOrders', []);
+// 재고 입출고 기록: {id, date, productId, type:'생산'|'폐기'|'조정', qty, note}
+let milkitProduction = DB.load('milkitProduction', []);
 let mkEditId = null;
+let mkProdEditId = null;
 let milkitFees = DB.load('milkitFees', {
   packagingCost:500, shippingCost:3000,
   cardFee:1.5, vat:10, localTax:0,
@@ -1782,6 +1850,11 @@ let mkRecipeItems = [];
 let mkRecipeProductId = null;
 
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+/* 오늘 날짜(YYYY-MM-DD) — toISOString()은 UTC 기준이라 한국 시간 오전에 하루 전 날짜가 나오므로 로컬 기준으로 계산 */
+function todayStr(d){
+  const t=d||new Date();
+  return t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');
+}
 const OVEN_ID='__oven__';
 function comma(n){ return Number(n||0).toLocaleString('ko-KR'); }
 function formatPhone(v){
@@ -3280,7 +3353,7 @@ function exportOrderPlan(){
     return {재료명:i.name,카테고리:i.category,현재재고:i.stock,최소재고:min,발주단위:pq+(i.purchaseUnit||'g'),권장발주수량:rec,예상금액:Math.round(rec*(Number(i.purchasePrice)||0)),구입처:supName(i.supplierId)};
   }));
   const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'발주계획');
-  XLSX.writeFile(wb,'지구인피자_발주계획_'+new Date().toISOString().slice(0,10)+'.xlsx');
+  XLSX.writeFile(wb,'지구인피자_발주계획_'+todayStr()+'.xlsx');
 }
 
 /* ── Receive Modal ── */
@@ -3289,7 +3362,7 @@ let recvRows = [];
 function openReceiveModal(id){
   editId = id||null;
   recvRows = id ? (receivings.find(r=>r.id===id)?.items||[]).map(x=>({...x})) : [];
-  const today = new Date().toISOString().slice(0,10);
+  const today = todayStr();
   document.getElementById('recv-date').value = id ? (receivings.find(r=>r.id===id)?.date||today) : today;
   const sel = document.getElementById('recv-supplier');
   sel.innerHTML='<option value="">미지정</option>'+suppliers.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
@@ -3456,7 +3529,7 @@ function exportReceivings(){
   });
   const ws=XLSX.utils.json_to_sheet(rows);
   const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'입고기록');
-  XLSX.writeFile(wb,'지구인피자_입고기록_'+new Date().toISOString().slice(0,10)+'.xlsx');
+  XLSX.writeFile(wb,'지구인피자_입고기록_'+todayStr()+'.xlsx');
 }
 
 /* ── OCR ── */
@@ -3534,7 +3607,7 @@ async function runOcr(){
     document.getElementById('ocr-step1').style.display='none';
     document.getElementById('ocr-step2').style.display='';
   } catch(e){
-    alert('OCR 오류: '+e.message);
+    alert(friendlyAiError(e));
   } finally {
     btn.disabled=false; btn.textContent='🤖 AI 파싱 시작';
   }
@@ -3717,12 +3790,13 @@ function mkCalcTotals(qtyMap, setType, setQty){
 }
 
 function showMilkitTab(tab){
-  ['orders','customers','products','stats','costs'].forEach(t=>{
+  ['orders','customers','products','inventory','stats','costs'].forEach(t=>{
     document.getElementById('mk-pane-'+t).style.display = t===tab?'':'none';
     document.getElementById('mk-tabbtn-'+t).classList.toggle('active', t===tab);
   });
   if(tab==='customers') renderMilkitCustomers();
   if(tab==='products') renderMilkitProductSettings();
+  if(tab==='inventory') renderMilkitInventory();
   if(tab==='stats') renderMilkitSalesStats();
   if(tab==='costs') renderMilkitCosts();
 }
@@ -4046,7 +4120,7 @@ function openMilkitOrderModal(id){
     document.getElementById('mk-order-tracking').value=o.tracking||'';
     document.getElementById('mk-order-note').value=o.note||'';
   } else {
-    document.getElementById('mk-order-date').value=new Date().toISOString().slice(0,10);
+    document.getElementById('mk-order-date').value=todayStr();
     ['mk-order-customer','mk-order-phone','mk-order-desired','mk-order-address','mk-order-tracking','mk-order-note'].forEach(f=>document.getElementById(f).value='');
     renderMilkitOrderQtyRows({});
     setSel.value='낱개';
@@ -4339,6 +4413,21 @@ function handleMkOcrFile(input){
   reader.readAsDataURL(file);
 }
 
+/* Claude API 오류 메시지를 한국어로 알기 쉽게 변환 */
+function friendlyAiError(e){
+  const raw=(e && e.message)||String(e);
+  const m=raw.toLowerCase();
+  if(m.includes('credit balance')||m.includes('insufficient')||m.includes('billing'))
+    return 'AI 인식 오류: Claude API 크레딧이 부족합니다.\n\nconsole.anthropic.com/settings/billing 에서 크레딧을 충전해 주세요.\n(Claude Pro·Max 구독과 API 크레딧은 별개입니다)';
+  if(m.includes('invalid x-api-key')||m.includes('authentication'))
+    return 'AI 인식 오류: API 키가 올바르지 않습니다.\n\n키를 다시 확인하거나 console.anthropic.com/settings/keys 에서 새로 발급받아 주세요.';
+  if(m.includes('rate limit')||m.includes('429'))
+    return 'AI 인식 오류: 요청이 너무 많습니다.\n\n잠시 후 다시 시도해 주세요.';
+  if(m.includes('load failed')||m.includes('failed to fetch')||m.includes('networkerror'))
+    return 'AI 인식 오류: 네트워크 연결에 실패했습니다.\n\n인터넷 연결 상태를 확인한 뒤 다시 시도해 주세요.';
+  return 'AI 인식 오류: '+raw;
+}
+
 function mkOcrPromptText(){
   const productNames=milkitProducts.map(p=>p.name).join(', ');
   const setNames=milkitSetRules.map(r=>r.name).join(', ');
@@ -4388,7 +4477,7 @@ async function runMkOcr(){
     closeModal('mk-ocr-modal');
     applyMkOcrResult(parsed);
   }catch(e){
-    alert('AI 인식 오류: '+e.message);
+    alert(friendlyAiError(e));
   }finally{
     btn.disabled=false; btn.textContent='🤖 AI로 주문 인식';
   }
@@ -4578,6 +4667,156 @@ function saveMilkitProductSettings(){
   DB.save('milkitSetRules',milkitSetRules);
   renderMilkitProductSettings();
   alert('저장되었습니다.');
+}
+
+/* --- 재고 관리 --- */
+/* 출고로 집계할 배송상태 (배송이 실제로 나간 상태) */
+const MK_SHIPPED_STATES = ['배송중','배송완료'];
+
+function computeMilkitInventory(){
+  return milkitProducts.map(p=>{
+    // 생산/조정은 재고 증가, 폐기는 감소
+    const produced = milkitProduction.reduce((s,r)=>{
+      if(r.productId!==p.id) return s;
+      const q=Number(r.qty)||0;
+      return s + (r.type==='폐기' ? -q : q);
+    },0);
+    // 출고: 배송중·배송완료 주문 수량
+    const shipped = milkitOrders.reduce((s,o)=>
+      MK_SHIPPED_STATES.includes(o.deliveryStatus||'준비중') ? s+(Number(o.qty?.[p.id])||0) : s, 0);
+    // 출고대기: 아직 배송 안 나간 주문 수량
+    const pending = milkitOrders.reduce((s,o)=>
+      MK_SHIPPED_STATES.includes(o.deliveryStatus||'준비중') ? s : s+(Number(o.qty?.[p.id])||0), 0);
+    const stock = produced - shipped;      // 현재 남아있는 재고
+    const available = stock - pending;      // 대기 주문까지 처리하고 남는 여유분
+    return {product:p, produced, shipped, pending, stock, available};
+  });
+}
+
+function renderMilkitInventory(){
+  const inv=computeMilkitInventory();
+  const totProduced=inv.reduce((s,r)=>s+r.produced,0);
+  const totShipped=inv.reduce((s,r)=>s+r.shipped,0);
+  const totStock=inv.reduce((s,r)=>s+r.stock,0);
+  const totPending=inv.reduce((s,r)=>s+r.pending,0);
+  const shortCount=inv.filter(r=>r.available<0).length;
+
+  document.getElementById('mk-inv-stats').innerHTML=`
+    <div class="stat-card acc-border">
+      <div class="s-label">총 생산 수량 (누적)</div>
+      <div class="s-val num">${comma(totProduced)}</div>
+      <div class="s-sub">개</div>
+    </div>
+    <div class="stat-card acc-border">
+      <div class="s-label">총 출고 수량 (누적)</div>
+      <div class="s-val num">${comma(totShipped)}</div>
+      <div class="s-sub">배송중 · 배송완료 기준</div>
+    </div>
+    <div class="stat-card acc-border">
+      <div class="s-label">현재 재고</div>
+      <div class="s-val num">${comma(totStock)}</div>
+      <div class="s-sub">생산 − 출고</div>
+    </div>
+    <div class="stat-card acc-border">
+      <div class="s-label">출고 대기</div>
+      <div class="s-val num">${comma(totPending)}</div>
+      <div class="s-sub">${shortCount>0?`⚠️ 재고 부족 ${shortCount}개 상품`:'개 · 재고 충분'}</div>
+    </div>
+  `;
+
+  document.getElementById('mk-inv-rows').innerHTML = inv.map(r=>{
+    let badge;
+    if(r.available<0) badge=`<span class="badge badge-red">⚠️ ${comma(Math.abs(r.available))}개 부족</span>`;
+    else if(r.stock<=0) badge=`<span class="badge badge-gray">재고 없음</span>`;
+    else if(r.available===0) badge=`<span class="badge badge-orange">여유 없음</span>`;
+    else badge=`<span class="badge badge-green">✅ 충분</span>`;
+    return `<tr>
+      <td>${r.product.name}</td>
+      <td style="text-align:right;">${comma(r.produced)}</td>
+      <td style="text-align:right;">${comma(r.shipped)}</td>
+      <td style="text-align:right;font-weight:700;">${comma(r.stock)}</td>
+      <td style="text-align:right;">${comma(r.pending)}</td>
+      <td style="text-align:right;color:${r.available<0?'var(--danger,#b23)':'inherit'};">${comma(r.available)}</td>
+      <td>${badge}</td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="7" style="text-align:center;color:var(--sub2);padding:18px;">등록된 상품이 없습니다.</td></tr>`;
+
+  renderMkProductionList();
+}
+
+function renderMkProductionList(){
+  const el=document.getElementById('mk-prod-list');
+  const list=[...milkitProduction].sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.id>a.id?1:-1));
+  if(!list.length){
+    el.innerHTML=`<div class="empty-state"><div class="empty-icon">📦</div><p>생산 기록이 없습니다</p><p style="font-size:12px;color:var(--sub2);">"+ 생산 등록"으로 만들어 놓은 수량을 기록하세요</p></div>`;
+    return;
+  }
+  el.innerHTML=list.map(r=>{
+    const p=milkitProducts.find(x=>x.id===r.productId);
+    const typeBadge = r.type==='폐기'
+      ? `<span class="badge badge-red">🗑️ 폐기</span>`
+      : (r.type==='조정' ? `<span class="badge badge-blue">🔧 조정</span>` : `<span class="badge badge-green">🏭 생산</span>`);
+    const sign = r.type==='폐기' ? '−' : '+';
+    return `
+    <div class="mrow">
+      <button class="mrow-del" onclick="event.stopPropagation();deleteMkProduction('${r.id}')">삭제</button>
+      <div class="mrow-inner" onclick="mrowClick(this,'openMkProductionModal','${r.id}')">
+        <div class="mrow-main">
+          <b>${p?p.name:'(삭제된 상품)'}</b> ${typeBadge}
+          <div class="mrow-meta">${r.date||''}${r.note?' · '+r.note:''}</div>
+        </div>
+        <div class="mrow-side"><b>${sign}${comma(r.qty)}</b>개</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openMkProductionModal(id){
+  mkProdEditId = id||null;
+  const rec = id ? milkitProduction.find(r=>r.id===id) : null;
+  document.getElementById('mk-production-modal-title').textContent = rec ? '생산 기록 수정' : '생산 등록';
+  document.getElementById('mk-prod-product').innerHTML =
+    milkitProducts.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+  document.getElementById('mk-prod-date').value = rec ? (rec.date||'') : todayStr();
+  if(rec) document.getElementById('mk-prod-product').value = rec.productId;
+  document.getElementById('mk-prod-type').value = rec ? (rec.type||'생산') : '생산';
+  document.getElementById('mk-prod-qty').value = rec ? rec.qty : 1;
+  document.getElementById('mk-prod-note').value = rec ? (rec.note||'') : '';
+  openModal('mk-production-modal');
+}
+
+function saveMkProduction(){
+  const date=document.getElementById('mk-prod-date').value;
+  const productId=document.getElementById('mk-prod-product').value;
+  const type=document.getElementById('mk-prod-type').value;
+  const qty=Number(document.getElementById('mk-prod-qty').value)||0;
+  if(!date||!productId){ alert('일자와 상품은 필수입니다.'); return; }
+  if(qty<=0){ alert('수량은 1 이상이어야 합니다.'); return; }
+  const obj={ id:mkProdEditId||uid(), date, productId, type, qty,
+    note:document.getElementById('mk-prod-note').value.trim() };
+  if(mkProdEditId){ const i=milkitProduction.findIndex(r=>r.id===mkProdEditId); milkitProduction[i]=obj; }
+  else milkitProduction.push(obj);
+  DB.save('milkitProduction',milkitProduction);
+  closeModal('mk-production-modal');
+  renderMilkitInventory();
+}
+
+function deleteMkProduction(id){
+  if(!confirm('이 생산 기록을 삭제하시겠습니까?')) return;
+  milkitProduction=milkitProduction.filter(r=>r.id!==id);
+  DB.save('milkitProduction',milkitProduction);
+  renderMilkitInventory();
+}
+
+function mkInventoryPrintHtml(){
+  const inv=computeMilkitInventory();
+  const rowsHtml=inv.map(r=>`<tr><td>${r.product.name}</td><td style="text-align:right;">${comma(r.produced)}</td><td style="text-align:right;">${comma(r.shipped)}</td><td style="text-align:right;"><b>${comma(r.stock)}</b></td><td style="text-align:right;">${comma(r.pending)}</td><td style="text-align:right;">${comma(r.available)}</td><td>${r.available<0?'부족 '+comma(Math.abs(r.available))+'개':(r.stock<=0?'재고 없음':'충분')}</td></tr>`).join('');
+  const totStock=inv.reduce((s,r)=>s+r.stock,0);
+  const totPending=inv.reduce((s,r)=>s+r.pending,0);
+  return `<div class="mk-print-sheet">${mkPrintHeader('지구인피자 · 밀키트 재고 현황', `현재 재고 합계 ${comma(totStock)}개 · 출고 대기 ${comma(totPending)}개<br>출고는 배송중·배송완료 주문 기준으로 집계됩니다`)}<table><thead><tr><th>상품명</th><th>생산</th><th>출고</th><th>현재고</th><th>출고대기</th><th>여유</th><th>상태</th></tr></thead><tbody>${rowsHtml || `<tr><td colspan="7" style="text-align:center;">등록된 상품이 없습니다.</td></tr>`}</tbody></table><div class="mp-foot">지구인피자 밀키트 판매관리 시스템에서 출력됨</div></div>`;
+}
+function previewMilkitInventoryPrint(){
+  mkPreviewPrint('밀키트 재고 현황 인쇄 미리보기', '생산 − 출고 기준 현재 재고입니다 · 인쇄 시 흰 배경으로 출력됩니다', mkInventoryPrintHtml());
 }
 
 /* --- 판매 현황 --- */
@@ -4878,7 +5117,7 @@ function exportAllData(){
   const blob=new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
-  a.href=url; a.download=`지구인피자_백업_${new Date().toISOString().slice(0,10)}.json`;
+  a.href=url; a.download=`지구인피자_백업_${todayStr()}.json`;
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -4967,7 +5206,7 @@ function registerServiceWorker(){
 const SYNC_KEYS = [
   'ingredients','suppliers','recipes','stores','fees','receivings','orderCart',
   'milkitProducts','milkitSetRules','milkitCustomers','milkitOrders','milkitFees',
-  'cheeseSplits','labels'
+  'milkitProduction','cheeseSplits','labels'
 ];
 let fbDb=null, fbConnected=false;
 
@@ -4993,6 +5232,7 @@ function getSyncLocalValue(key){
     case 'milkitSetRules': return milkitSetRules;
     case 'milkitCustomers': return milkitCustomers;
     case 'milkitOrders': return milkitOrders;
+    case 'milkitProduction': return milkitProduction;
     case 'milkitFees': return milkitFees;
     case 'cheeseSplits': return cheeseSplits;
     case 'labels': return labels;
@@ -5014,6 +5254,7 @@ function applySyncedData(key, value){
     case 'milkitSetRules': milkitSetRules=value; break;
     case 'milkitCustomers': milkitCustomers=value; break;
     case 'milkitOrders': milkitOrders=value; break;
+    case 'milkitProduction': milkitProduction=value; break;
     case 'milkitFees': milkitFees=value; break;
     case 'cheeseSplits': cheeseSplits=value; break;
     case 'labels': labels=value; break;
@@ -5045,6 +5286,7 @@ function refreshActiveSectionView(){
     if(activeTab==='orders') renderMilkitOrders();
     else if(activeTab==='customers') renderMilkitCustomers();
     else if(activeTab==='products') renderMilkitProductSettings();
+    else if(activeTab==='inventory') renderMilkitInventory();
     else if(activeTab==='stats') renderMilkitSalesStats();
     else if(activeTab==='costs') renderMilkitCosts();
   }
