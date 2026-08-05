@@ -258,9 +258,10 @@ tr:hover td{background:var(--bg2);}
 /* milkit print styles (주문내역 · 고객관리 · 판매현황 공용) */
 #mk-print-target{display:none;}
 @media print{
-  body.printing-mk *{visibility:hidden!important;}
-  body.printing-mk #mk-print-target, body.printing-mk #mk-print-target *{visibility:visible!important;}
-  body.printing-mk #mk-print-target{display:block!important;position:absolute;left:0;top:0;width:100%;padding:10px;}
+  /* visibility:hidden 은 자리를 그대로 차지해 빈 페이지가 생기므로 display:none 으로 완전히 제외 */
+  body.printing-mk > *{display:none!important;}
+  body.printing-mk > #mk-print-target{display:block!important;width:100%;padding:0;margin:0;}
+  body.printing-mk{background:#fff!important;}
 }
 .mk-print-sheet{font-family:var(--sans);color:#1E1A17;background:#fff;padding:6px;}
 .mk-print-sheet .mp-hdr{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #1E1A17;padding-bottom:8px;margin-bottom:4px;gap:12px;}
@@ -508,9 +509,9 @@ tr:hover td{background:var(--bg2);}
 .lb-foot .lb-foot-b{font-weight:700;color:var(--lb-acc-dk);letter-spacing:.16em;text-transform:uppercase;}
 @media (max-width:520px){.lb-pname{font-size:21px;}.lb-ccard{flex-basis:100%;}.lb-nutri-grid{grid-template-columns:1fr;}.lb-nu{border-right:none!important;}}
 @media print{
-  body.printing-label *{visibility:hidden!important;}
-  body.printing-label #label-print, body.printing-label #label-print *{visibility:visible!important;}
-  body.printing-label #label-print{display:block!important;position:absolute;left:0;top:0;width:100%;padding:10px;}
+  body.printing-label > *{display:none!important;}
+  body.printing-label > #label-print{display:block!important;width:100%;padding:0;margin:0;}
+  body.printing-label{background:#fff!important;}
   body.printing-label .lb-paper{box-shadow:none!important;border-color:#C9BCA9!important;}
 }
 /* === safe-area & overflow safety (iOS notch / Android) === */
@@ -724,7 +725,7 @@ img{max-width:100%;height:auto;}
       <h3>레시피북 출력</h3>
       <div style="display:flex;gap:8px;">
         <button class="btn btn-out" onclick="exportRecipeBookExcel()">📥 엑셀 저장</button>
-        <button class="btn btn-acc" onclick="window.print()">🖨️ 인쇄 / PDF 저장</button>
+        <button class="btn btn-acc" onclick="printRecipeBook()">🖨️ 인쇄 / PDF 저장</button>
       </div>
     </div>
     <div id="recipe-book-content"></div>
@@ -4537,11 +4538,42 @@ function mkPreviewPrint(title, hint, html){
 function closeMkPrintPreview(){
   document.getElementById('mk-print-overlay').style.display='none';
 }
+/* 인쇄 실행 공통 처리
+   아이폰(사파리)은 window.print() 이후 인쇄 시트를 비동기로 그리기 때문에,
+   짧은 타이머로 인쇄용 클래스를 제거하면 iOS가 화면을 캡처하기 전에 원래 화면으로
+   돌아가 "앱 화면이 그대로 인쇄"된다. afterprint 이후에 정리하고,
+   해당 이벤트가 없는 환경을 위해 넉넉한 예비 타이머만 둔다.
+   (printing-* 클래스는 @media print 안에서만 쓰이므로 남아 있어도 화면에는 영향 없음) */
+function runPrintWithClass(cls){
+  document.body.classList.add(cls);
+  var done=false, mq=null, onMq=null;
+  function cleanup(){
+    if(done) return;
+    done=true;
+    document.body.classList.remove(cls);
+    window.removeEventListener('afterprint', cleanup);
+    if(mq && onMq){ try{ mq.removeEventListener('change', onMq); }catch(_){} }
+  }
+  window.addEventListener('afterprint', cleanup);
+  // 사파리는 afterprint 대신 print 미디어 쿼리 변화로 종료를 알 수 있는 경우가 있음
+  try{
+    mq=window.matchMedia('print');
+    onMq=function(e){ if(!e.matches) cleanup(); };
+    mq.addEventListener('change', onMq);
+  }catch(_){ mq=null; }
+  setTimeout(cleanup, 60000);   // 예비 정리
+  window.print();
+}
+
 function printMkFromPreview(){
   document.getElementById('mk-print-target').innerHTML = document.getElementById('mk-print-body').innerHTML;
-  document.body.classList.add('printing-mk');
+  runPrintWithClass('printing-mk');
+}
+
+/* 레시피북은 전용 인쇄 클래스를 쓰지 않으므로, 남아 있을 수 있는 클래스를 먼저 정리 */
+function printRecipeBook(){
+  document.body.classList.remove('printing-mk','printing-label');
   window.print();
-  setTimeout(()=>document.body.classList.remove('printing-mk'),400);
 }
 
 function previewMilkitOrderPrint(){
@@ -7160,9 +7192,7 @@ function printLabel(name){
   let p=document.getElementById('label-print');
   if(!p){ p=document.createElement('div'); p.id='label-print'; document.body.appendChild(p); }
   p.innerHTML=labelPreviewHtml(name);
-  document.body.classList.add('printing-label');
-  window.print();
-  setTimeout(()=>document.body.classList.remove('printing-label'),400);
+  runPrintWithClass('printing-label');
 }
 let labelPreviewName=null;
 function previewLabel(name){
