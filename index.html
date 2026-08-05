@@ -361,6 +361,28 @@ tr:hover td{background:var(--bg2);}
 .mk-print-sheet tr:last-child td{border-bottom:1px solid #D8D0C2;}
 .mk-print-sheet tr:hover td{background:transparent;}
 .mk-print-sheet .mp-foot{margin-top:14px;font-size:10px;color:#666;text-align:right;}
+/* 밀키트 조리 레시피 카드 — 크게, 따라 만들기 쉽게 */
+.mk-cook-card{font-family:var(--sans);color:#1E1A17;background:#fff;padding:4px 2px 10px;page-break-after:always;break-after:page;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+.mk-cook-card:last-child{page-break-after:auto;break-after:auto;}
+.mk-cook-card .cook-head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #1E1A17;padding-bottom:10px;margin-bottom:12px;gap:12px;}
+.mk-cook-card .cook-cat{font-size:12px;color:#C0562F;font-weight:700;letter-spacing:.04em;}
+.mk-cook-card .cook-title{font-family:var(--serif);font-size:30px;font-weight:700;line-height:1.1;margin-top:2px;}
+.mk-cook-card .cook-badge{font-size:11px;color:#5B4F44;background:#F0EBE1;border:1px solid #D8CDBB;border-radius:20px;padding:5px 12px;white-space:nowrap;}
+.mk-cook-card .cook-guide{font-size:12.5px;color:#4A3F38;background:#FBF3EE;border:1px solid #EBD6C9;border-radius:8px;padding:10px 13px;margin-bottom:12px;line-height:1.5;}
+.mk-cook-card .cook-steps{border:1px solid #C9BCA9;border-radius:10px;overflow:hidden;}
+.mk-cook-card .cook-step{display:grid;grid-template-columns:52px 1fr 92px 44px;align-items:center;border-bottom:1px solid #E4DACB;}
+.mk-cook-card .cook-step:last-child{border-bottom:none;}
+.mk-cook-card .cook-step-hd{background:#F0EBE1;font-size:11px;color:#5B4F44;font-weight:700;letter-spacing:.05em;}
+.mk-cook-card .cook-step-hd .cook-no,.mk-cook-card .cook-step-hd .cook-ing,.mk-cook-card .cook-step-hd .cook-amt,.mk-cook-card .cook-step-hd .cook-chk{padding:7px 8px;font-size:11px;}
+.mk-cook-card .cook-no{text-align:center;font-weight:800;font-size:17px;color:#C0562F;padding:12px 6px;}
+.mk-cook-card .cook-step-hd .cook-no{color:#5B4F44;}
+.mk-cook-card .cook-ing{font-size:15px;font-weight:600;padding:12px 8px;}
+.mk-cook-card .cook-amt{font-size:16px;font-weight:800;text-align:right;padding:12px 8px;font-variant-numeric:tabular-nums;}
+.mk-cook-card .cook-chk{text-align:center;font-size:18px;color:#8A7D6E;padding:12px 6px;}
+.mk-cook-card .cook-foot{margin-top:14px;border:1px dashed #C9BCA9;border-radius:8px;padding:10px 12px;}
+.mk-cook-card .cook-foot-t{font-size:11px;font-weight:700;color:#5B4F44;margin-bottom:5px;}
+.mk-cook-card .cook-foot-b{font-size:12.5px;color:#4A3F38;line-height:1.9;}
+.mk-cook-card .cook-brand{margin-top:12px;font-size:10px;color:#999;text-align:right;}
 /* order/customer print — readable ledger rows (not a dense grid) */
 .mk-print-sheet .mp-row{border-bottom:1px solid #D8D0C2;padding:11px 2px;break-inside:avoid;page-break-inside:avoid;}
 .mk-print-sheet .mp-row:first-child{padding-top:0;}
@@ -1184,7 +1206,10 @@ img{max-width:100%;height:auto;}
       <div style="font-size:12px;color:var(--sub);margin-bottom:12px;line-height:1.6;">가격이나 세트 할인이 바뀌면 여기서 수정하세요. 새 주문 등록 시 자동으로 반영됩니다. ※ 소스팩 등 <b>추가품목</b>은 세트 할인 대상에서 제외됩니다(정가는 합산, 할인은 세트유형에 따라 고정 금액으로 적용).</div>
       <div class="page-hdr" style="border-bottom:none;margin-bottom:10px;padding-bottom:0;">
         <h3 style="font-size:14px;">상품 · 가격</h3>
-        <button class="btn btn-out btn-sm" onclick="addMilkitProductRow()">+ 상품 추가</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-out btn-sm" onclick="previewMilkitRecipeCards()">👨‍🍳 조리 레시피 인쇄</button>
+          <button class="btn btn-out btn-sm" onclick="addMilkitProductRow()">+ 상품 추가</button>
+        </div>
       </div>
       <div class="table-wrap settings-tbl-wrap" style="margin-bottom:20px;">
         <table class="settings-tbl">
@@ -4911,6 +4936,58 @@ function mkCostsPrintHtml(){
 }
 function previewMilkitCostsPrint(){
   mkPreviewPrint('밀키트 원가·수익 분석 인쇄 미리보기', '현재 설정된 비용 기준입니다 · 인쇄 시 흰 배경으로 출력됩니다', mkCostsPrintHtml());
+}
+
+/* ===== 밀키트 조리 레시피 카드 (누구나 따라 만들 수 있는 출력물) =====
+   재료를 등록된 순서대로 "쌓는 순서"로 보여줘 조립하듯 만들 수 있게 한다. */
+function mkRecipeCardHtml(p){
+  const items=(p.items||[]).filter(it=>it.ingredientId);
+  const steps=items.map((it,i)=>{
+    const nm=ingName(it.ingredientId);
+    const unit=ingUnit(it.ingredientId)||'';
+    const amt=Number(it.amount||0);
+    const amtStr=(Math.round(amt*100)/100)+ (unit?unit:'');
+    return `<div class="cook-step">
+      <div class="cook-no">${i+1}</div>
+      <div class="cook-ing">${nm}</div>
+      <div class="cook-amt">${amtStr}</div>
+      <div class="cook-chk">☐</div>
+    </div>`;
+  }).join('');
+  const empty=`<div style="padding:24px 0;text-align:center;color:#999;">레시피가 등록되지 않았습니다.</div>`;
+  return `<div class="mk-cook-card">
+    <div class="cook-head">
+      <div>
+        <div class="cook-cat">${p.category||''} 밀키트</div>
+        <div class="cook-title">${p.name}</div>
+      </div>
+      <div class="cook-badge">1인분 기준</div>
+    </div>
+    <div class="cook-guide">아래 <b>번호 순서대로</b> 재료를 올리면 완성됩니다. 담을 때마다 ☐ 에 체크하세요.</div>
+    <div class="cook-steps">
+      <div class="cook-step cook-step-hd">
+        <div class="cook-no">순서</div><div class="cook-ing">재료</div><div class="cook-amt">사용량</div><div class="cook-chk">확인</div>
+      </div>
+      ${steps||empty}
+    </div>
+    <div class="cook-foot">
+      <div class="cook-foot-t">📦 포장 전 확인</div>
+      <div class="cook-foot-b">□ 재료 개수 확인　□ 신선도 확인　□ 라벨·조리안내문 동봉　□ 보냉 포장</div>
+    </div>
+    <div class="cook-brand">지구인피자 · 밀키트 조리 레시피</div>
+  </div>`;
+}
+function mkRecipeCardsHtml(){
+  const withRecipe=milkitProducts.filter(p=>(p.items||[]).some(it=>it.ingredientId));
+  if(!withRecipe.length){
+    return `<div class="mk-print-sheet"><div style="text-align:center;color:#999;padding:40px 0;">레시피가 등록된 밀키트 상품이 없습니다.<br>메뉴·가격 설정에서 상품별 "＋ 레시피"로 재료를 등록하세요.</div></div>`;
+  }
+  return withRecipe.map(mkRecipeCardHtml).join('');
+}
+function previewMilkitRecipeCards(){
+  const cnt=milkitProducts.filter(p=>(p.items||[]).some(it=>it.ingredientId)).length;
+  if(!cnt){ alert('레시피가 등록된 밀키트 상품이 없습니다.\n상품별 "＋ 레시피"로 재료를 먼저 등록해 주세요.'); return; }
+  mkPreviewPrint('밀키트 조리 레시피 인쇄 미리보기', `레시피가 등록된 상품 ${cnt}개 · 상품마다 한 장씩 출력됩니다`, mkRecipeCardsHtml());
 }
 
 function mkAutofillCustomer(){
