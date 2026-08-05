@@ -87,7 +87,8 @@ h1,h2,h3,h4{font-family:var(--sans);letter-spacing:-.01em;}
 #topbar{background:var(--topbar-bg);backdrop-filter:saturate(180%) blur(16px);-webkit-backdrop-filter:saturate(180%) blur(16px);border-bottom:1px solid var(--border);padding:14px 28px;padding-top:calc(14px + var(--sai-top));display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:50;}
 #topbar h2{font-family:var(--serif);font-size:16px;color:var(--dark);font-weight:700;letter-spacing:.05em;}
 #menu-btn{display:none;background:none;border:none;font-size:22px;cursor:pointer;padding:0;color:var(--p);}
-#back-btn{background:none;border:none;font-size:30px;line-height:1;cursor:pointer;padding:0 4px 3px;color:var(--p);flex-shrink:0;}
+#back-btn{background:var(--bg2);border:1px solid var(--border);border-radius:8px;font-size:24px;line-height:1;cursor:pointer;padding:2px 12px 5px;color:var(--p);flex-shrink:0;}
+#back-btn:active{background:var(--acc-pale);}
 #back-btn:active{opacity:.5;}
 /* 왼쪽 가장자리 스와이프 뒤로가기 힌트 */
 #swipe-back-hint{position:fixed;top:0;bottom:0;left:0;width:0;z-index:120;pointer-events:none;
@@ -308,12 +309,21 @@ tr:hover td{background:var(--bg2);}
 /* milkit print styles (주문내역 · 고객관리 · 판매현황 공용) */
 #mk-print-target{display:none;}
 @media print{
-  /* visibility:hidden 은 자리를 그대로 차지해 빈 페이지가 생기므로 display:none 으로 완전히 제외 */
-  body.printing-mk > *{display:none!important;}
-  body.printing-mk > #mk-print-target{display:block!important;width:100%;padding:0;margin:0;}
-  body.printing-mk{background:#fff!important;}
+  @page{ margin:12mm; }
+  /* 인쇄 버튼(printing-mk)이든 iOS 네이티브 인쇄(mk-preview-open)든, 시트만 출력하고
+     나머지(앱 화면·미리보기 오버레이 등)는 완전히 제외한다.
+     visibility:hidden 은 자리를 차지해 빈 페이지가 생기므로 display:none 을 쓴다. */
+  body.printing-mk > *, body.mk-preview-open > *{display:none!important;}
+  body.printing-mk > #mk-print-target, body.mk-preview-open > #mk-print-target{
+    display:block!important;width:100%;padding:0;margin:0;}
+  body.printing-mk, body.mk-preview-open{background:#fff!important;}
 }
-.mk-print-sheet{font-family:var(--sans);color:#1E1A17;background:#fff;padding:6px;}
+.mk-print-sheet{font-family:var(--sans);color:#1E1A17;background:#fff;padding:6px;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+.mk-print-sheet .pc-paid{color:#1F7A34;font-weight:700;}
+.mk-print-sheet .pc-wait{color:#B23B00;font-weight:700;}
+.mk-print-sheet .pc-parcel{color:#1E5FA8;font-weight:700;}
+.mk-print-sheet .pc-direct{color:#7A3FA8;font-weight:700;}
+.mk-print-sheet .pc-pickup{color:#1E7A6A;font-weight:700;}
 .mk-print-sheet .mp-hdr{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #1E1A17;padding-bottom:8px;margin-bottom:4px;gap:12px;}
 .mk-print-sheet .mp-hdr h2{font-family:var(--serif);font-size:19px;font-weight:700;margin:0;}
 .mk-print-sheet .mp-hdr .meta{font-size:11px;color:#555;text-align:right;line-height:1.6;white-space:nowrap;}
@@ -650,8 +660,9 @@ img{max-width:100%;height:auto;}
 <main id="main">
   <div id="swipe-back-hint"></div>
   <div id="topbar">
-    <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+    <div style="display:flex;align-items:center;gap:6px;min-width:0;">
       <button id="back-btn" onclick="goBackInApp()" title="뒤로 가기" style="display:none;">‹</button>
+      <span id="topbar-sep" style="display:none;width:1px;height:20px;background:var(--border);margin:0 4px;"></span>
       <button id="menu-btn" onclick="toggleSidebar()">☰</button>
       <h2 id="topbar-title" style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">대시보드</h2>
     </div>
@@ -1047,6 +1058,7 @@ img{max-width:100%;height:auto;}
       <div class="filter-panel" id="mk-order-filter-panel">
         <div class="f-quick" style="margin:0 0 12px;">
           <button type="button" class="f-chip" data-period="" onclick="setMkOrderPeriod('')">전체</button>
+          <button type="button" class="f-chip" data-period="today" onclick="setMkOrderPeriod('today')">오늘</button>
           <button type="button" class="f-chip" data-period="thisMonth" onclick="setMkOrderPeriod('thisMonth')">이번달</button>
           <button type="button" class="f-chip" data-period="lastMonth" onclick="setMkOrderPeriod('lastMonth')">지난달</button>
           <button type="button" class="f-chip" data-period="7" onclick="setMkOrderPeriod('7')">최근 7일</button>
@@ -1082,8 +1094,10 @@ img{max-width:100%;height:auto;}
           <div class="f-field">
             <label>정렬</label>
             <select id="mk-order-sort" onchange="renderMilkitOrders()">
-              <option value="dateDesc">최신 주문순</option>
-              <option value="dateAsc">오래된 주문순</option>
+              <option value="noDesc">번호순 (최신 위)</option>
+              <option value="noAsc">번호순 (오래된 위)</option>
+              <option value="dateDesc">주문일 최신순</option>
+              <option value="dateAsc">주문일 오래된순</option>
               <option value="nameAsc">이름 가나다순</option>
               <option value="amtDesc">금액 높은순</option>
               <option value="amtAsc">금액 낮은순</option>
@@ -1096,7 +1110,7 @@ img{max-width:100%;height:auto;}
       </div>
       <!-- 기간 선택값을 보관 (칩으로 조작) -->
       <select id="mk-order-period" style="display:none;">
-        <option value=""></option><option value="thisMonth"></option><option value="lastMonth"></option>
+        <option value=""></option><option value="today"></option><option value="thisMonth"></option><option value="lastMonth"></option>
         <option value="7"></option><option value="30"></option><option value="custom"></option>
       </select>
       <div class="f-summary" id="mk-order-filter-summary"></div>
@@ -1846,6 +1860,10 @@ img{max-width:100%;height:auto;}
           <input type="date" id="mk-order-date">
         </div>
         <div class="form-row">
+          <label>주문시각</label>
+          <input type="time" id="mk-order-time">
+        </div>
+        <div class="form-row">
           <label>주문자명 *</label>
           <input type="text" id="mk-order-customer" list="mk-customer-datalist" placeholder="고객명" oninput="mkAutofillCustomer()">
           <datalist id="mk-customer-datalist"></datalist>
@@ -1854,19 +1872,37 @@ img{max-width:100%;height:auto;}
           <label>연락처</label>
           <input type="tel" id="mk-order-phone" placeholder="010-0000-0000" oninput="this.value=formatPhone(this.value)">
         </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin:2px 0 10px;">
+        <label style="font-size:12px;color:var(--sub);display:flex;align-items:center;gap:6px;cursor:pointer;">
+          <input type="checkbox" id="mk-order-diffrecipient" onchange="mkToggleRecipient()"> 받는 분이 주문자와 달라요 (선물·대리주문)
+        </label>
+      </div>
+      <div class="form-grid" id="mk-order-recipient-box" style="display:none;">
+        <div class="form-row">
+          <label>받는 분</label>
+          <input type="text" id="mk-order-recipient" placeholder="받는 분 성함">
+        </div>
+        <div class="form-row">
+          <label>받는 분 연락처</label>
+          <input type="tel" id="mk-order-recipient-phone" placeholder="010-0000-0000" oninput="this.value=formatPhone(this.value)">
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="form-row">
+          <label>배송주소</label>
+          <input type="text" id="mk-order-address" placeholder="배송지 주소">
+        </div>
         <div class="form-row">
           <label>희망배송일</label>
           <input type="date" id="mk-order-desired">
         </div>
       </div>
       <div class="form-row">
-        <label>배송주소</label>
-        <input type="text" id="mk-order-address" placeholder="배송지 주소">
-      </div>
-      <div class="form-row">
         <label>상품별 수량</label>
         <div class="recipe-items-list" id="mk-order-qty-rows"></div>
       </div>
+      <div style="font-size:11px;color:var(--sub2);margin:-4px 0 8px;">💡 피자 수량에 따라 세트 할인이 자동 적용됩니다 (2개↑ 2종세트 · 4개↑ 4종세트). 필요하면 아래에서 직접 바꿀 수 있어요.</div>
       <div class="form-grid">
         <div class="form-row">
           <label>구성유형</label>
@@ -2476,7 +2512,10 @@ function updateBackBtn(){
   if(!btn) return;
   const depth=(history.state&&typeof history.state.depth==='number')?history.state.depth:0;
   const modalOpen=!!document.querySelector('.modal-bg.open');
-  btn.style.display = (depth>0 || modalOpen) ? '' : 'none';
+  const show = (depth>0 || modalOpen);
+  btn.style.display = show ? '' : 'none';
+  const sep=document.getElementById('topbar-sep');
+  if(sep) sep.style.display = show ? '' : 'none';
 }
 function initAppHistory(){
   // 주소의 #섹션 을 반영해 새로고침·북마크 시 보던 화면으로 복귀
@@ -2500,7 +2539,21 @@ function initAppHistory(){
     applyAppView(st&&st.view ? st.view : {sec:'dashboard', tab:null});
   });
   initSwipeBack();
+  initOutsideClose();
   updateBackBtn();
+}
+/* 창(모달) 바깥의 빈 곳을 누르면 닫기 */
+function initOutsideClose(){
+  document.addEventListener('mousedown', function(e){
+    // 모달 배경(.modal-bg)의 빈 영역 직접 클릭 시 닫기
+    if(e.target.classList && e.target.classList.contains('modal-bg') && e.target.classList.contains('open')){
+      closeModal(e.target.id);
+      return;
+    }
+    // 인쇄 미리보기 오버레이의 어두운 여백 클릭 시 닫기
+    const printOv=document.getElementById('mk-print-overlay');
+    if(printOv && printOv.style.display!=='none' && e.target===printOv){ closeMkPrintPreview(); }
+  });
 }
 /* 왼쪽 가장자리에서 오른쪽으로 스와이프하면 뒤로 가기 (PWA 전체화면 대비) */
 function initSwipeBack(){
@@ -4303,6 +4356,7 @@ function showMilkitTab(tab, fromHistory){
 }
 
 function renderMilkit(){
+  mkEnsureOrderNos();
   renderMilkitStats();
   renderMilkitOrders();
   showMilkitTab('orders');
@@ -4348,7 +4402,7 @@ function syncMkOrderFilterUi(){
   ['mk-order-product-filter','mk-order-paystatus-filter','mk-order-delstatus-filter'].forEach(id=>{
     if((document.getElementById(id)?.value||'')) n++;
   });
-  if((document.getElementById('mk-order-sort')?.value||'dateDesc')!=='dateDesc') n++;
+  if((document.getElementById('mk-order-sort')?.value||'noDesc')!=='noDesc') n++;
   const btn=document.getElementById('mk-order-filter-toggle');
   const cnt=document.getElementById('mk-order-filter-count');
   if(btn) btn.classList.toggle('has-filter', n>0);
@@ -4361,6 +4415,9 @@ function mkOrderPeriodRange(){
   const now=new Date();
   const pad=n=>String(n).padStart(2,'0');
   const fmt=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+  if(v==='today'){
+    return {from:fmt(now), to:fmt(now), label:'오늘'};
+  }
   if(v==='thisMonth'){
     const s=new Date(now.getFullYear(), now.getMonth(), 1);
     const e=new Date(now.getFullYear(), now.getMonth()+1, 0);
@@ -4389,12 +4446,13 @@ function getFilteredMilkitOrders(){
   const payF=document.getElementById('mk-order-paystatus-filter')?.value||'';
   const delF=document.getElementById('mk-order-delstatus-filter')?.value||'';
   const prodF=document.getElementById('mk-order-product-filter')?.value||'';
-  const sort=document.getElementById('mk-order-sort')?.value||'dateDesc';
+  const sort=document.getElementById('mk-order-sort')?.value||'noDesc';
   const range=mkOrderPeriodRange();
 
   let list=[...milkitOrders];
   if(q) list=list.filter(o=>
     (o.customer||'').toLowerCase().includes(q) ||
+    (o.recipient||'').toLowerCase().includes(q) ||
     String(o.phone||'').replace(/\D/g,'').includes(q.replace(/\D/g,'')) && q.replace(/\D/g,'')!==''
   );
   if(range) list=list.filter(o=>{
@@ -4405,12 +4463,15 @@ function getFilteredMilkitOrders(){
   if(payF) list=list.filter(o=>(o.payStatus||'대기')===payF);
   if(delF) list=list.filter(o=>(o.deliveryStatus||'준비중')===delF);
 
-  const byDate=(a,b)=>(a.orderDate||'').localeCompare(b.orderDate||'')||((a.no||0)-(b.no||0));
-  if(sort==='dateAsc') list.sort(byDate);
-  else if(sort==='nameAsc') list.sort((a,b)=>(a.customer||'').localeCompare(b.customer||'','ko')||byDate(a,b));
+  const byNo=(a,b)=>((a.no||0)-(b.no||0));
+  const byDate=(a,b)=>(a.orderDate||'').localeCompare(b.orderDate||'')||((a.orderTime||'').localeCompare(b.orderTime||''))||byNo(a,b);
+  if(sort==='noAsc') list.sort(byNo);
+  else if(sort==='dateDesc') list.sort((a,b)=>byDate(b,a));
+  else if(sort==='dateAsc') list.sort(byDate);
+  else if(sort==='nameAsc') list.sort((a,b)=>(a.customer||'').localeCompare(b.customer||'','ko')||byNo(a,b));
   else if(sort==='amtDesc') list.sort((a,b)=>(Number(b.payTotal)||0)-(Number(a.payTotal)||0));
   else if(sort==='amtAsc') list.sort((a,b)=>(Number(a.payTotal)||0)-(Number(b.payTotal)||0));
-  else list.sort((a,b)=>byDate(b,a));
+  else list.sort((a,b)=>byNo(b,a));   // noDesc 기본
   return list;
 }
 
@@ -4437,7 +4498,7 @@ function resetMkOrderFilters(){
   ['mk-order-period','mk-order-product-filter','mk-order-paystatus-filter','mk-order-delstatus-filter'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.value='';
   });
-  const sort=document.getElementById('mk-order-sort'); if(sort) sort.value='dateDesc';
+  const sort=document.getElementById('mk-order-sort'); if(sort) sort.value='noDesc';
   const box=document.getElementById('mk-order-custom-range'); if(box) box.style.display='none';
   renderMilkitOrders();
 }
@@ -4507,22 +4568,34 @@ function renderMilkitOrders(){
   const payBadgeTxt={'완료':'💳 결제완료','대기':'💳 결제대기'};
   const delBadge={'배송완료':'badge-green','배송중':'badge-blue','준비중':'badge-orange'};
   const delBadgeTxt={'배송완료':'🚚 배송완료','배송중':'🚚 배송중','준비중':'🚚 배송준비중'};
-  el.innerHTML=list.map(o=>{
+  const sort=document.getElementById('mk-order-sort')?.value||'noDesc';
+  const reorderable = (sort==='noDesc'||sort==='noAsc');
+  el.innerHTML=list.map((o,i)=>{
     const items = milkitProducts.filter(p=>Number(o.qty?.[p.id])>0)
       .map(p=>`<span style="font-size:11px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:2px 8px;">${p.name} × ${o.qty[p.id]}</span>`).join('');
+    const dt = (o.orderDate||'') + (o.orderTime?' '+o.orderTime:'');
+    const recip = (o.recipient && o.recipient!==o.customer)
+      ? `<div style="margin-top:3px;font-size:12px;color:var(--acc-dark);">🎁 받는 분: ${o.recipient}${o.recipientPhone?' · '+formatPhone(o.recipientPhone):''}</div>` : '';
+    const reorder = reorderable ? `<div class="ri-move" style="margin-right:2px;" onclick="event.stopPropagation();">
+        <button class="ri-move-btn" title="위로" ${i===0?'disabled':''} onclick="event.stopPropagation();moveMilkitOrder('${o.id}',-1)">▲</button>
+        <button class="ri-move-btn" title="아래로" ${i===list.length-1?'disabled':''} onclick="event.stopPropagation();moveMilkitOrder('${o.id}',1)">▼</button>
+      </div>` : '';
     return `<div class="mrow">
       <input type="checkbox" class="mrow-check" ${mkSelectedOrderIds.has(o.id)?'checked':''} onclick="event.stopPropagation()" onchange="toggleMkOrderSelect(this,'${o.id}')">
       <button class="mrow-del" onclick="event.stopPropagation();deleteMilkitOrder('${o.id}')">삭제</button>
       <div class="mrow-inner" style="flex-direction:column;align-items:stretch;gap:0;" onclick="mrowClick(this,'openMilkitOrderModal','${o.id}')">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
-          <div>
+          <div style="display:flex;align-items:center;gap:6px;min-width:0;flex-wrap:wrap;">
+            ${reorder}
+            <span class="badge badge-gray" style="flex-shrink:0;">No.${o.no||'-'}</span>
             <span style="font-weight:700;font-size:15px;">${o.customer||'(이름 없음)'}</span>
-            <span class="badge ${payBadge[o.payStatus]||'badge-orange'}" style="margin-left:6px;">${payBadgeTxt[o.payStatus]||payBadgeTxt['대기']}</span>
-            <span class="badge ${delBadge[o.deliveryStatus]||'badge-orange'}" style="margin-left:4px;">${delBadgeTxt[o.deliveryStatus]||delBadgeTxt['준비중']}</span>
+            <span class="badge ${payBadge[o.payStatus]||'badge-orange'}">${payBadgeTxt[o.payStatus]||payBadgeTxt['대기']}</span>
+            <span class="badge ${delBadge[o.deliveryStatus]||'badge-orange'}">${delBadgeTxt[o.deliveryStatus]||delBadgeTxt['준비중']}</span>
           </div>
           <span class="num" style="font-weight:700;font-size:15px;">${comma(o.payTotal)}원</span>
         </div>
-        <div style="margin-top:4px;font-size:12px;color:var(--sub2);">${o.orderDate||''} · ${o.phone?formatPhone(o.phone):'연락처 없음'}${o.address?' · '+o.address:''}</div>
+        <div style="margin-top:4px;font-size:12px;color:var(--sub2);">${dt} · ${o.phone?formatPhone(o.phone):'연락처 없음'}${o.address?' · '+o.address:''}</div>
+        ${recip}
         <div style="margin-top:9px;display:flex;flex-wrap:wrap;gap:6px;">${items}</div>
         <div style="margin-top:6px;font-size:11px;color:var(--sub2);">${o.setType||'낱개'} × ${o.setQty||1} · ${o.payMethod||'결제방법 미지정'} · ${o.deliveryMethod||''}${o.tracking?' · 송장 '+o.tracking:''}</div>
         ${o.note?`<div style="margin-top:6px;font-size:12px;color:var(--sub2);">📝 ${o.note}</div>`:''}
@@ -4530,6 +4603,21 @@ function renderMilkitOrders(){
     </div>`;
   }).join('');
   attachSwipe('mk-order-list');
+}
+
+/* 주문 순서(번호) 변경 — 화면에 보이는 목록에서 위/아래 이웃과 번호를 맞바꿈 */
+function moveMilkitOrder(id, dir){
+  const list=getFilteredMilkitOrders();
+  const i=list.findIndex(o=>o.id===id);
+  if(i<0) return;
+  const j=i+dir;
+  if(j<0||j>=list.length) return;
+  const a=milkitOrders.find(o=>o.id===list[i].id);
+  const b=milkitOrders.find(o=>o.id===list[j].id);
+  if(!a||!b) return;
+  const t=a.no; a.no=b.no; b.no=t;
+  DB.save('milkitOrders',milkitOrders);
+  renderMilkitOrders();
 }
 
 function mkOrderItemsSummary(o){
@@ -4545,22 +4633,36 @@ function mkPrintHeader(title, summaryLine){
   </div>`;
 }
 
+function mkPrintPayHtml(status){
+  return status==='완료'
+    ? '<span class="pc-paid">● 결제완료</span>'
+    : '<span class="pc-wait">● 결제대기</span>';
+}
+function mkPrintDeliveryHtml(method){
+  if(method==='택배발송') return '<span class="pc-parcel">■ 택배발송</span>';
+  if(method==='직접배송') return '<span class="pc-direct">■ 직접배송</span>';
+  if(method==='직접수령') return '<span class="pc-pickup">■ 직접수령</span>';
+  return '<span>'+(method||'배송방법 미지정')+'</span>';
+}
 function mkOrderPrintHtml(list){
   const totalAmt = list.reduce((s,o)=>s+(Number(o.payTotal)||0),0);
-  const payBadgeTxt={'완료':'결제완료','대기':'결제대기'};
-  const rows = list.map(o=>`
+  const rows = list.map(o=>{
+    const recip = (o.recipient && o.recipient!==o.customer)
+      ? ` · 받는 분 ${o.recipient}${o.recipientPhone?'('+formatPhone(o.recipientPhone)+')':''}` : '';
+    const dt = (o.orderDate||'') + (o.orderTime?' '+o.orderTime:'');
+    return `
     <div class="mp-row">
       <div class="mp-row-top">
-        <span class="mp-no">#${o.no||''}</span>
+        <span class="mp-no">No.${o.no||''}</span>
         <span class="mp-name">${o.customer||'(이름 없음)'}</span>
-        <span class="mp-tags">${o.orderDate||''} · ${payBadgeTxt[o.payStatus]||'결제대기'} · ${o.deliveryMethod||''} · ${o.deliveryStatus||'준비중'}${o.tracking?' · 송장 '+o.tracking:''}</span>
+        <span class="mp-tags">${dt} · ${mkPrintPayHtml(o.payStatus)} · ${mkPrintDeliveryHtml(o.deliveryMethod)} · ${o.deliveryStatus||'준비중'}${o.tracking?' · 송장 '+o.tracking:''}</span>
         <span class="mp-amt">${comma(o.payTotal)}원</span>
       </div>
-      <div class="mp-row-mid">${o.phone?formatPhone(o.phone):'연락처 없음'}${o.address?' · '+o.address:''}</div>
+      <div class="mp-row-mid">${o.phone?formatPhone(o.phone):'연락처 없음'}${o.address?' · '+o.address:''}${recip}</div>
       <div class="mp-row-items">${mkOrderItemsSummary(o)} · ${o.setType||'낱개'}×${o.setQty||1}${o.payMethod?' · '+o.payMethod:''}</div>
       ${o.note?`<div class="mp-row-note">📝 ${o.note}</div>`:''}
     </div>
-  `).join('');
+  `;}).join('');
   return `
     <div class="mk-print-sheet">
       ${mkPrintHeader('지구인피자 · 밀키트 주문 내역', `총 ${list.length}건 · 결제금액 합계 ${comma(totalAmt)}원${mkOrderFilterLabel()?'<br>조건: '+mkOrderFilterLabel():''}`)}
@@ -4648,10 +4750,15 @@ function mkPreviewPrint(title, hint, html){
   document.getElementById('mk-print-title').textContent = title;
   document.getElementById('mk-print-hint').textContent = hint;
   document.getElementById('mk-print-body').innerHTML = html;
+  // iOS 사파리의 공유→인쇄(네이티브 인쇄)로 출력해도 시트만 나오도록 미리 채워둔다
+  document.getElementById('mk-print-target').innerHTML = html;
   document.getElementById('mk-print-overlay').style.display='block';
+  document.body.classList.add('mk-preview-open');
 }
 function closeMkPrintPreview(){
   document.getElementById('mk-print-overlay').style.display='none';
+  document.getElementById('mk-print-target').innerHTML='';
+  document.body.classList.remove('mk-preview-open');
 }
 /* 인쇄 실행 공통 처리
    아이폰(사파리)은 window.print() 이후 인쇄 시트를 비동기로 그리기 때문에,
@@ -4751,13 +4858,49 @@ function mkAutofillCustomer(){
 function renderMilkitOrderQtyRows(qtyMap){
   qtyMap = qtyMap||{};
   const el=document.getElementById('mk-order-qty-rows');
-  el.innerHTML = milkitProducts.map(p=>`
+  const rowHtml=p=>`
     <div class="recipe-item-row" style="grid-template-columns:1fr 90px 60px;">
       <span>${p.name}<span style="color:var(--sub2);font-size:11px;margin-left:6px;">${comma(p.price)}원</span></span>
-      <input type="text" id="mk-qty-${p.id}" value="${Number(qtyMap[p.id])||''}" placeholder="0" inputmode="numeric" oninput="qtyInputFilter(this);mkUpdateOrderTotals()">
+      <input type="text" id="mk-qty-${p.id}" value="${Number(qtyMap[p.id])||''}" placeholder="0" inputmode="numeric" oninput="qtyInputFilter(this);mkAutoApplySet();mkUpdateOrderTotals()">
       <span class="ri-cost">${p.category}</span>
-    </div>
-  `).join('');
+    </div>`;
+  // 피자와 추가품목(소스팩 등)을 항상 분리해서 표시
+  const pizzas=milkitProducts.filter(p=>p.category==='피자');
+  const extras=milkitProducts.filter(p=>p.category!=='피자');
+  let html=pizzas.map(rowHtml).join('');
+  if(extras.length){
+    html += `<div class="recipe-item-row" style="grid-template-columns:1fr;background:var(--bg2);padding:5px 10px;font-size:10px;letter-spacing:.1em;color:var(--sub2);font-weight:600;">추가품목 (세트 할인 제외)</div>`;
+    html += extras.map(rowHtml).join('');
+  }
+  el.innerHTML=html;
+}
+
+/* 피자 수량에 따라 세트 할인을 자동 적용
+   - 피자 4개 이상 → 4종세트, 2~3개 → 2종세트 (세트 규칙 이름의 숫자로 크기 판별)
+   - 소스팩 등 추가품목은 피자 수에 포함하지 않음 */
+function mkPizzaCount(){
+  return milkitProducts.filter(p=>p.category==='피자')
+    .reduce((s,p)=>s+numVal('mk-qty-'+p.id),0);
+}
+function mkSetRuleSize(rule){
+  const m=String(rule.name||'').match(/\d+/);
+  return m?Number(m[0]):0;
+}
+function mkAutoApplySet(){
+  const cnt=mkPizzaCount();
+  const sel=document.getElementById('mk-order-settype');
+  const qtyEl=document.getElementById('mk-order-setqty');
+  if(!sel) return;
+  // 크기가 있는 세트 규칙 중, 피자 수 이하로 가장 큰 것을 선택
+  const sized=milkitSetRules.map(r=>({name:r.name,size:mkSetRuleSize(r)})).filter(r=>r.size>=2);
+  const applicable=sized.filter(r=>r.size<=cnt).sort((a,b)=>b.size-a.size)[0];
+  if(applicable && [...sel.options].some(o=>o.value===applicable.name)){
+    sel.value=applicable.name;
+    qtyEl.value=Math.max(1, Math.floor(cnt/applicable.size));
+  } else {
+    sel.value='낱개';
+    qtyEl.value=1;
+  }
 }
 
 function mkUpdateOrderTotals(){
@@ -4781,10 +4924,16 @@ function openMilkitOrderModal(id){
     const o=milkitOrders.find(x=>x.id===id);
     if(!o) return;
     document.getElementById('mk-order-date').value=o.orderDate||'';
+    document.getElementById('mk-order-time').value=o.orderTime||'';
     document.getElementById('mk-order-customer').value=o.customer||'';
     document.getElementById('mk-order-phone').value=formatPhone(o.phone||'');
     document.getElementById('mk-order-desired').value=o.desiredDate||'';
     document.getElementById('mk-order-address').value=o.address||'';
+    document.getElementById('mk-order-recipient').value=o.recipient||'';
+    document.getElementById('mk-order-recipient-phone').value=formatPhone(o.recipientPhone||'');
+    const diff=!!(o.recipient && o.recipient!==o.customer);
+    document.getElementById('mk-order-diffrecipient').checked=diff;
+    document.getElementById('mk-order-recipient-box').style.display=diff?'':'none';
     renderMilkitOrderQtyRows(o.qty);
     setSel.value=o.setType||'낱개';
     document.getElementById('mk-order-setqty').value=o.setQty||1;
@@ -4795,8 +4944,12 @@ function openMilkitOrderModal(id){
     document.getElementById('mk-order-tracking').value=o.tracking||'';
     document.getElementById('mk-order-note').value=o.note||'';
   } else {
+    const now=new Date();
     document.getElementById('mk-order-date').value=todayStr();
-    ['mk-order-customer','mk-order-phone','mk-order-desired','mk-order-address','mk-order-tracking','mk-order-note'].forEach(f=>document.getElementById(f).value='');
+    document.getElementById('mk-order-time').value=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+    ['mk-order-customer','mk-order-phone','mk-order-desired','mk-order-address','mk-order-tracking','mk-order-note','mk-order-recipient','mk-order-recipient-phone'].forEach(f=>document.getElementById(f).value='');
+    document.getElementById('mk-order-diffrecipient').checked=false;
+    document.getElementById('mk-order-recipient-box').style.display='none';
     renderMilkitOrderQtyRows({});
     setSel.value='낱개';
     document.getElementById('mk-order-setqty').value=1;
@@ -4809,6 +4962,15 @@ function openMilkitOrderModal(id){
   openModal('mk-order-modal');
 }
 
+function mkToggleRecipient(){
+  const on=document.getElementById('mk-order-diffrecipient').checked;
+  document.getElementById('mk-order-recipient-box').style.display=on?'':'none';
+  if(!on){
+    document.getElementById('mk-order-recipient').value='';
+    document.getElementById('mk-order-recipient-phone').value='';
+  }
+}
+
 /* ===== 주문 중복 확인 =====
    같은 고객이 같은 상품을 다시 주문하는 경우(정상 재주문)와
    실수로 같은 주문을 두 번 넣는 경우를 사용자가 직접 구분하도록 함 */
@@ -4817,24 +4979,31 @@ function mkQtySignature(qty){
     .map(p=>p.id+':'+(Number(qty&&qty[p.id])||0))
     .filter(s=>!s.endsWith(':0')).sort().join('|');
 }
-function mkSameCustomer(a,b){
-  const pa=String(a.phone||'').replace(/\D/g,'');
-  const pb=String(b.phone||'').replace(/\D/g,'');
-  if(pa && pb) return pa===pb;                 // 연락처가 둘 다 있으면 그것이 기준
-  const na=String(a.customer||'').replace(/\s/g,'');
-  const nb=String(b.customer||'').replace(/\s/g,'');
-  return !!na && na===nb;
+/* 다음 주문 번호 = 현재 최대 번호 + 1 (입력 순서를 번호로 기록) */
+function mkNextOrderNo(){
+  return milkitOrders.reduce((m,o)=>Math.max(m, Number(o.no)||0), 0) + 1;
 }
-/* 같은 고객이면서 (상품 구성이 같거나 · 주문일자가 같은) 기존 주문을 찾음 */
+/* 번호가 없거나 중복이면 배열 순서대로 1..N 재부여 (순서 변경/정렬의 기준이 되므로 고유해야 함) */
+function mkEnsureOrderNos(){
+  const nums=milkitOrders.map(o=>Number(o.no)||0);
+  const hasDup=new Set(nums).size!==nums.length;
+  const hasZero=nums.some(n=>n<=0);
+  if(!hasDup && !hasZero) return;
+  milkitOrders.forEach((o,i)=>{ o.no=i+1; });
+  DB.save('milkitOrders',milkitOrders);
+}
+const _mkNorm=v=>String(v==null?'':v).replace(/\s/g,'').toLowerCase();
+/* 중복 판정: 주문자명 · 배송주소 · 상품 구성이 모두 같을 때만 (오인식 최소화) */
 function findMilkitDuplicates(cand, excludeId){
   const sig=mkQtySignature(cand.qty);
+  const name=_mkNorm(cand.customer), addr=_mkNorm(cand.address);
   const out=[];
   milkitOrders.forEach(o=>{
     if(excludeId && o.id===excludeId) return;
-    if(!mkSameCustomer(cand,o)) return;
-    const sameProducts = !!sig && mkQtySignature(o.qty)===sig;
-    const sameDate = !!cand.orderDate && o.orderDate===cand.orderDate;
-    if(sameProducts || sameDate) out.push({order:o, sameProducts, sameDate});
+    const sameName = !!name && _mkNorm(o.customer)===name;
+    const sameAddr = _mkNorm(o.address)===addr;         // 둘 다 비어 있어도 "같음"으로 봄
+    const sameItems = !!sig && mkQtySignature(o.qty)===sig;
+    if(sameName && sameAddr && sameItems) out.push({order:o, sameProducts:true, sameAddr:true});
   });
   return out;
 }
@@ -4857,10 +5026,16 @@ function saveMilkitOrder(){
   const {listTotal,discount,payTotal}=mkCalcTotals(qty,setType,setQty);
   const phone=formatPhone(document.getElementById('mk-order-phone').value);
   const address=document.getElementById('mk-order-address').value.trim();
+  const diffRecipient=document.getElementById('mk-order-diffrecipient').checked;
+  const recipient=diffRecipient ? document.getElementById('mk-order-recipient').value.trim() : '';
+  const recipientPhone=diffRecipient ? formatPhone(document.getElementById('mk-order-recipient-phone').value) : '';
+  const existing=mkEditId ? milkitOrders.find(x=>x.id===mkEditId) : null;
   const obj={
     id:mkEditId||uid(),
-    no:mkEditId ? (milkitOrders.find(x=>x.id===mkEditId)?.no||milkitOrders.length+1) : milkitOrders.length+1,
-    orderDate, customer, phone, address, qty,
+    no: existing ? existing.no : mkNextOrderNo(),
+    orderDate,
+    orderTime:document.getElementById('mk-order-time').value||'',
+    customer, phone, address, recipient, recipientPhone, qty,
     setType, setQty, listTotal, discount, payTotal,
     payMethod:document.getElementById('mk-order-paymethod').value,
     payStatus:document.getElementById('mk-order-paystatus').value,
@@ -4900,8 +5075,8 @@ function showMilkitDupModal(cand, dups){
   mkDupCand=cand; mkDupList=dups;
   const multi=dups.length>1;
   document.getElementById('mk-dup-summary').innerHTML=
-    `<b>${cand.customer}</b> 님의 주문 중 비슷한 주문이 <b>${dups.length}건</b> 이미 등록되어 있습니다.<br>
-     <span style="color:var(--sub2);font-size:11.5px;">같은 고객이 다시 주문한 것이라면 “별도 주문으로 등록”을 선택하세요.</span>`;
+    `<b>${cand.customer}</b> 님의 <b>이름·주소·주문내역이 모두 같은</b> 주문이 <b>${dups.length}건</b> 이미 등록되어 있습니다.<br>
+     <span style="color:var(--sub2);font-size:11.5px;">같은 사람이 실제로 또 주문한 것이라면 “별도 주문으로 등록”을 선택하세요.</span>`;
 
   document.getElementById('mk-dup-new').innerHTML=`
     <div style="font-size:11px;color:var(--sub2);margin-bottom:4px;">지금 입력한 주문</div>
@@ -4910,7 +5085,7 @@ function showMilkitDupModal(cand, dups){
 
   document.getElementById('mk-dup-existing').innerHTML=dups.map((d,i)=>{
     const o=d.order;
-    const why=[d.sameProducts?'상품 동일':'', d.sameDate?'주문일 동일':''].filter(Boolean).join(' · ');
+    const why='이름 · 주소 · 상품 모두 동일';
     return `<label style="display:flex;gap:9px;align-items:flex-start;padding:10px 11px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;cursor:pointer;">
       <input type="radio" name="mk-dup-pick" value="${i}" ${i===0?'checked':''} style="margin-top:3px;">
       <div style="flex:1;min-width:0;">
@@ -5151,7 +5326,7 @@ function mkFlagDuplicates(list){
   return list.map(cand=>{
     const existing=findMilkitDuplicates(cand, null);
     const sig=mkQtySignature(cand.qty);
-    const inBatch=seen.some(s=>mkSameCustomer(cand,s) && mkQtySignature(s.qty)===sig);
+    const inBatch=seen.some(s=>_mkNorm(s.customer)===_mkNorm(cand.customer) && _mkNorm(s.address)===_mkNorm(cand.address) && mkQtySignature(s.qty)===sig);
     seen.push(cand);
     return {existing, inBatch};
   });
