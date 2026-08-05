@@ -199,6 +199,22 @@ tr:hover td{background:var(--bg2);}
 .form-row input,.form-row select,.form-row textarea{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:13px;font-family:inherit;background:#fff;color:var(--text);transition:border-color .15s;}
 .form-row input:focus,.form-row select:focus,.form-row textarea:focus{outline:none;border-color:var(--acc);}
 .form-row textarea{resize:vertical;min-height:72px;}
+/* 고객명 자동완성 */
+.ac-wrap{position:relative;}
+.ac-wrap>input{width:100%;padding-right:40px!important;}
+.ac-all-btn{position:absolute;top:50%;right:6px;transform:translateY(-50%);width:30px;height:30px;padding:0;
+  border:1px solid var(--border);border-radius:6px;background:#fff;cursor:pointer;font-size:14px;line-height:1;}
+.ac-all-btn:active{background:var(--bg2);}
+.ac-list{display:none;position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:30;background:#fff;
+  border:1px solid var(--border-strong);border-radius:var(--r-sm);box-shadow:var(--shadow-md);
+  max-height:230px;overflow-y:auto;}
+.ac-list.open{display:block;}
+.ac-item{padding:9px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border);white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;}
+.ac-item:last-child{border-bottom:none;}
+.ac-item:hover,.ac-item.active{background:var(--acc-pale);}
+.ac-item .ac-sub{color:var(--sub2);font-size:11px;margin-left:6px;}
+.ac-empty{padding:10px 12px;font-size:12px;color:var(--sub2);}
 /* 날짜 칸은 내용이 짧아 전체 폭으로 늘리면 허전해 보이므로 폭을 제한.
    모바일에서도 동일하게 적용해야 하므로 화면 크기별 예외를 두지 않는다.
    (모바일 입력 글꼴이 16px로 커지는 것을 감안해 여유를 둔 값) */
@@ -1865,8 +1881,12 @@ img{max-width:100%;height:auto;}
         </div>
         <div class="form-row">
           <label>주문자명 *</label>
-          <input type="text" id="mk-order-customer" list="mk-customer-datalist" placeholder="고객명" oninput="mkAutofillCustomer()">
-          <datalist id="mk-customer-datalist"></datalist>
+          <div class="ac-wrap">
+            <input type="text" id="mk-order-customer" placeholder="고객명" autocomplete="off"
+              oninput="mkCustomerInput()" onfocus="mkCustomerSuggest(false)" onblur="mkCustomerBlur()">
+            <button type="button" class="ac-all-btn" title="전체 고객 목록" onclick="mkCustomerSuggest(true)">📋</button>
+            <div class="ac-list" id="mk-customer-suggest"></div>
+          </div>
         </div>
         <div class="form-row">
           <label>연락처</label>
@@ -4855,6 +4875,66 @@ function mkAutofillCustomer(){
   }
 }
 
+/* ===== 고객명 자동완성 (초성 검색 지원) ===== */
+const _CHO='ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ';
+function _chosung(str){
+  let out='';
+  for(const ch of String(str||'')){
+    const code=ch.charCodeAt(0);
+    if(code>=0xAC00 && code<=0xD7A3) out+=_CHO[Math.floor((code-0xAC00)/588)];
+    else out+=ch;
+  }
+  return out;
+}
+/* 질의가 이름의 일부이거나(부분일치) 초성과 맞으면 true */
+function _nameMatch(name, q){
+  if(!q) return true;
+  const n=String(name||'').toLowerCase().replace(/\s/g,'');
+  const query=q.toLowerCase().replace(/\s/g,'');
+  if(n.includes(query)) return true;
+  // 질의가 초성 자모로만 이뤄졌으면 이름 초성과 비교
+  if([...query].every(c=>_CHO.includes(c))) return _chosung(name).includes(query);
+  return false;
+}
+function mkCustomerInput(){
+  mkAutofillCustomer();
+  mkCustomerSuggest(false);
+}
+/* showAll=true → 전체 목록(📋 버튼), false → 입력값과 맞는 것만 */
+function mkCustomerSuggest(showAll){
+  const box=document.getElementById('mk-customer-suggest');
+  if(!box) return;
+  const q=(document.getElementById('mk-order-customer').value||'').trim();
+  // 입력값이 없고 전체보기도 아니면 숨김 (상시 노출 방지)
+  if(!showAll && !q){ box.classList.remove('open'); box.innerHTML=''; return; }
+  let list = showAll ? milkitCustomers.slice() : milkitCustomers.filter(c=>_nameMatch(c.name,q));
+  // 정확히 같은 이름 하나만 남으면 굳이 목록을 띄우지 않음
+  if(!showAll && list.length===1 && list[0].name===q){ box.classList.remove('open'); box.innerHTML=''; return; }
+  list=list.slice(0,30);
+  if(!list.length){
+    box.innerHTML = showAll ? `<div class="ac-empty">등록된 고객이 없습니다</div>`
+                            : `<div class="ac-empty">일치하는 고객이 없습니다 · 새 이름으로 등록됩니다</div>`;
+    box.classList.add('open');
+    return;
+  }
+  box.innerHTML = list.map(c=>{
+    const sub=[c.phone?formatPhone(c.phone):'', c.address||''].filter(Boolean).join(' · ');
+    const nm=c.name.replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    return `<div class="ac-item" onmousedown="event.preventDefault();mkPickCustomer('${nm}')">${c.name}${sub?`<span class="ac-sub">${sub}</span>`:''}</div>`;
+  }).join('');
+  box.classList.add('open');
+}
+function mkPickCustomer(name){
+  document.getElementById('mk-order-customer').value=name;
+  mkAutofillCustomer();
+  const box=document.getElementById('mk-customer-suggest');
+  if(box){ box.classList.remove('open'); box.innerHTML=''; }
+}
+function mkCustomerBlur(){
+  // 항목 클릭(mousedown)이 먼저 처리되도록 약간 지연 후 닫기
+  setTimeout(()=>{ const box=document.getElementById('mk-customer-suggest'); if(box) box.classList.remove('open'); }, 150);
+}
+
 function renderMilkitOrderQtyRows(qtyMap){
   qtyMap = qtyMap||{};
   const el=document.getElementById('mk-order-qty-rows');
@@ -4917,7 +4997,7 @@ function mkUpdateOrderTotals(){
 function openMilkitOrderModal(id){
   mkEditId=id||null;
   document.getElementById('mk-order-modal-title').textContent=id?'주문 수정':'주문 등록';
-  document.getElementById('mk-customer-datalist').innerHTML = milkitCustomers.map(c=>`<option value="${c.name}">`).join('');
+  const _sg=document.getElementById('mk-customer-suggest'); if(_sg){ _sg.classList.remove('open'); _sg.innerHTML=''; }
   const setSel=document.getElementById('mk-order-settype');
   setSel.innerHTML = '<option value="낱개">낱개(할인 없음)</option>' + milkitSetRules.map(r=>`<option value="${r.name}">${r.name} (-${comma(r.discount)}원/세트)</option>`).join('');
   if(id){
