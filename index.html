@@ -275,6 +275,14 @@ tr:hover td{background:var(--bg2);}
   font-size:8px;line-height:1;cursor:pointer;border-radius:3px;font-family:inherit;display:flex;align-items:center;justify-content:center;}
 .ri-move-btn:hover:not(:disabled){border-color:var(--acc);color:var(--acc);}
 .ri-move-btn:disabled{opacity:.3;cursor:default;}
+/* 드래그 순서변경 핸들 */
+.drag-handle{cursor:grab;color:var(--sub2);font-size:16px;line-height:1;padding:0 6px 0 0;flex-shrink:0;
+  touch-action:none;user-select:none;-webkit-user-select:none;align-self:center;}
+.drag-handle:active{cursor:grabbing;}
+.mk-recipe-row.dragging,.recipe-item-row.dragging{opacity:.9;background:var(--acc-pale);box-shadow:var(--shadow-md);border-radius:var(--r-sm);}
+.drag-placeholder{background:var(--acc-pale);border:1px dashed var(--acc);border-radius:var(--r-sm);margin:2px 0;}
+.mkr-name.ac-wrap{display:flex;align-items:center;gap:0;}
+.mkr-name.ac-wrap>input{flex:1;min-width:0;}
 .recipe-item-row.dragging{opacity:.95;background:var(--acc-pale);box-shadow:var(--shadow-md);border-radius:var(--r-sm);position:relative;z-index:5;}
 .recipe-item-row.drop-target{box-shadow:inset 0 2px 0 0 var(--acc);}
 .recipe-item-row select,.recipe-item-row input{padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:12px;font-family:inherit;width:100%;}
@@ -1120,7 +1128,10 @@ img{max-width:100%;height:auto;}
             </select>
           </div>
         </div>
-        <div class="f-actions">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:12px;flex-wrap:wrap;">
+          <label style="font-size:12.5px;color:var(--sub);display:flex;align-items:center;gap:6px;cursor:pointer;">
+            <input type="checkbox" id="mk-order-hidedone" onchange="mkToggleHideDone(this)"> 배송완료 숨기기
+          </label>
           <button class="btn btn-out btn-sm" onclick="resetMkOrderFilters()">필터 초기화</button>
         </div>
       </div>
@@ -1391,11 +1402,9 @@ img{max-width:100%;height:auto;}
           <input type="text" id="ing-name" placeholder="예: 모짜렐라 치즈">
         </div>
         <div class="form-row">
-          <label>카테고리</label>
-          <select id="ing-cat">
-            <option>밀가루·곡물</option><option>육류</option><option>채소</option>
-            <option>유제품</option><option>소스·조미료</option><option>음료·기타</option>
-          </select>
+          <label>카테고리 <span style="font-weight:400;color:var(--sub2);">— 직접 입력 가능</span></label>
+          <input type="text" id="ing-cat" list="ing-cat-datalist" placeholder="예: 유제품 (없으면 새로 입력)" autocomplete="off">
+          <datalist id="ing-cat-datalist"></datalist>
         </div>
         <div class="form-row">
           <label>구입 가격 (원) *</label>
@@ -1539,11 +1548,8 @@ img{max-width:100%;height:auto;}
         </div>
         <div class="form-row">
           <label>카테고리</label>
-          <select id="rec-cat">
-            <option>베이직</option><option>클래식</option><option>스페셜</option><option>프리미엄</option>
-            <option>파스타</option><option>필라프</option><option>사이드</option>
-            <option>서비스</option><option>추가</option><option>기타</option>
-          </select>
+          <input type="text" id="rec-cat" list="rec-cat-datalist" placeholder="예: 베이직 (직접 입력 가능)" autocomplete="off">
+          <datalist id="rec-cat-datalist"></datalist>
         </div>
         <div class="form-row">
           <label>판매가 (원) *</label>
@@ -1914,10 +1920,11 @@ img{max-width:100%;height:auto;}
           <input type="text" id="mk-order-address" placeholder="배송지 주소">
         </div>
         <div class="form-row">
-          <label>희망배송일</label>
-          <input type="date" id="mk-order-desired">
+          <label>희망수령일</label>
+          <input type="date" id="mk-order-desired" onchange="mkDeliveryHint()">
         </div>
       </div>
+      <div id="mk-order-deliv-hint" style="display:none;font-size:12px;color:var(--acc-dark);background:var(--acc-pale);border-radius:8px;padding:9px 12px;margin:-4px 0 12px;line-height:1.6;"></div>
       <div class="form-row">
         <label>상품별 수량</label>
         <div class="recipe-items-list" id="mk-order-qty-rows"></div>
@@ -1941,8 +1948,8 @@ img{max-width:100%;height:auto;}
       <div class="form-grid">
         <div class="form-row">
           <label>결제방법</label>
-          <select id="mk-order-paymethod">
-            <option value="">미지정</option>
+          <select id="mk-order-paymethod" onchange="mkPayMethodChanged()">
+            <option value="">미납</option>
             <option value="카드">카드</option>
             <option value="계좌이체">계좌이체</option>
             <option value="현금">현금</option>
@@ -1958,7 +1965,7 @@ img{max-width:100%;height:auto;}
         </div>
         <div class="form-row">
           <label>배송방법</label>
-          <select id="mk-order-delmethod">
+          <select id="mk-order-delmethod" onchange="mkDeliveryHint()">
             <option value="택배발송">택배발송</option>
             <option value="직접배송">직접배송</option>
             <option value="직접수령">직접수령</option>
@@ -2752,7 +2759,20 @@ function renderDashboardMilkitStats(){
 /* ============================
    INGREDIENTS
    ============================ */
+/* 실제 등록된 카테고리 + 기본 카테고리 (중복 제거) */
+function allIngCategories(){
+  const base=['밀가루·곡물','육류','채소','유제품','소스·조미료','음료·기타'];
+  const used=ingredients.map(i=>(i.category||'').trim()).filter(Boolean);
+  return [...new Set([...used, ...base])];
+}
+/* 카테고리 datalist(필터·모달)를 실제 데이터 기준으로 갱신 → 직접 입력한 값도 목록에 나옴 */
+function refreshIngCategoryLists(){
+  const opts=allIngCategories().map(c=>`<option value="${c.replace(/"/g,'&quot;')}"></option>`).join('');
+  const f=document.getElementById('ing-cat-list'); if(f) f.innerHTML=opts;
+  const m=document.getElementById('ing-cat-datalist'); if(m) m.innerHTML=opts;
+}
 function renderIngredients(){
+  refreshIngCategoryLists();
   const q=(document.getElementById('ing-search')?.value||'').toLowerCase();
   const cat=document.getElementById('ing-cat-filter')?.value||'';
   const exp=document.getElementById('ing-expiry-filter')?.value||'';
@@ -2817,6 +2837,7 @@ function openIngModal(id){
   document.getElementById('ing-modal-title').textContent=id?'재료 수정':'재료 등록';
   const selSup=document.getElementById('ing-supplier');
   selSup.innerHTML='<option value="">미지정</option>'+suppliers.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+  refreshIngCategoryLists();
   if(id){
     const i=ingredients.find(x=>x.id===id);
     if(!i) return;
@@ -2833,7 +2854,7 @@ function openIngModal(id){
     selSup.value=i.supplierId||'';
     setIngNutriInputs(i.nutri100 || matchNutriRef(i.name) || {});
   } else {
-    ['ing-name','ing-unit','ing-stock','ing-min-stock','ing-expiry','ing-notes'].forEach(f=>document.getElementById(f).value='');
+    ['ing-name','ing-cat','ing-unit','ing-stock','ing-min-stock','ing-expiry','ing-notes'].forEach(f=>document.getElementById(f).value='');
     document.getElementById('ing-purchase-price').value='';
     document.getElementById('ing-purchase-qty').value='';
     document.getElementById('ing-purchase-unit').value='g';
@@ -2858,7 +2879,7 @@ function saveIngredient(){
     purchaseQty: pq,
     purchaseUnit: pu,
     price: unitPrice,   // 원/g or 원/개 — used in recipe cost calculation
-    category:document.getElementById('ing-cat').value,
+    category:document.getElementById('ing-cat').value.trim()||'기타',
     stock:numVal('ing-stock'),
     minStock:numVal('ing-min-stock'),
     expiry:document.getElementById('ing-expiry').value,
@@ -3071,6 +3092,7 @@ function addOvenSteps(){
   if(changed) DB.save('recipes',recipes);
 }
 function renderRecipes(){
+  refreshRecipeCategoryLists();
   const q=(document.getElementById('rec-search')?.value||'').toLowerCase();
   const cat=document.getElementById('rec-cat-filter')?.value||'';
   let list=[...recipes];
@@ -3115,20 +3137,31 @@ function renderRecipes(){
   attachSwipe('rec-list');
 }
 
+function allRecipeCategories(){
+  const base=CAT_ORDER.slice();
+  const used=recipes.map(r=>(r.category||'').trim()).filter(Boolean);
+  return [...new Set([...used, ...base])];
+}
+function refreshRecipeCategoryLists(){
+  const opts=allRecipeCategories().map(c=>`<option value="${c.replace(/"/g,'&quot;')}"></option>`).join('');
+  const f=document.getElementById('rec-cat-list'); if(f) f.innerHTML=opts;
+  const m=document.getElementById('rec-cat-datalist'); if(m) m.innerHTML=opts;
+}
 function openRecipeModal(id){
   editId=id||null;
   document.getElementById('rec-modal-title').textContent=id?'레시피 수정':'레시피 등록';
+  refreshRecipeCategoryLists();
   if(id){
     const r=recipes.find(x=>x.id===id);
     if(!r) return;
     document.getElementById('rec-name').value=r.name||'';
-    document.getElementById('rec-cat').value=r.category||'피자';
+    document.getElementById('rec-cat').value=r.category||'';
     document.getElementById('rec-price').value=commaFmt(r.price||'');
     document.getElementById('rec-size').value=r.size||'';
     document.getElementById('rec-notes').value=r.notes||'';
     recipeItems=[...(r.items||[]).map(it=>({...it}))];
   } else {
-    ['rec-name','rec-price','rec-size','rec-notes'].forEach(f=>document.getElementById(f).value='');
+    ['rec-name','rec-cat','rec-price','rec-size','rec-notes'].forEach(f=>document.getElementById(f).value='');
     recipeItems=[];
   }
   renderRecipeItems();
@@ -3143,42 +3176,40 @@ function renderRecipeItems(){
   const rows=recipeItems.map((it,idx)=>{
     if(it.ingredientId===OVEN_ID){
       return `<div class="recipe-item-row" data-idx="${idx}" style="background:var(--acc-pale);">
-        <div class="ri-handle" title="드래그하여 순서 변경" onpointerdown="riDragStart(event,${idx})">⠿</div>
+        <div class="drag-handle" title="드래그하여 순서 변경">⠿</div>
         <div style="font-weight:600;color:var(--acc-dark);">🔥 오븐 (굽기 단계)</div>
         <div style="font-size:11px;color:var(--sub);text-align:center;">굽기</div>
         <div></div>
         <div style="display:flex;gap:2px;justify-content:flex-end;align-items:center;">
-          <div class="ri-move">
-            <button class="ri-move-btn" title="위로" ${idx===0?'disabled':''} onclick="moveRecipeItem(${idx},-1)">▲</button>
-            <button class="ri-move-btn" title="아래로" ${idx===recipeItems.length-1?'disabled':''} onclick="moveRecipeItem(${idx},1)">▼</button>
-          </div>
           <button class="btn btn-del btn-sm btn-icon" style="min-width:28px;min-height:30px;padding:2px;" onclick="removeRecipeItem(${idx})">✕</button>
         </div>
       </div>`;
     }
     const cost=ingCostPer(it.ingredientId)*Number(it.amount||0);
     return `<div class="recipe-item-row${it.hidden?' item-hidden':''}${it.est?' item-est':''}" data-idx="${idx}">
-      <div class="ri-handle" title="드래그하여 순서 변경" onpointerdown="riDragStart(event,${idx})">⠿</div>
-      <div style="display:flex;align-items:center;gap:4px;min-width:0;">${it.label?`<span class="badge badge-acc" style="flex-shrink:0;">${it.label}</span>`:''}<input list="rec-ing-datalist" placeholder="재료 검색·입력…" value="${it.ingredientId?ingName(it.ingredientId).replace(/"/g,'&quot;'):''}" style="min-width:0;flex:1;"
-        onchange="setRecipeItemIng(${idx}, this.value)"></div>
+      <div class="drag-handle" title="드래그하여 순서 변경">⠿</div>
+      <div class="ac-wrap" style="display:flex;align-items:center;gap:4px;min-width:0;">${it.label?`<span class="badge badge-acc" style="flex-shrink:0;">${it.label}</span>`:''}<input class="ing-ac-input" placeholder="재료 검색·입력…" autocomplete="off" value="${it.ingredientId?ingName(it.ingredientId).replace(/"/g,'&quot;'):''}" style="min-width:0;flex:1;"
+        oninput="ingAcSuggest('rec',${idx},this)" onfocus="ingAcSuggest('rec',${idx},this)" onblur="ingAcBlur()"><div class="ac-list" id="rec-ing-ac-${idx}"></div></div>
       <div style="display:flex;align-items:center;gap:5px;min-width:0;">
-        <input type="text" inputmode="numeric" value="${it.amount?commaFmt(it.amount):''}" placeholder="0" style="flex:1;min-width:0;text-align:right;"
-          oninput="this.value=commaFmt(this.value);recipeItems[${idx}].amount=unComma(this.value);updateRecipeModalCost();">
+        <input type="text" inputmode="decimal" value="${it.amount!=null&&it.amount!==''?it.amount:''}" placeholder="0" style="flex:1;min-width:0;text-align:right;"
+          oninput="decFilter(this);recipeItems[${idx}].amount=decVal(this.value);recUpdateRowCost(${idx});updateRecipeModalCost();">
         <span style="font-size:11px;color:var(--sub);white-space:nowrap;flex-shrink:0;min-width:14px;">${it.ingredientId?ingUnit(it.ingredientId):''}</span>
       </div>
-      <div class="ri-cost num">${comma(Math.round(cost))}원</div>
+      <div class="ri-cost num" id="rec-cost-${idx}">${comma(Math.round(cost))}원</div>
       <div style="display:flex;gap:2px;justify-content:flex-end;align-items:center;">
-        <div class="ri-move">
-          <button class="ri-move-btn" title="위로" ${idx===0?'disabled':''} onclick="moveRecipeItem(${idx},-1)">▲</button>
-          <button class="ri-move-btn" title="아래로" ${idx===recipeItems.length-1?'disabled':''} onclick="moveRecipeItem(${idx},1)">▼</button>
-        </div>
         <button class="btn btn-edit btn-sm btn-icon" style="min-width:28px;min-height:30px;padding:2px;" title="${it.hidden?'레시피북에 표시':'레시피북에서 숨김'}" onclick="toggleHideItem(${idx})">${it.hidden?'🚫':'👁'}</button>
         <button class="btn btn-del btn-sm btn-icon" style="min-width:28px;min-height:30px;padding:2px;" onclick="removeRecipeItem(${idx})">✕</button>
       </div>
     </div>`;
   }).join('');
-  const datalist='<datalist id="rec-ing-datalist">'+ingredients.map(i=>`<option value="${i.name.replace(/"/g,'&quot;')}"></option>`).join('')+'</datalist>';
-  list.innerHTML=header+rows+datalist;
+  list.innerHTML=header+rows;
+  // 헤더 행은 드래그 대상에서 제외해야 하므로 데이터 행만 매칭
+  makeListDraggable(list, '.recipe-item-row[data-idx]', recipeItems, ()=>{ renderRecipeItems(); updateRecipeModalCost(); });
+}
+function recUpdateRowCost(idx){
+  const it=recipeItems[idx]; if(!it) return;
+  const cell=document.getElementById('rec-cost-'+idx);
+  if(cell) cell.textContent=comma(Math.round(ingCostPer(it.ingredientId)*Number(it.amount||0)))+'원';
 }
 
 function setRecipeItemIng(idx, val){
@@ -3291,7 +3322,7 @@ function saveRecipe(){
   const items=recipeItems.filter(it=>it.ingredientId===OVEN_ID || (it.ingredientId&&it.amount));
   const obj={
     id:editId||uid(), name,
-    category:document.getElementById('rec-cat').value,
+    category:document.getElementById('rec-cat').value.trim()||'기타',
     price:unComma(priceRaw),
     size:document.getElementById('rec-size').value,
     notes:document.getElementById('rec-notes').value,
@@ -4377,6 +4408,7 @@ function showMilkitTab(tab, fromHistory){
 
 function renderMilkit(){
   mkEnsureOrderNos();
+  mkRestoreHideDone();
   renderMilkitStats();
   renderMilkitOrders();
   showMilkitTab('orders');
@@ -4411,6 +4443,16 @@ function setMkOrderPeriod(v){
 }
 function mkOrderPeriodChanged(){ setMkOrderPeriod(document.getElementById('mk-order-period').value); }
 
+/* 배송완료 숨기기 (설정 유지) */
+function mkToggleHideDone(el){
+  try{ localStorage.setItem('jgp_mkHideDone', el.checked?'1':'0'); }catch(_){}
+  renderMilkitOrders();
+}
+function mkRestoreHideDone(){
+  const el=document.getElementById('mk-order-hidedone');
+  if(el) el.checked = localStorage.getItem('jgp_mkHideDone')==='1';
+}
+
 /* 적용된 필터 개수 · 칩 상태 · 접기 버튼 표시 갱신 */
 function syncMkOrderFilterUi(){
   const period=document.getElementById('mk-order-period')?.value||'';
@@ -4423,6 +4465,7 @@ function syncMkOrderFilterUi(){
     if((document.getElementById(id)?.value||'')) n++;
   });
   if((document.getElementById('mk-order-sort')?.value||'noDesc')!=='noDesc') n++;
+  if(document.getElementById('mk-order-hidedone')?.checked) n++;
   const btn=document.getElementById('mk-order-filter-toggle');
   const cnt=document.getElementById('mk-order-filter-count');
   if(btn) btn.classList.toggle('has-filter', n>0);
@@ -4482,6 +4525,8 @@ function getFilteredMilkitOrders(){
   if(prodF) list=list.filter(o=>Number(o.qty&&o.qty[prodF])>0);
   if(payF) list=list.filter(o=>(o.payStatus||'대기')===payF);
   if(delF) list=list.filter(o=>(o.deliveryStatus||'준비중')===delF);
+  if(document.getElementById('mk-order-hidedone')?.checked)
+    list=list.filter(o=>(o.deliveryStatus||'준비중')!=='배송완료');
 
   const byNo=(a,b)=>((a.no||0)-(b.no||0));
   const byDate=(a,b)=>(a.orderDate||'').localeCompare(b.orderDate||'')||((a.orderTime||'').localeCompare(b.orderTime||''))||byNo(a,b);
@@ -4519,6 +4564,7 @@ function resetMkOrderFilters(){
     const el=document.getElementById(id); if(el) el.value='';
   });
   const sort=document.getElementById('mk-order-sort'); if(sort) sort.value='noDesc';
+  const hd=document.getElementById('mk-order-hidedone'); if(hd){ hd.checked=false; try{localStorage.setItem('jgp_mkHideDone','0');}catch(_){} }
   const box=document.getElementById('mk-order-custom-range'); if(box) box.style.display='none';
   renderMilkitOrders();
 }
@@ -4556,6 +4602,7 @@ function bulkDeleteMkOrders(){
   if(!confirm(`선택한 주문 ${mkSelectedOrderIds.size}건을 삭제하시겠습니까?`)) return;
   milkitOrders=milkitOrders.filter(o=>!mkSelectedOrderIds.has(o.id));
   mkSelectedOrderIds.clear();
+  mkRenumberOrders();
   DB.save('milkitOrders',milkitOrders);
   renderMilkitStats();
   renderMilkitOrders();
@@ -4617,7 +4664,7 @@ function renderMilkitOrders(){
         <div style="margin-top:4px;font-size:12px;color:var(--sub2);">${dt} · ${o.phone?formatPhone(o.phone):'연락처 없음'}${o.address?' · '+o.address:''}</div>
         ${recip}
         <div style="margin-top:9px;display:flex;flex-wrap:wrap;gap:6px;">${items}</div>
-        <div style="margin-top:6px;font-size:11px;color:var(--sub2);">${o.setType||'낱개'} × ${o.setQty||1} · ${o.payMethod||'결제방법 미지정'} · ${o.deliveryMethod||''}${o.tracking?' · 송장 '+o.tracking:''}</div>
+        <div style="margin-top:6px;font-size:11px;color:var(--sub2);">${o.setType||'낱개'} × ${o.setQty||1} · ${o.payMethod||'미납'} · ${o.deliveryMethod||''}${o.tracking?' · 송장 '+o.tracking:''}</div>
         ${o.note?`<div style="margin-top:6px;font-size:12px;color:var(--sub2);">📝 ${o.note}</div>`:''}
       </div>
     </div>`;
@@ -4935,6 +4982,99 @@ function mkCustomerBlur(){
   setTimeout(()=>{ const box=document.getElementById('mk-customer-suggest'); if(box) box.classList.remove('open'); }, 150);
 }
 
+/* ===== 소수점 입력 지원 (예: 보냉백 0.5개) ===== */
+function decFilter(el){
+  let s=String(el.value).replace(/[^0-9.]/g,'');
+  const i=s.indexOf('.');
+  if(i>=0) s=s.slice(0,i+1)+s.slice(i+1).replace(/\./g,'');   // 점은 하나만
+  el.value=s;
+}
+function decVal(v){
+  const n=parseFloat(String(v==null?'':v).replace(/[^0-9.]/g,''));
+  return isNaN(n)?0:n;
+}
+
+/* ===== 재료 자동완성 (부분일치 + 초성, 도→도우) =====
+   ctx: 'mk'(밀키트 레시피) | 'rec'(일반 레시피). idx: 재료 행 번호 */
+function ingAcSuggest(ctx, idx, inputEl){
+  const box=document.getElementById((ctx==='mk'?'mk-ing-ac-':'rec-ing-ac-')+idx);
+  if(!box) return;
+  const q=(inputEl.value||'').trim();
+  if(!q){ box.classList.remove('open'); box.innerHTML=''; return; }
+  let list=ingredients.filter(i=>_nameMatch(i.name,q)).slice(0,25);
+  if(!list.length){ box.innerHTML=`<div class="ac-empty">일치하는 재료가 없습니다</div>`; box.classList.add('open'); return; }
+  box.innerHTML=list.map(i=>{
+    const sub=[i.category||'', ing_perUnit(i)].filter(Boolean).join(' · ');
+    return `<div class="ac-item" onmousedown="event.preventDefault();ingAcPick('${ctx}',${idx},'${i.id}')">${i.name}${sub?`<span class="ac-sub">${sub}</span>`:''}</div>`;
+  }).join('');
+  box.classList.add('open');
+}
+function ing_perUnit(i){ const p=Number(i.price)||0; return p?`${comma(Math.round(p*100)/100)}원/${i.unit||'g'}`:''; }
+function ingAcPick(ctx, idx, ingId){
+  if(ctx==='mk'){ mkRecipeItems[idx].ingredientId=ingId; renderMkRecipeItems(); }
+  else { recipeItems[idx].ingredientId=ingId; renderRecipeItems(); updateRecipeModalCost(); }
+}
+function ingAcBlur(){
+  setTimeout(()=>{ document.querySelectorAll('.ac-list.open').forEach(b=>{ if(b.id.indexOf('ing-ac')>=0) b.classList.remove('open'); }); }, 150);
+}
+
+/* ===== 눌러서 드래그로 순서 변경 (터치/마우스 공통) =====
+   container 안의 rowSelector 행을 드래그 핸들(.drag-handle)로 끌어 순서를 바꾸고,
+   arr(데이터 배열)을 동일하게 재배열한 뒤 onReorder()를 호출한다. */
+function makeListDraggable(container, rowSelector, arr, onReorder){
+  if(!container) return;
+  let dragEl=null, startIdx=-1, placeholder=null;
+  function rowsNow(){ return [...container.querySelectorAll(rowSelector)]; }
+  function onDown(e){
+    const handle=e.target.closest('.drag-handle');
+    if(!handle) return;
+    const row=handle.closest(rowSelector);
+    if(!row) return;
+    e.preventDefault();
+    dragEl=row; startIdx=rowsNow().indexOf(row);
+    row.classList.add('dragging');
+    placeholder=document.createElement('div');
+    placeholder.className='drag-placeholder';
+    placeholder.style.height=row.getBoundingClientRect().height+'px';
+    row.parentNode.insertBefore(placeholder, row.nextSibling);
+    row.style.position='relative'; row.style.zIndex='50';
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp, {once:true});
+  }
+  function onMove(e){
+    if(!dragEl) return;
+    const rows=rowsNow().filter(r=>r!==dragEl);
+    let placed=false;
+    for(const r of rows){
+      const rect=r.getBoundingClientRect();
+      if(e.clientY < rect.top + rect.height/2){
+        r.parentNode.insertBefore(placeholder, r); placed=true; break;
+      }
+    }
+    if(!placed) container.appendChild(placeholder);
+  }
+  function onUp(){
+    document.removeEventListener('pointermove', onMove);
+    if(!dragEl){ return; }
+    dragEl.classList.remove('dragging');
+    dragEl.style.position=''; dragEl.style.zIndex='';
+    placeholder.parentNode.insertBefore(dragEl, placeholder);
+    placeholder.remove();
+    const newRows=rowsNow();
+    const endIdx=newRows.indexOf(dragEl);
+    if(startIdx>=0 && endIdx>=0 && startIdx!==endIdx && Array.isArray(arr)){
+      const moved=arr.splice(startIdx,1)[0];
+      arr.splice(endIdx,0,moved);
+      if(typeof onReorder==='function') onReorder();
+    } else if(typeof onReorder==='function'){ onReorder(); }
+    dragEl=null; startIdx=-1; placeholder=null;
+  }
+  // 중복 바인딩 방지
+  if(container._dragBound) container.removeEventListener('pointerdown', container._dragBound);
+  container._dragBound=onDown;
+  container.addEventListener('pointerdown', onDown);
+}
+
 function renderMilkitOrderQtyRows(qtyMap){
   qtyMap = qtyMap||{};
   const el=document.getElementById('mk-order-qty-rows');
@@ -5039,6 +5179,7 @@ function openMilkitOrderModal(id){
     document.getElementById('mk-order-delstatus').value='준비중';
   }
   mkUpdateOrderTotals();
+  mkDeliveryHint();
   openModal('mk-order-modal');
 }
 
@@ -5048,6 +5189,30 @@ function mkToggleRecipient(){
   if(!on){
     document.getElementById('mk-order-recipient').value='';
     document.getElementById('mk-order-recipient-phone').value='';
+  }
+}
+
+/* 결제방법을 고르면 결제상태를 자동으로 완료 처리, 미납(빈값)이면 대기로 */
+function mkPayMethodChanged(){
+  const m=document.getElementById('mk-order-paymethod').value;
+  document.getElementById('mk-order-paystatus').value = m ? '완료' : '대기';
+}
+
+/* 택배발송 + 희망수령일이 있으면 전날 발송 안내 */
+function mkDeliveryHint(){
+  const el=document.getElementById('mk-order-deliv-hint');
+  if(!el) return;
+  const method=document.getElementById('mk-order-delmethod').value;
+  const desired=document.getElementById('mk-order-desired').value;
+  if(method==='택배발송' && desired){
+    const d=new Date(desired+'T00:00:00');
+    d.setDate(d.getDate()-1);
+    const wd=['일','월','화','수','목','금','토'][d.getDay()];
+    const ship=`${d.getMonth()+1}월 ${d.getDate()}일(${wd})`;
+    el.innerHTML=`🚚 택배는 수령 희망일 하루 전인 <b>${ship}</b>까지 발송하세요.`;
+    el.style.display='';
+  } else {
+    el.style.display='none';
   }
 }
 
@@ -5251,9 +5416,15 @@ function mkDupCancel(){
   mkDupCand=null; mkDupList=[];
 }
 
+/* 삭제 후 번호를 1..N으로 다시 매겨 빈 번호가 생기지 않도록 (기존 순서 유지) */
+function mkRenumberOrders(){
+  [...milkitOrders].sort((a,b)=>(Number(a.no)||0)-(Number(b.no)||0))
+    .forEach((o,i)=>{ o.no=i+1; });
+}
 function deleteMilkitOrder(id){
   if(!confirm('이 주문을 삭제하시겠습니까?')) return;
   milkitOrders=milkitOrders.filter(x=>x.id!==id);
+  mkRenumberOrders();
   DB.save('milkitOrders',milkitOrders);
   renderMilkitStats();
   renderMilkitOrders();
@@ -6595,29 +6766,35 @@ function renderMkRecipeItems(){
     ? `<div style="padding:16px;text-align:center;color:var(--sub2);font-size:12px;">등록된 재료가 없습니다. + 재료 추가를 눌러주세요.</div>`
     : mkRecipeItems.map((it,idx)=>{
         const cost=ingCostPer(it.ingredientId)*Number(it.amount||0);
-        return `<div class="mk-recipe-row">
-          <div class="mkr-name">
-            <input list="mk-recipe-ing-datalist" placeholder="재료 검색·입력…" value="${it.ingredientId?ingName(it.ingredientId).replace(/"/g,'&quot;'):''}"
-              onchange="setMkRecipeItemIng(${idx}, this.value)">
+        return `<div class="mk-recipe-row" data-idx="${idx}" draggable="false">
+          <div class="mkr-name ac-wrap">
+            <span class="drag-handle" title="드래그하여 순서 변경">⠿</span>
+            <input class="ing-ac-input" placeholder="재료 검색·입력…" autocomplete="off"
+              value="${it.ingredientId?ingName(it.ingredientId).replace(/"/g,'&quot;'):''}"
+              oninput="ingAcSuggest('mk',${idx},this)" onfocus="ingAcSuggest('mk',${idx},this)" onblur="ingAcBlur()">
+            <div class="ac-list" id="mk-ing-ac-${idx}"></div>
           </div>
           <div class="mkr-mid">
-            <input type="text" inputmode="numeric" value="${it.amount?commaFmt(it.amount):''}" placeholder="0"
-              oninput="this.value=commaFmt(this.value);mkRecipeItems[${idx}].amount=unComma(this.value);updateMkRecipeModalCost();">
+            <input type="text" inputmode="decimal" id="mk-amt-${idx}" value="${it.amount!=null&&it.amount!==''?it.amount:''}" placeholder="0"
+              oninput="decFilter(this);mkRecipeItems[${idx}].amount=decVal(this.value);mkUpdateRecipeRowCost(${idx});updateMkRecipeModalCost();">
             <span class="mkr-unit">${it.ingredientId?ingUnit(it.ingredientId):''}</span>
-            <span class="ri-cost">${comma(Math.round(cost))}원</span>
+            <span class="ri-cost" id="mk-cost-${idx}">${comma(Math.round(cost))}원</span>
           </div>
           <div class="mkr-act">
-            <div class="ri-move">
-              <button class="ri-move-btn" title="위로" ${idx===0?'disabled':''} onclick="moveMkRecipeItem(${idx},-1)">▲</button>
-              <button class="ri-move-btn" title="아래로" ${idx===mkRecipeItems.length-1?'disabled':''} onclick="moveMkRecipeItem(${idx},1)">▼</button>
-            </div>
             <button class="btn btn-del btn-sm btn-icon" style="min-width:28px;min-height:30px;padding:2px;" onclick="removeMkRecipeItem(${idx})">✕</button>
           </div>
         </div>`;
       }).join('');
-  const datalist='<datalist id="mk-recipe-ing-datalist">'+ingredients.map(i=>`<option value="${i.name.replace(/"/g,'&quot;')}"></option>`).join('')+'</datalist>';
-  el.innerHTML = rows + datalist;
+  el.innerHTML = rows;
+  makeListDraggable(el, '.mk-recipe-row', mkRecipeItems, ()=>{ renderMkRecipeItems(); });
   updateMkRecipeModalCost();
+}
+
+/* 한 행의 소계(단가)를 즉시 갱신 — 저장하지 않아도 바로 보이도록 */
+function mkUpdateRecipeRowCost(idx){
+  const it=mkRecipeItems[idx]; if(!it) return;
+  const cell=document.getElementById('mk-cost-'+idx);
+  if(cell) cell.textContent=comma(Math.round(ingCostPer(it.ingredientId)*Number(it.amount||0)))+'원';
 }
 
 function setMkRecipeItemIng(idx, val){
