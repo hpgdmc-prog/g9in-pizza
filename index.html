@@ -1064,10 +1064,31 @@ img{max-width:100%;height:auto;}
     <!-- 원가 · 수익 분석 -->
     <div id="mk-pane-costs" style="display:none;">
       <div style="font-size:12px;color:var(--sub);margin-bottom:16px;line-height:1.6;">밀키트는 일반 피자와 원가 구조가 달라서 <b>배달앱 수수료 대신 포장재비용 · 택배비용</b>을 반영해 별도로 계산합니다. 재료원가는 상품별 레시피를 등록해야 계산됩니다. ※ 포장재·택배비는 주문 1건 기준이며, 세트로 여러 개를 묶어 보내면 실제 개당 비용은 더 낮아질 수 있습니다.</div>
-      <div class="page-hdr" style="border-bottom:none;margin-bottom:10px;padding-bottom:0;">
-        <h3 style="font-size:14px;">밀키트 비용 설정</h3>
+      <div class="page-hdr" style="border-bottom:none;margin-bottom:6px;padding-bottom:0;">
+        <h3 style="font-size:14px;">① 주문 1건당 드는 비용</h3>
       </div>
-      <div class="fee-grid" id="mk-fee-grid" style="margin-bottom:14px;"></div>
+      <div style="font-size:11.5px;color:var(--sub2);margin-bottom:10px;">주문 한 건을 보낼 때마다 실제로 나가는 돈입니다.</div>
+      <div class="fee-grid" id="mk-fee-grid-per" style="margin-bottom:20px;"></div>
+
+      <div class="page-hdr" style="border-bottom:none;margin-bottom:6px;padding-bottom:0;">
+        <h3 style="font-size:14px;">② 수수료 · 세금</h3>
+      </div>
+      <div style="font-size:11.5px;color:var(--sub2);margin-bottom:10px;">판매가에 대한 비율로 계산됩니다.</div>
+      <div class="fee-grid" id="mk-fee-grid-rate" style="margin-bottom:20px;"></div>
+
+      <div class="page-hdr" style="border-bottom:none;margin-bottom:6px;padding-bottom:0;">
+        <h3 style="font-size:14px;">③ 배송사고 · 로스</h3>
+      </div>
+      <div style="font-size:11.5px;color:var(--sub2);margin-bottom:10px;line-height:1.6;">택배 파손·분실·반품 등으로 다시 만들어 보내야 하는 비율입니다. 예를 들어 100건 중 2건에 사고가 난다면 <b>2</b>를 입력하세요. 재료비·포장재·택배비에 이 비율만큼 더해 계산합니다.</div>
+      <div class="fee-grid" id="mk-fee-grid-loss" style="margin-bottom:20px;"></div>
+
+      <div class="page-hdr" style="border-bottom:none;margin-bottom:6px;padding-bottom:0;">
+        <h3 style="font-size:14px;">④ 월 고정비</h3>
+      </div>
+      <div style="font-size:11.5px;color:var(--sub2);margin-bottom:10px;line-height:1.6;"><b>한 달에 나가는 전체 금액</b>을 그대로 넣으세요. 월 주문 건수로 나눠서 주문 1건당 얼마인지 자동으로 계산해 드립니다.</div>
+      <div class="fee-grid" id="mk-fee-grid-fixed" style="margin-bottom:10px;"></div>
+      <div id="mk-fixed-preview" style="background:var(--acc-pale);border-radius:8px;padding:11px 13px;font-size:12.5px;line-height:1.7;margin-bottom:14px;"></div>
+
       <button class="btn btn-acc btn-sm" onclick="saveMilkitFees()" style="margin-bottom:24px;">비용 설정 저장</button>
       <div class="page-hdr" style="border-bottom:none;margin-bottom:10px;padding-bottom:0;">
         <h3 style="font-size:14px;">상품별 원가 분석</h3>
@@ -1943,6 +1964,7 @@ let mkProdEditId = null;
 let milkitFees = DB.load('milkitFees', {
   packagingCost:500, shippingCost:3000,
   cardFee:1.5, vat:10, localTax:0,
+  lossRate:0,
   rent:0, labor:0, utilities:0, other:0,
   monthlyOrders:100
 });
@@ -1998,6 +2020,35 @@ function updateSizePreview(){
 function unComma(v){ return Number(String(v==null?'':v).replace(/,/g,''))||0; }
 function commaFmt(v){ var d=String(v==null?'':v).replace(/[^\d]/g,''); return d?Number(d).toLocaleString('ko-KR'):''; }
 function numVal(id){ var el=document.getElementById(id); return el?unComma(el.value):0; }
+/* 숫자 입력칸을 누르면 기존 값이 전체 선택되도록 —
+   "0"이 남아 3을 넣었는데 30이 되는 문제 방지 (모바일에서 커서 옮기기 어려움).
+   focus 직후 브라우저가 커서를 다시 잡기 때문에, 그 동작(mouseup/touchend 기본 처리)을
+   한 번만 막아야 선택이 유지된다. */
+function isNumericInput(el){
+  return !!el && el.tagName==='INPUT' &&
+    (el.type==='number' || el.inputMode==='numeric' || el.dataset.selectOnFocus!==undefined);
+}
+function selectNumericInput(el){
+  try{
+    el.select();
+    if(el.setSelectionRange) el.setSelectionRange(0, String(el.value).length);
+  }catch(_){}
+}
+/* 숫자칸에 숫자만 남기기 (type=text + inputmode=numeric 조합에서 사용) */
+function qtyInputFilter(el){
+  var cleaned=String(el.value).replace(/[^\d]/g,'');
+  if(cleaned!==el.value) el.value=cleaned;
+}
+document.addEventListener('focusin', function(e){
+  var el=e.target;
+  if(!isNumericInput(el)) return;
+  selectNumericInput(el);
+  setTimeout(function(){ if(document.activeElement===el) selectNumericInput(el); }, 0);
+});
+/* 이미 포커스된 칸을 다시 누르면 focusin이 발생하지 않으므로 click에서도 전체 선택 */
+document.addEventListener('click', function(e){
+  if(isNumericInput(e.target)) selectNumericInput(e.target);
+});
 /* clickable management rows: row=edit, swipe(mobile)/hover(PC)=delete */
 function mrowClick(inner, fn, id){
   var row=inner.closest('.mrow');
@@ -3314,10 +3365,11 @@ function renderFees(){
   renderFeePreview();
 }
 
-function feeInput(label, id, val, unit){
+function feeInput(label, id, val, unit, onInputExtra){
+  const cb = onInputExtra || 'renderFeePreview()';
   const input = unit==='%'
-    ? `<input type="number" id="${id}" value="${val||0}" step="0.1" min="0" oninput="renderFeePreview()">`
-    : `<input type="text" inputmode="numeric" id="${id}" value="${commaFmt(val||0)}" oninput="this.value=commaFmt(this.value);renderFeePreview()">`;
+    ? `<input type="text" inputmode="decimal" id="${id}" value="${val||0}" oninput="this.value=this.value.replace(/[^0-9.]/g,'');${cb}">`
+    : `<input type="text" inputmode="numeric" id="${id}" value="${commaFmt(val||0)}" oninput="this.value=commaFmt(this.value);${cb}">`;
   return `<div class="fee-item">
     <label>${label}</label>
     ${input}
@@ -4154,7 +4206,7 @@ function mkCostsPrintHtml(){
   `).join('');
   return `
     <div class="mk-print-sheet">
-      ${mkPrintHeader('지구인피자 · 밀키트 원가·수익 분석', `포장재비용 ${comma(f.packagingCost)}원 · 택배비용 ${comma(f.shippingCost)}원 (주문 1건 기준)<br>카드수수료 ${f.cardFee}% · 부가세 ${f.vat}% · 지방세 ${f.localTax}%`)}
+      ${mkPrintHeader('지구인피자 · 밀키트 원가·수익 분석', `포장재비용 ${comma(f.packagingCost)}원 · 택배비용 ${comma(f.shippingCost)}원 (주문 1건 기준)<br>카드수수료 ${f.cardFee}% · 부가세 ${f.vat}% · 지방세 ${f.localTax}% · 배송사고 로스율 ${Number(f.lossRate)||0}%<br>월 고정비 ${comma((Number(f.rent)||0)+(Number(f.labor)||0)+(Number(f.utilities)||0)+(Number(f.other)||0))}원 ÷ 월 ${comma(f.monthlyOrders)}건`)}
       <table>
         <thead><tr><th>구분</th><th>상품명</th><th>판매가</th><th>총원가</th><th>원가율</th><th>순마진</th><th>마진율</th></tr></thead>
         <tbody>${rowsHtml || `<tr><td colspan="7" style="text-align:center;color:#999;">등록된 상품이 없습니다</td></tr>`}</tbody>
@@ -4182,7 +4234,7 @@ function renderMilkitOrderQtyRows(qtyMap){
   el.innerHTML = milkitProducts.map(p=>`
     <div class="recipe-item-row" style="grid-template-columns:1fr 90px 60px;">
       <span>${p.name}<span style="color:var(--sub2);font-size:11px;margin-left:6px;">${comma(p.price)}원</span></span>
-      <input type="number" min="0" id="mk-qty-${p.id}" value="${Number(qtyMap[p.id])||0}" oninput="mkUpdateOrderTotals()">
+      <input type="text" id="mk-qty-${p.id}" value="${Number(qtyMap[p.id])||''}" placeholder="0" inputmode="numeric" oninput="qtyInputFilter(this);mkUpdateOrderTotals()">
       <span class="ri-cost">${p.category}</span>
     </div>
   `).join('');
@@ -5452,8 +5504,8 @@ function renderMkProdQtyRows(){
         <div style="font-weight:600;">${p.name}</div>
         <div style="font-size:11px;color:var(--sub2);">현재고 ${comma(cur?cur.stock:0)}개</div>
       </div>
-      <input type="number" min="0" step="1" id="mk-prodqty-${p.id}" value="0" inputmode="numeric"
-             oninput="mkProdUpdateTotal()" style="width:100%;text-align:right;">
+      <input type="text" id="mk-prodqty-${p.id}" value="" placeholder="0" inputmode="numeric"
+             oninput="qtyInputFilter(this);mkProdUpdateTotal()" style="width:100%;text-align:right;">
     </div>`;
   }).join('');
   mkProdUpdateTotal();
@@ -5462,7 +5514,7 @@ function renderMkProdQtyRows(){
 function mkProdFillAll(n){
   milkitProducts.forEach(p=>{
     const el=document.getElementById('mk-prodqty-'+p.id);
-    if(el) el.value=n;
+    if(el) el.value = n>0 ? n : '';   // 지우기는 빈칸으로 (0이 남으면 입력이 불편함)
   });
   mkProdUpdateTotal();
 }
@@ -5672,27 +5724,59 @@ function calcMkTotalCostPerItem(product){
   const monthlyFixed=(Number(f.rent)||0)+(Number(f.labor)||0)+(Number(f.utilities)||0)+(Number(f.other)||0);
   const orders=Math.max(Number(f.monthlyOrders)||1,1);
   const fixedPerItem=monthlyFixed/orders;
-  const total=matCost+packagingAmt+shippingAmt+cardFeeAmt+vatAmt+localTaxAmt+fixedPerItem;
+  // 배송사고·로스: 사고가 나면 재료·포장재·택배비를 다시 부담하므로 그 비율만큼 추가
+  const lossAmt=(matCost+packagingAmt+shippingAmt)*(Number(f.lossRate)||0)/100;
+  const total=matCost+packagingAmt+shippingAmt+cardFeeAmt+vatAmt+localTaxAmt+fixedPerItem+lossAmt;
   return {
-    matCost, packagingAmt, shippingAmt, cardFeeAmt, vatAmt, localTaxAmt, fixedPerItem,
+    matCost, packagingAmt, shippingAmt, cardFeeAmt, vatAmt, localTaxAmt, fixedPerItem, lossAmt,
     total, margin:price-total, marginRate:price>0?(price-total)/price:0
   };
 }
 
 function renderMilkitFeeGrid(){
   const f=milkitFees;
-  document.getElementById('mk-fee-grid').innerHTML=`
-    ${feeInput('포장재비용', 'mk-fee-packaging', f.packagingCost, '원')}
-    ${feeInput('택배비용', 'mk-fee-shipping', f.shippingCost, '원')}
-    ${feeInput('카드 수수료', 'mk-fee-card', f.cardFee, '%')}
-    ${feeInput('부가세 (VAT)', 'mk-fee-vat', f.vat, '%')}
-    ${feeInput('지방소비세', 'mk-fee-localtax', f.localTax, '%')}
-    ${feeInput('월 임차료 분담', 'mk-fee-rent', f.rent, '원')}
-    ${feeInput('월 인건비 분담', 'mk-fee-labor', f.labor, '원')}
-    ${feeInput('월 공과금 분담', 'mk-fee-utilities', f.utilities, '원')}
-    ${feeInput('기타 고정비', 'mk-fee-other', f.other, '원')}
-    ${feeInput('월 평균 밀키트 주문 건수', 'mk-fee-orders', f.monthlyOrders, '건')}
+  document.getElementById('mk-fee-grid-per').innerHTML=`
+    ${feeInput('포장재비용', 'mk-fee-packaging', f.packagingCost, '원', 'renderMkFixedPreview()')}
+    ${feeInput('택배비용', 'mk-fee-shipping', f.shippingCost, '원', 'renderMkFixedPreview()')}
   `;
+  document.getElementById('mk-fee-grid-rate').innerHTML=`
+    ${feeInput('카드 수수료', 'mk-fee-card', f.cardFee, '%', 'renderMkFixedPreview()')}
+    ${feeInput('부가세 (VAT)', 'mk-fee-vat', f.vat, '%', 'renderMkFixedPreview()')}
+    ${feeInput('지방소비세', 'mk-fee-localtax', f.localTax, '%', 'renderMkFixedPreview()')}
+  `;
+  document.getElementById('mk-fee-grid-loss').innerHTML=`
+    ${feeInput('배송사고 · 로스율', 'mk-fee-loss', f.lossRate, '%', 'renderMkFixedPreview()')}
+  `;
+  document.getElementById('mk-fee-grid-fixed').innerHTML=`
+    ${feeInput('월 임차료 (전체)', 'mk-fee-rent', f.rent, '원', 'renderMkFixedPreview()')}
+    ${feeInput('월 인건비 (전체)', 'mk-fee-labor', f.labor, '원', 'renderMkFixedPreview()')}
+    ${feeInput('월 공과금 (전체)', 'mk-fee-utilities', f.utilities, '원', 'renderMkFixedPreview()')}
+    ${feeInput('기타 월 고정비', 'mk-fee-other', f.other, '원', 'renderMkFixedPreview()')}
+    ${feeInput('월 평균 밀키트 주문 건수', 'mk-fee-orders', f.monthlyOrders, '건', 'renderMkFixedPreview()')}
+  `;
+  renderMkFixedPreview();
+}
+
+/* 월 고정비가 주문 1건당 얼마로 환산되는지 즉시 보여줌 */
+function renderMkFixedPreview(){
+  const el=document.getElementById('mk-fixed-preview');
+  if(!el) return;
+  const rent=numVal('mk-fee-rent'), labor=numVal('mk-fee-labor');
+  const util=numVal('mk-fee-utilities'), other=numVal('mk-fee-other');
+  const monthly=rent+labor+util+other;
+  const orders=Math.max(numVal('mk-fee-orders')||0, 0);
+  if(!monthly){
+    el.innerHTML=`월 고정비를 입력하면 주문 1건당 얼마인지 계산해 드립니다.`;
+    return;
+  }
+  if(!orders){
+    el.innerHTML=`⚠️ <b>월 평균 밀키트 주문 건수</b>를 입력해야 1건당 금액을 계산할 수 있습니다.`;
+    return;
+  }
+  const per=monthly/orders;
+  el.innerHTML=`월 고정비 합계 <b>${comma(monthly)}원</b> ÷ 월 주문 <b>${comma(orders)}건</b>
+    = 주문 1건당 <b style="color:var(--acc-dark);">${comma(Math.round(per))}원</b>
+    <div style="font-size:11px;color:var(--sub2);margin-top:3px;">이 금액이 상품별 원가의 “고정비 분담”으로 반영됩니다.</div>`;
 }
 
 function saveMilkitFees(){
@@ -5702,6 +5786,7 @@ function saveMilkitFees(){
     cardFee:Number(document.getElementById('mk-fee-card').value)||0,
     vat:Number(document.getElementById('mk-fee-vat').value)||0,
     localTax:Number(document.getElementById('mk-fee-localtax').value)||0,
+    lossRate:Number(document.getElementById('mk-fee-loss').value)||0,
     rent:numVal('mk-fee-rent'),
     labor:numVal('mk-fee-labor'),
     utilities:numVal('mk-fee-utilities'),
@@ -5744,6 +5829,7 @@ function renderMilkitCosts(){
         ${costRow('카드 수수료', c.cardFeeAmt, price)}
         ${costRow('부가세', c.vatAmt, price)}
         ${costRow('지방세', c.localTaxAmt, price)}
+        ${costRow('배송사고·로스', c.lossAmt, price)}
         ${costRow('고정비 분담', c.fixedPerItem, price)}
       </div>
       <div style="border-top:1px solid var(--border);padding-top:12px;">
