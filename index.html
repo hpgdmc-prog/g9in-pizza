@@ -1467,10 +1467,6 @@ img{max-width:100%;height:auto;}
         <input type="date" id="mk-prod-date">
       </div>
       <div class="form-row">
-        <label>상품 *</label>
-        <select id="mk-prod-product"></select>
-      </div>
-      <div class="form-row">
         <label>구분 *</label>
         <select id="mk-prod-type">
           <option value="생산">생산 (재고 증가)</option>
@@ -1478,10 +1474,35 @@ img{max-width:100%;height:auto;}
           <option value="조정">실사 조정 (재고 증가)</option>
         </select>
       </div>
-      <div class="form-row">
-        <label>수량 *</label>
-        <input type="number" id="mk-prod-qty" min="1" step="1" value="1">
+
+      <!-- 여러 상품 한 번에 입력 (신규 등록 시) -->
+      <div id="mk-prod-multi">
+        <div class="form-row" style="margin-bottom:6px;">
+          <label>상품별 수량 * <span style="font-weight:400;color:var(--sub2);">— 만든 상품에만 수량을 넣으세요</span></label>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap;">
+          <span style="font-size:11.5px;color:var(--sub2);">빠른 입력:</span>
+          <button type="button" class="btn btn-out btn-sm" onclick="mkProdFillAll(1)">전체 1</button>
+          <button type="button" class="btn btn-out btn-sm" onclick="mkProdFillAll(5)">전체 5</button>
+          <button type="button" class="btn btn-out btn-sm" onclick="mkProdFillAll(10)">전체 10</button>
+          <button type="button" class="btn btn-out btn-sm" onclick="mkProdFillAll(0)">전체 지우기</button>
+        </div>
+        <div id="mk-prod-qty-rows" style="border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:6px;"></div>
+        <div id="mk-prod-total" style="font-size:12px;color:var(--sub);text-align:right;margin-bottom:4px;"></div>
       </div>
+
+      <!-- 기존 기록 수정 시에는 해당 상품 하나만 -->
+      <div id="mk-prod-single" style="display:none;">
+        <div class="form-row">
+          <label>상품 *</label>
+          <select id="mk-prod-product"></select>
+        </div>
+        <div class="form-row">
+          <label>수량 *</label>
+          <input type="number" id="mk-prod-qty" min="1" step="1" value="1">
+        </div>
+      </div>
+
       <div class="form-row">
         <label>메모</label>
         <input type="text" id="mk-prod-note" placeholder="예: 오전 생산분">
@@ -1489,7 +1510,7 @@ img{max-width:100%;height:auto;}
     </div>
     <div class="modal-footer">
       <button class="btn btn-out" onclick="closeModal('mk-production-modal')">취소</button>
-      <button class="btn btn-acc" onclick="saveMkProduction()">저장</button>
+      <button class="btn btn-acc" id="mk-prod-save-btn" onclick="saveMkProduction()">저장</button>
     </div>
   </div>
 </div>
@@ -1733,7 +1754,7 @@ img{max-width:100%;height:auto;}
       <div class="mobile-scroll-hint">💡 표가 넓으면 좌우로 스크롤하세요</div>
       <div class="table-wrap" style="max-height:340px;">
         <table>
-          <thead><tr><th>주문일자</th><th>주문자명</th><th>상품구성</th><th>결제금액</th><th>결제상태</th></tr></thead>
+          <thead><tr><th style="width:34px;"><input type="checkbox" id="mk-import-all" checked onchange="toggleMkImportAll(this)"></th><th>주문일자</th><th>주문자명</th><th>상품구성</th><th>결제금액</th><th>확인</th></tr></thead>
           <tbody id="mk-import-preview-rows"></tbody>
         </table>
       </div>
@@ -1791,6 +1812,43 @@ img{max-width:100%;height:auto;}
   </div>
 </div>
 
+<!-- ===MILKIT 주문 중복 확인=== -->
+<div class="modal-bg" id="mk-dup-modal">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-hdr">
+      <h4>⚠️ 비슷한 주문이 이미 있습니다</h4>
+      <button class="btn btn-icon btn-out" onclick="mkDupCancel()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="mk-dup-summary" style="font-size:13px;line-height:1.7;margin-bottom:14px;"></div>
+
+      <div id="mk-dup-new" style="padding:11px 12px;border-radius:8px;background:var(--acc-pale);border:1px solid var(--acc);margin-bottom:14px;"></div>
+
+      <div style="font-size:11px;color:var(--sub2);margin-bottom:6px;">이미 등록된 주문</div>
+      <div id="mk-dup-existing"></div>
+      <div id="mk-dup-pick-hint" style="font-size:11px;color:var(--sub2);margin-top:2px;display:none;">※ 합치기·덮어쓰기·삭제는 위에서 선택한 주문에 적용됩니다.</div>
+
+      <div style="margin-top:18px;display:flex;flex-direction:column;gap:8px;">
+        <button class="btn btn-acc" onclick="mkDupAddSeparate()" style="justify-content:flex-start;text-align:left;">
+          ➕ 별도 주문으로 등록 <span style="font-weight:400;opacity:.85;">— 같은 사람이 다시 주문했어요</span>
+        </button>
+        <button class="btn btn-out" onclick="mkDupMerge()" style="justify-content:flex-start;text-align:left;">
+          🔗 기존 주문에 합치기 <span style="font-weight:400;color:var(--sub);">— 수량을 더해서 한 건으로</span>
+        </button>
+        <button class="btn btn-out" onclick="mkDupOverwrite()" style="justify-content:flex-start;text-align:left;">
+          ✏️ 기존 주문 덮어쓰기 <span style="font-weight:400;color:var(--sub);">— 이번 내용이 맞아요</span>
+        </button>
+        <button class="btn btn-out" onclick="mkDupDeleteExisting()" style="justify-content:flex-start;text-align:left;">
+          🗑️ 기존 주문 삭제하고 이것만 남기기
+        </button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-out" onclick="mkDupCancel()">취소 (등록하지 않음)</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===MILKIT 여러 건 자동 인식 결과 확인=== -->
 <div class="modal-bg" id="mk-bulkparse-modal">
   <div class="modal" style="max-width:760px;">
@@ -1803,7 +1861,7 @@ img{max-width:100%;height:auto;}
       <div class="mobile-scroll-hint">💡 표가 넓으면 좌우로 스크롤하세요</div>
       <div class="table-wrap" style="max-height:340px;">
         <table>
-          <thead><tr><th style="width:34px;"><input type="checkbox" id="mk-bulkparse-all" checked onchange="toggleMkBulkParseAll(this)"></th><th>주문자</th><th>연락처</th><th>주소</th><th>상품</th></tr></thead>
+          <thead><tr><th style="width:34px;"><input type="checkbox" id="mk-bulkparse-all" checked onchange="toggleMkBulkParseAll(this)"></th><th>주문자</th><th>연락처</th><th>주소</th><th>상품</th><th>확인</th></tr></thead>
           <tbody id="mk-bulkparse-rows"></tbody>
         </table>
       </div>
@@ -4179,6 +4237,43 @@ function openMilkitOrderModal(id){
   openModal('mk-order-modal');
 }
 
+/* ===== 주문 중복 확인 =====
+   같은 고객이 같은 상품을 다시 주문하는 경우(정상 재주문)와
+   실수로 같은 주문을 두 번 넣는 경우를 사용자가 직접 구분하도록 함 */
+function mkQtySignature(qty){
+  return milkitProducts
+    .map(p=>p.id+':'+(Number(qty&&qty[p.id])||0))
+    .filter(s=>!s.endsWith(':0')).sort().join('|');
+}
+function mkSameCustomer(a,b){
+  const pa=String(a.phone||'').replace(/\D/g,'');
+  const pb=String(b.phone||'').replace(/\D/g,'');
+  if(pa && pb) return pa===pb;                 // 연락처가 둘 다 있으면 그것이 기준
+  const na=String(a.customer||'').replace(/\s/g,'');
+  const nb=String(b.customer||'').replace(/\s/g,'');
+  return !!na && na===nb;
+}
+/* 같은 고객이면서 (상품 구성이 같거나 · 주문일자가 같은) 기존 주문을 찾음 */
+function findMilkitDuplicates(cand, excludeId){
+  const sig=mkQtySignature(cand.qty);
+  const out=[];
+  milkitOrders.forEach(o=>{
+    if(excludeId && o.id===excludeId) return;
+    if(!mkSameCustomer(cand,o)) return;
+    const sameProducts = !!sig && mkQtySignature(o.qty)===sig;
+    const sameDate = !!cand.orderDate && o.orderDate===cand.orderDate;
+    if(sameProducts || sameDate) out.push({order:o, sameProducts, sameDate});
+  });
+  return out;
+}
+
+function mkOrderItemsText(qty){
+  const items=milkitProducts
+    .filter(p=>Number(qty&&qty[p.id])>0)
+    .map(p=>`${p.name}×${Number(qty[p.id])}`);
+  return items.join(', ') || '(상품 없음)';
+}
+
 function saveMilkitOrder(){
   const customer=document.getElementById('mk-order-customer').value.trim();
   const orderDate=document.getElementById('mk-order-date').value;
@@ -4203,17 +4298,130 @@ function saveMilkitOrder(){
     tracking:document.getElementById('mk-order-tracking').value.trim(),
     note:document.getElementById('mk-order-note').value.trim()
   };
+  // 수정 중이 아닐 때만 중복 확인 (수정은 이미 있는 주문을 고치는 것이므로 제외)
+  if(!mkEditId){
+    const dups=findMilkitDuplicates(obj, null);
+    if(dups.length){ showMilkitDupModal(obj, dups); return; }
+  }
+  commitMilkitOrder(obj);
+}
+
+/* 중복 확인을 마친 뒤 실제로 저장 */
+function commitMilkitOrder(obj){
   if(mkEditId){ const idx=milkitOrders.findIndex(x=>x.id===mkEditId); milkitOrders[idx]=obj; }
   else { milkitOrders.push(obj); }
   DB.save('milkitOrders',milkitOrders);
   // 신규 고객이면 고객DB에 자동 등록
-  if(customer && !milkitCustomers.find(c=>c.name===customer)){
-    milkitCustomers.push({id:uid(), name:customer, phone, address, notes:''});
+  if(obj.customer && !milkitCustomers.find(c=>c.name===obj.customer)){
+    milkitCustomers.push({id:uid(), name:obj.customer, phone:obj.phone, address:obj.address, notes:''});
     DB.save('milkitCustomers',milkitCustomers);
   }
   closeModal('mk-order-modal');
   renderMilkitStats();
   renderMilkitOrders();
+}
+
+/* ---- 중복 확인 모달 ---- */
+let mkDupCand=null, mkDupList=[];
+
+function showMilkitDupModal(cand, dups){
+  mkDupCand=cand; mkDupList=dups;
+  const multi=dups.length>1;
+  document.getElementById('mk-dup-summary').innerHTML=
+    `<b>${cand.customer}</b> 님의 주문 중 비슷한 주문이 <b>${dups.length}건</b> 이미 등록되어 있습니다.<br>
+     <span style="color:var(--sub2);font-size:11.5px;">같은 고객이 다시 주문한 것이라면 “별도 주문으로 등록”을 선택하세요.</span>`;
+
+  document.getElementById('mk-dup-new').innerHTML=`
+    <div style="font-size:11px;color:var(--sub2);margin-bottom:4px;">지금 입력한 주문</div>
+    <div style="font-weight:700;">${cand.orderDate} · ${mkOrderItemsText(cand.qty)}</div>
+    <div style="font-size:12px;color:var(--sub);margin-top:2px;">${comma(cand.payTotal)}원${cand.phone?' · '+cand.phone:''}</div>`;
+
+  document.getElementById('mk-dup-existing').innerHTML=dups.map((d,i)=>{
+    const o=d.order;
+    const why=[d.sameProducts?'상품 동일':'', d.sameDate?'주문일 동일':''].filter(Boolean).join(' · ');
+    return `<label style="display:flex;gap:9px;align-items:flex-start;padding:10px 11px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;cursor:pointer;">
+      <input type="radio" name="mk-dup-pick" value="${i}" ${i===0?'checked':''} style="margin-top:3px;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:700;">#${o.no} · ${o.orderDate} · ${mkOrderItemsText(o.qty)}</div>
+        <div style="font-size:12px;color:var(--sub);margin-top:2px;">${comma(o.payTotal)}원 · 결제 ${o.payStatus||'대기'} · 배송 ${o.deliveryStatus||'준비중'}</div>
+        <span class="badge badge-orange" style="margin-top:5px;display:inline-block;">⚠️ ${why}</span>
+      </div>
+    </label>`;
+  }).join('');
+  document.getElementById('mk-dup-pick-hint').style.display = multi ? '' : 'none';
+  openModal('mk-dup-modal');
+}
+
+function mkDupPickedOrder(){
+  const el=document.querySelector('input[name="mk-dup-pick"]:checked');
+  const idx=el?Number(el.value):0;
+  return mkDupList[idx] ? mkDupList[idx].order : null;
+}
+
+/* 1) 별도 주문으로 등록 — 재주문인 경우 */
+function mkDupAddSeparate(){
+  closeModal('mk-dup-modal');
+  commitMilkitOrder(mkDupCand);
+  mkDupCand=null; mkDupList=[];
+}
+
+/* 2) 기존 주문에 합치기 — 수량을 더함 */
+function mkDupMerge(){
+  const target=mkDupPickedOrder();
+  if(!target) return;
+  const merged=Object.assign({}, target);
+  const qty=Object.assign({}, target.qty);
+  milkitProducts.forEach(p=>{
+    qty[p.id]=(Number(target.qty&&target.qty[p.id])||0)+(Number(mkDupCand.qty&&mkDupCand.qty[p.id])||0);
+  });
+  merged.qty=qty;
+  const setType=merged.setType||mkDupCand.setType||'';
+  const setQty=Number(merged.setQty)||1;
+  const t=mkCalcTotals(qty,setType,setQty);
+  merged.listTotal=t.listTotal; merged.discount=t.discount; merged.payTotal=t.payTotal;
+  // 비어 있던 정보는 새 주문 값으로 채움
+  ['phone','address','desiredDate','tracking'].forEach(k=>{ if(!merged[k] && mkDupCand[k]) merged[k]=mkDupCand[k]; });
+  if(mkDupCand.note) merged.note=(merged.note?merged.note+' / ':'')+mkDupCand.note;
+  const idx=milkitOrders.findIndex(o=>o.id===target.id);
+  milkitOrders[idx]=merged;
+  DB.save('milkitOrders',milkitOrders);
+  closeModal('mk-dup-modal');
+  closeModal('mk-order-modal');
+  renderMilkitStats(); renderMilkitOrders();
+  alert(`#${target.no} 주문에 합쳤습니다.\n${mkOrderItemsText(merged.qty)} · ${comma(merged.payTotal)}원`);
+  mkDupCand=null; mkDupList=[];
+}
+
+/* 3) 기존 주문 덮어쓰기 — 기존 건을 이번 내용으로 교체 */
+function mkDupOverwrite(){
+  const target=mkDupPickedOrder();
+  if(!target) return;
+  if(!confirm(`#${target.no} 주문을 이번에 입력한 내용으로 덮어씁니다.\n기존 내용은 사라집니다. 계속할까요?`)) return;
+  const idx=milkitOrders.findIndex(o=>o.id===target.id);
+  milkitOrders[idx]=Object.assign({}, mkDupCand, {id:target.id, no:target.no});
+  DB.save('milkitOrders',milkitOrders);
+  closeModal('mk-dup-modal');
+  closeModal('mk-order-modal');
+  renderMilkitStats(); renderMilkitOrders();
+  alert(`#${target.no} 주문을 덮어썼습니다.`);
+  mkDupCand=null; mkDupList=[];
+}
+
+/* 4) 기존 주문 삭제하고 이번 것만 남기기 */
+function mkDupDeleteExisting(){
+  const target=mkDupPickedOrder();
+  if(!target) return;
+  if(!confirm(`기존 #${target.no} 주문을 삭제하고, 이번에 입력한 주문만 남깁니다.\n계속할까요?`)) return;
+  milkitOrders=milkitOrders.filter(o=>o.id!==target.id);
+  closeModal('mk-dup-modal');
+  commitMilkitOrder(mkDupCand);
+  alert(`기존 #${target.no} 주문을 삭제하고 새 주문을 등록했습니다.`);
+  mkDupCand=null; mkDupList=[];
+}
+
+function mkDupCancel(){
+  closeModal('mk-dup-modal');
+  mkDupCand=null; mkDupList=[];
 }
 
 function deleteMilkitOrder(id){
@@ -4365,34 +4573,70 @@ function parseMilkitImportRows(rows){
   openModal('mk-import-modal');
 }
 
+/* 일괄 등록용 중복 표시 — 기존 주문과의 중복 + 같은 파일 안에서의 중복을 함께 검사 */
+function mkFlagDuplicates(list){
+  const seen=[];
+  return list.map(cand=>{
+    const existing=findMilkitDuplicates(cand, null);
+    const sig=mkQtySignature(cand.qty);
+    const inBatch=seen.some(s=>mkSameCustomer(cand,s) && mkQtySignature(s.qty)===sig);
+    seen.push(cand);
+    return {existing, inBatch};
+  });
+}
+function mkDupCellHtml(flag){
+  if(flag.inBatch) return `<span class="badge badge-red">⚠️ 파일 내 중복</span>`;
+  if(flag.existing.length){
+    const o=flag.existing[0].order;
+    return `<span class="badge badge-orange">⚠️ 기존 #${o.no}과 중복</span>`;
+  }
+  return `<span class="badge badge-green">✅ 신규</span>`;
+}
+
 function renderMilkitImportPreview(skipped, unmatchedCols){
   const summary=document.getElementById('mk-import-summary');
   const warn = unmatchedCols.size ? `<div style="color:var(--red);margin-top:4px;">⚠ 인식되지 않은 상품 컬럼: ${[...unmatchedCols].join(', ')} — 메뉴·가격 설정에 없는 상품명입니다. 먼저 상품을 등록하거나 엑셀 헤더명을 맞춰주세요.</div>` : '';
-  summary.innerHTML = `총 ${mkImportParsed.length+skipped}행 중 <b>${mkImportParsed.length}건</b>을 새 주문으로 등록합니다${skipped?` (이름 없음/예시 행 ${skipped}건 제외)`:''}.${warn}
-    <div style="margin-top:6px;color:var(--sub2);font-size:11.5px;">※ 이 작업은 목록에 새 주문으로 추가됩니다. 이미 등록한 주문을 다시 업로드하면 중복 등록될 수 있으니 주의하세요.</div>`;
   const el=document.getElementById('mk-import-preview-rows');
   const btn=document.getElementById('mk-import-confirm-btn');
   if(!mkImportParsed.length){
-    el.innerHTML=`<tr><td colspan="5" style="text-align:center;color:var(--sub2);">등록할 주문이 없습니다</td></tr>`;
+    summary.innerHTML=`총 ${skipped}행 중 등록할 주문이 없습니다.${warn}`;
+    el.innerHTML=`<tr><td colspan="6" style="text-align:center;color:var(--sub2);">등록할 주문이 없습니다</td></tr>`;
     btn.disabled=true;
     return;
   }
+  const flags=mkFlagDuplicates(mkImportParsed);
+  const dupCount=flags.filter(f=>f.inBatch||f.existing.length).length;
+  summary.innerHTML = `총 ${mkImportParsed.length+skipped}행 중 <b>${mkImportParsed.length}건</b>을 확인했습니다${skipped?` (이름 없음/예시 행 ${skipped}건 제외)`:''}.${warn}
+    ${dupCount?`<div style="margin-top:6px;color:#9E2828;font-size:12px;">⚠️ 이미 등록된 주문과 겹치는 항목 <b>${dupCount}건</b>은 자동으로 체크 해제했습니다. 그래도 등록하려면 직접 체크하세요.</div>`
+              :`<div style="margin-top:6px;color:var(--sub2);font-size:11.5px;">중복되는 주문은 없습니다.</div>`}`;
   btn.disabled=false;
-  el.innerHTML = mkImportParsed.map(o=>`
-    <tr>
+  el.innerHTML = mkImportParsed.map((o,i)=>{
+    const f=flags[i];
+    const isDup=f.inBatch||f.existing.length>0;
+    return `<tr>
+      <td><input type="checkbox" class="mk-import-chk" data-idx="${i}" ${isDup?'':'checked'}></td>
       <td>${o.orderDate||'-'}</td>
       <td>${o.customer}</td>
       <td>${mkOrderItemsSummary(o)}</td>
       <td class="num">${comma(o.payTotal)}원</td>
-      <td>${o.payStatus}</td>
-    </tr>
-  `).join('');
+      <td>${mkDupCellHtml(f)}</td>
+    </tr>`;
+  }).join('');
+  const all=document.getElementById('mk-import-all');
+  if(all) all.checked = dupCount===0;
+}
+
+function toggleMkImportAll(el){
+  document.querySelectorAll('.mk-import-chk').forEach(c=>{ c.checked=el.checked; });
 }
 
 function confirmMilkitOrderImport(){
   if(!mkImportParsed.length) return;
+  const picked=[...document.querySelectorAll('.mk-import-chk')]
+    .filter(c=>c.checked).map(c=>mkImportParsed[Number(c.dataset.idx)]);
+  if(!picked.length){ alert('등록할 주문을 선택하세요.'); return; }
   let nextNo=milkitOrders.reduce((m,o)=>Math.max(m,Number(o.no)||0),0);
-  mkImportParsed.forEach(o=>{
+  picked.forEach(o=>{
     nextNo+=1;
     const obj=Object.assign({}, o, {id:uid(), no:nextNo});
     milkitOrders.push(obj);
@@ -4406,7 +4650,7 @@ function confirmMilkitOrderImport(){
   closeModal('mk-import-modal');
   renderMilkitStats();
   renderMilkitOrders();
-  alert('엑셀 데이터가 등록되었습니다.');
+  alert(`주문 ${picked.length}건이 등록되었습니다.`);
 }
 
 /* --- 사진(문자·카톡 캡처)으로 주문 등록 — Claude AI 인식 --- */
@@ -4477,20 +4721,33 @@ function toMkOcrShape(r){
 }
 
 function showMkBulkParseModal(){
+  // 중복 확인을 위해 파서 결과를 주문 형태로 변환
+  const cands=mkBulkParsed.map(r=>{
+    const qty={};
+    r.products.forEach(it=>{ qty[it.id]=(qty[it.id]||0)+(Number(it.qty)||0); });
+    return {customer:r.customer, phone:r.phone, qty, orderDate:todayStr()};
+  });
+  const flags=mkFlagDuplicates(cands);
+  const dupCount=flags.filter(f=>f.inBatch||f.existing.length).length;
+
   document.getElementById('mk-bulkparse-summary').innerHTML=
-    `주문 <b>${mkBulkParsed.length}건</b>을 인식했습니다. 등록할 항목을 확인 후 선택하세요.`;
-  document.getElementById('mk-bulkparse-all').checked=true;
+    `주문 <b>${mkBulkParsed.length}건</b>을 인식했습니다. 등록할 항목을 확인 후 선택하세요.`+
+    (dupCount?`<div style="margin-top:6px;color:#9E2828;font-size:12px;">⚠️ 이미 등록된 주문과 겹치는 항목 <b>${dupCount}건</b>은 자동으로 체크 해제했습니다. 같은 사람이 다시 주문한 것이라면 직접 체크하세요.</div>`:'');
+  document.getElementById('mk-bulkparse-all').checked = dupCount===0;
   document.getElementById('mk-bulkparse-rows').innerHTML=mkBulkParsed.map((r,i)=>{
     const items=r.products.map(it=>{
       const p=milkitProducts.find(x=>x.id===it.id);
       return `${p?p.name:'?'}×${it.qty}`;
     }).join(', ');
+    const f=flags[i];
+    const isDup=f.inBatch||f.existing.length>0;
     return `<tr>
-      <td><input type="checkbox" class="mk-bulkparse-chk" data-idx="${i}" checked></td>
+      <td><input type="checkbox" class="mk-bulkparse-chk" data-idx="${i}" ${isDup?'':'checked'}></td>
       <td>${r.customer||'<span style="color:var(--sub2);">(미인식)</span>'}</td>
       <td>${r.phone?formatPhone(r.phone):'<span style="color:var(--sub2);">-</span>'}</td>
       <td style="font-size:11.5px;">${r.address||'<span style="color:var(--sub2);">-</span>'}</td>
       <td style="font-size:11.5px;">${items||'<span style="color:var(--sub2);">(미인식)</span>'}</td>
+      <td>${mkDupCellHtml(f)}</td>
     </tr>`;
   }).join('');
   closeModal('mk-ocr-modal');
@@ -5186,33 +5443,97 @@ function renderMkProductionList(){
   }).join('');
 }
 
+function renderMkProdQtyRows(){
+  const inv=computeMilkitInventory();
+  document.getElementById('mk-prod-qty-rows').innerHTML = milkitProducts.map((p,i)=>{
+    const cur=inv.find(r=>r.product.id===p.id);
+    return `<div style="display:grid;grid-template-columns:1fr 104px;gap:8px;align-items:center;padding:9px 11px;${i?'border-top:1px solid var(--border);':''}">
+      <div style="min-width:0;">
+        <div style="font-weight:600;">${p.name}</div>
+        <div style="font-size:11px;color:var(--sub2);">현재고 ${comma(cur?cur.stock:0)}개</div>
+      </div>
+      <input type="number" min="0" step="1" id="mk-prodqty-${p.id}" value="0" inputmode="numeric"
+             oninput="mkProdUpdateTotal()" style="width:100%;text-align:right;">
+    </div>`;
+  }).join('');
+  mkProdUpdateTotal();
+}
+
+function mkProdFillAll(n){
+  milkitProducts.forEach(p=>{
+    const el=document.getElementById('mk-prodqty-'+p.id);
+    if(el) el.value=n;
+  });
+  mkProdUpdateTotal();
+}
+
+function mkProdUpdateTotal(){
+  let total=0, kinds=0;
+  milkitProducts.forEach(p=>{
+    const el=document.getElementById('mk-prodqty-'+p.id);
+    const v=Number(el&&el.value)||0;
+    if(v>0){ total+=v; kinds++; }
+  });
+  const el=document.getElementById('mk-prod-total');
+  if(el) el.textContent = total ? `${kinds}개 상품 · 합계 ${comma(total)}개` : '수량을 입력하세요';
+  const btn=document.getElementById('mk-prod-save-btn');
+  if(btn && !mkProdEditId) btn.disabled = total<=0;
+}
+
 function openMkProductionModal(id){
   mkProdEditId = id||null;
   const rec = id ? milkitProduction.find(r=>r.id===id) : null;
   document.getElementById('mk-production-modal-title').textContent = rec ? '생산 기록 수정' : '생산 등록';
-  document.getElementById('mk-prod-product').innerHTML =
-    milkitProducts.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
   document.getElementById('mk-prod-date').value = rec ? (rec.date||'') : todayStr();
-  if(rec) document.getElementById('mk-prod-product').value = rec.productId;
   document.getElementById('mk-prod-type').value = rec ? (rec.type||'생산') : '생산';
-  document.getElementById('mk-prod-qty').value = rec ? rec.qty : 1;
   document.getElementById('mk-prod-note').value = rec ? (rec.note||'') : '';
+  const multi=document.getElementById('mk-prod-multi');
+  const single=document.getElementById('mk-prod-single');
+  const btn=document.getElementById('mk-prod-save-btn');
+  if(rec){
+    multi.style.display='none';
+    single.style.display='';
+    document.getElementById('mk-prod-product').innerHTML =
+      milkitProducts.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+    document.getElementById('mk-prod-product').value = rec.productId;
+    document.getElementById('mk-prod-qty').value = rec.qty;
+    if(btn) btn.disabled=false;
+  } else {
+    multi.style.display='';
+    single.style.display='none';
+    renderMkProdQtyRows();
+  }
   openModal('mk-production-modal');
 }
 
 function saveMkProduction(){
   const date=document.getElementById('mk-prod-date').value;
-  const productId=document.getElementById('mk-prod-product').value;
   const type=document.getElementById('mk-prod-type').value;
-  const qty=Number(document.getElementById('mk-prod-qty').value)||0;
-  if(!date||!productId){ alert('일자와 상품은 필수입니다.'); return; }
-  if(qty<=0){ alert('수량은 1 이상이어야 합니다.'); return; }
-  const obj={ id:mkProdEditId||uid(), date, productId, type, qty,
-    note:document.getElementById('mk-prod-note').value.trim() };
-  if(mkProdEditId){ const i=milkitProduction.findIndex(r=>r.id===mkProdEditId); milkitProduction[i]=obj; }
-  else milkitProduction.push(obj);
+  const note=document.getElementById('mk-prod-note').value.trim();
+  if(!date){ alert('일자는 필수입니다.'); return; }
+
+  if(mkProdEditId){
+    // 기존 기록 수정 — 상품 하나만
+    const productId=document.getElementById('mk-prod-product').value;
+    const qty=Number(document.getElementById('mk-prod-qty').value)||0;
+    if(!productId){ alert('상품을 선택하세요.'); return; }
+    if(qty<=0){ alert('수량은 1 이상이어야 합니다.'); return; }
+    const i=milkitProduction.findIndex(r=>r.id===mkProdEditId);
+    milkitProduction[i]={ id:mkProdEditId, date, productId, type, qty, note };
+  } else {
+    // 여러 상품을 한 번에 등록 — 수량이 있는 상품만 기록 생성
+    const entries=[];
+    milkitProducts.forEach(p=>{
+      const el=document.getElementById('mk-prodqty-'+p.id);
+      const qty=Number(el&&el.value)||0;
+      if(qty>0) entries.push({ id:uid(), date, productId:p.id, type, qty, note });
+    });
+    if(!entries.length){ alert('수량을 1개 이상 입력하세요.'); return; }
+    entries.forEach(e=>milkitProduction.push(e));
+  }
   DB.save('milkitProduction',milkitProduction);
   closeModal('mk-production-modal');
+  renderMilkitStats();
   renderMilkitInventory();
 }
 
