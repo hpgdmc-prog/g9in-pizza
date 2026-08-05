@@ -112,6 +112,35 @@ h1,h2,h3,h4{font-family:var(--sans);letter-spacing:-.01em;}
 .page-hdr h3{font-family:var(--serif);font-size:20px;color:var(--dark);font-weight:700;letter-spacing:.04em;}
 /* toolbar */
 .toolbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center;}
+/* === 접이식 필터 === */
+.filter-bar{display:flex;gap:8px;align-items:center;margin-bottom:10px;}
+.filter-bar .f-search{flex:1;min-width:0;padding:9px 12px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:13px;font-family:inherit;background:#fff;color:var(--text);}
+.filter-bar .f-search:focus{outline:none;border-color:var(--acc);}
+.f-toggle{display:flex;align-items:center;gap:6px;padding:9px 13px;border:1px solid var(--border-strong);border-radius:var(--r-sm);
+  background:#fff;font-family:inherit;font-size:12.5px;font-weight:600;color:var(--p);cursor:pointer;white-space:nowrap;flex-shrink:0;}
+.f-toggle.has-filter{border-color:var(--acc);color:var(--acc-dark);background:var(--acc-pale);}
+.f-toggle .f-count{display:none;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--acc);color:#fff;
+  font-size:10.5px;line-height:17px;text-align:center;}
+.f-toggle.has-filter .f-count{display:inline-block;}
+.f-toggle .f-caret{font-size:10px;transition:transform .15s;}
+.f-toggle.open .f-caret{transform:rotate(180deg);}
+.filter-panel{display:none;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-md);padding:12px;margin-bottom:10px;}
+.filter-panel.open{display:block;}
+.f-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;}
+.f-field{display:flex;flex-direction:column;gap:4px;min-width:0;}
+.f-field>label{font-size:10.5px;color:var(--sub2);letter-spacing:.06em;font-weight:600;}
+.f-field select,.f-field input{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:var(--r-sm);
+  font-size:13px;font-family:inherit;background:#fff;color:var(--text);}
+.f-field select:focus,.f-field input:focus{outline:none;border-color:var(--acc);}
+.f-dates{display:flex;align-items:center;gap:6px;}
+.f-dates input{flex:1;min-width:0;}
+.f-dates span{color:var(--sub2);font-size:12px;flex-shrink:0;}
+.f-quick{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;}
+.f-chip{padding:5px 11px;border:1px solid var(--border-strong);border-radius:999px;background:#fff;
+  font-family:inherit;font-size:11.5px;color:var(--sub);cursor:pointer;white-space:nowrap;}
+.f-chip.on{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600;}
+.f-actions{display:flex;justify-content:flex-end;margin-top:10px;}
+.f-summary{font-size:11.5px;color:var(--sub2);margin-bottom:10px;line-height:1.6;}
 .toolbar input,.toolbar select{padding:8px 12px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:13px;font-family:inherit;background:#fff;color:var(--text);transition:border-color .15s;}
 .toolbar input:focus,.toolbar select:focus{outline:none;border-color:var(--acc);}
 /* table */
@@ -958,44 +987,68 @@ img{max-width:100%;height:auto;}
           <button class="btn btn-acc btn-sm" onclick="openMilkitOrderModal()">+ 주문 등록</button>
         </div>
       </div>
-      <div class="toolbar">
-        <input type="text" id="mk-order-search" placeholder="주문자명 · 연락처 검색…" oninput="renderMilkitOrders()" style="width:180px;">
-        <select id="mk-order-period" onchange="mkOrderPeriodChanged()">
-          <option value="">기간 전체</option>
-          <option value="thisMonth">이번달</option>
-          <option value="lastMonth">지난달</option>
-          <option value="7">최근 7일</option>
-          <option value="30">최근 30일</option>
-          <option value="custom">직접 지정…</option>
-        </select>
-        <select id="mk-order-product-filter" onchange="renderMilkitOrders()">
-          <option value="">상품 전체</option>
-        </select>
-        <select id="mk-order-paystatus-filter" onchange="renderMilkitOrders()">
-          <option value="">결제상태 전체</option>
-          <option value="대기">대기</option>
-          <option value="완료">완료</option>
-        </select>
-        <select id="mk-order-delstatus-filter" onchange="renderMilkitOrders()">
-          <option value="">배송상태 전체</option>
-          <option value="준비중">준비중</option>
-          <option value="배송중">배송중</option>
-          <option value="배송완료">배송완료</option>
-        </select>
-        <select id="mk-order-sort" onchange="renderMilkitOrders()">
-          <option value="dateDesc">최신 주문순</option>
-          <option value="dateAsc">오래된 주문순</option>
-          <option value="nameAsc">이름 가나다순</option>
-          <option value="amtDesc">금액 높은순</option>
-          <option value="amtAsc">금액 낮은순</option>
-        </select>
+      <div class="filter-bar">
+        <input type="text" class="f-search" id="mk-order-search" placeholder="🔎 주문자명 · 연락처 검색…" oninput="renderMilkitOrders()">
+        <button type="button" class="f-toggle" id="mk-order-filter-toggle" onclick="toggleMkOrderFilterPanel()">
+          필터 <span class="f-count" id="mk-order-filter-count">0</span> <span class="f-caret">▼</span>
+        </button>
       </div>
-      <div class="toolbar" id="mk-order-custom-range" style="display:none;">
-        <input type="date" id="mk-order-from" onchange="renderMilkitOrders()" style="width:150px;">
-        <span style="font-size:12px;color:var(--sub2);">~</span>
-        <input type="date" id="mk-order-to" onchange="renderMilkitOrders()" style="width:150px;">
+      <div class="filter-panel" id="mk-order-filter-panel">
+        <div class="f-quick" style="margin:0 0 12px;">
+          <button type="button" class="f-chip" data-period="" onclick="setMkOrderPeriod('')">전체</button>
+          <button type="button" class="f-chip" data-period="thisMonth" onclick="setMkOrderPeriod('thisMonth')">이번달</button>
+          <button type="button" class="f-chip" data-period="lastMonth" onclick="setMkOrderPeriod('lastMonth')">지난달</button>
+          <button type="button" class="f-chip" data-period="7" onclick="setMkOrderPeriod('7')">최근 7일</button>
+          <button type="button" class="f-chip" data-period="30" onclick="setMkOrderPeriod('30')">최근 30일</button>
+          <button type="button" class="f-chip" data-period="custom" onclick="setMkOrderPeriod('custom')">기간 직접 선택</button>
+        </div>
+        <div class="f-field" id="mk-order-custom-range" style="display:none;margin-bottom:12px;">
+          <label>조회 기간</label>
+          <div class="f-dates">
+            <input type="date" id="mk-order-from" onchange="renderMilkitOrders()">
+            <span>~</span>
+            <input type="date" id="mk-order-to" onchange="renderMilkitOrders()">
+          </div>
+        </div>
+        <div class="f-grid">
+          <div class="f-field">
+            <label>상품</label>
+            <select id="mk-order-product-filter" onchange="renderMilkitOrders()"><option value="">전체</option></select>
+          </div>
+          <div class="f-field">
+            <label>결제상태</label>
+            <select id="mk-order-paystatus-filter" onchange="renderMilkitOrders()">
+              <option value="">전체</option><option value="대기">대기</option><option value="완료">완료</option>
+            </select>
+          </div>
+          <div class="f-field">
+            <label>배송상태</label>
+            <select id="mk-order-delstatus-filter" onchange="renderMilkitOrders()">
+              <option value="">전체</option><option value="준비중">준비중</option>
+              <option value="배송중">배송중</option><option value="배송완료">배송완료</option>
+            </select>
+          </div>
+          <div class="f-field">
+            <label>정렬</label>
+            <select id="mk-order-sort" onchange="renderMilkitOrders()">
+              <option value="dateDesc">최신 주문순</option>
+              <option value="dateAsc">오래된 주문순</option>
+              <option value="nameAsc">이름 가나다순</option>
+              <option value="amtDesc">금액 높은순</option>
+              <option value="amtAsc">금액 낮은순</option>
+            </select>
+          </div>
+        </div>
+        <div class="f-actions">
+          <button class="btn btn-out btn-sm" onclick="resetMkOrderFilters()">필터 초기화</button>
+        </div>
       </div>
-      <div id="mk-order-filter-summary" style="font-size:11.5px;color:var(--sub2);margin-bottom:8px;"></div>
+      <!-- 기간 선택값을 보관 (칩으로 조작) -->
+      <select id="mk-order-period" style="display:none;">
+        <option value=""></option><option value="thisMonth"></option><option value="lastMonth"></option>
+        <option value="7"></option><option value="30"></option><option value="custom"></option>
+      </select>
+      <div class="f-summary" id="mk-order-filter-summary"></div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px;">
         <label style="font-size:12px;color:var(--sub2);display:flex;align-items:center;gap:6px;cursor:pointer;">
           <input type="checkbox" id="mk-order-select-all" onchange="toggleMkOrderSelectAll(this)"> 전체 선택
@@ -1015,9 +1068,9 @@ img{max-width:100%;height:auto;}
           <button class="btn btn-acc btn-sm" onclick="openMilkitCustomerModal()">+ 고객 등록</button>
         </div>
       </div>
-      <div class="toolbar">
-        <input type="text" id="mk-cust-search" placeholder="고객명 · 연락처 · 주소 검색…" oninput="renderMilkitCustomers()" style="width:200px;">
-        <select id="mk-cust-sort" onchange="renderMilkitCustomers()">
+      <div class="filter-bar">
+        <input type="text" class="f-search" id="mk-cust-search" placeholder="🔎 고객명 · 연락처 · 주소 검색…" oninput="renderMilkitCustomers()">
+        <select id="mk-cust-sort" onchange="renderMilkitCustomers()" style="flex-shrink:0;">
           <option value="nameAsc">이름 가나다순</option>
           <option value="ordersDesc">주문 많은순</option>
           <option value="amtDesc">구매금액 높은순</option>
@@ -1091,22 +1144,26 @@ img{max-width:100%;height:auto;}
         <h3 style="font-size:14px;">제품별 판매 현황</h3>
         <button class="btn btn-out btn-sm" onclick="previewMilkitStatsPrint()">🖨️ 인쇄</button>
       </div>
-      <div class="toolbar">
-        <select id="mk-stats-period" onchange="mkStatsPeriodChanged()">
-          <option value="">기간 전체 (누적)</option>
-          <option value="thisMonth">이번달</option>
-          <option value="lastMonth">지난달</option>
-          <option value="7">최근 7일</option>
-          <option value="30">최근 30일</option>
-          <option value="custom">직접 지정…</option>
-        </select>
+      <div class="f-quick" style="margin:0 0 10px;">
+        <button type="button" class="f-chip" data-period="" onclick="setMkStatsPeriod('')">전체 누적</button>
+        <button type="button" class="f-chip" data-period="thisMonth" onclick="setMkStatsPeriod('thisMonth')">이번달</button>
+        <button type="button" class="f-chip" data-period="lastMonth" onclick="setMkStatsPeriod('lastMonth')">지난달</button>
+        <button type="button" class="f-chip" data-period="7" onclick="setMkStatsPeriod('7')">최근 7일</button>
+        <button type="button" class="f-chip" data-period="30" onclick="setMkStatsPeriod('30')">최근 30일</button>
+        <button type="button" class="f-chip" data-period="custom" onclick="setMkStatsPeriod('custom')">기간 직접 선택</button>
       </div>
-      <div class="toolbar" id="mk-stats-custom-range" style="display:none;">
-        <input type="date" id="mk-stats-from" onchange="renderMilkitSalesStats()" style="width:150px;">
-        <span style="font-size:12px;color:var(--sub2);">~</span>
-        <input type="date" id="mk-stats-to" onchange="renderMilkitSalesStats()" style="width:150px;">
+      <div class="f-field" id="mk-stats-custom-range" style="display:none;max-width:340px;margin-bottom:10px;">
+        <div class="f-dates">
+          <input type="date" id="mk-stats-from" onchange="renderMilkitSalesStats()">
+          <span>~</span>
+          <input type="date" id="mk-stats-to" onchange="renderMilkitSalesStats()">
+        </div>
       </div>
-      <div id="mk-stats-filter-summary" style="font-size:11.5px;color:var(--sub2);margin-bottom:8px;"></div>
+      <select id="mk-stats-period" style="display:none;">
+        <option value=""></option><option value="thisMonth"></option><option value="lastMonth"></option>
+        <option value="7"></option><option value="30"></option><option value="custom"></option>
+      </select>
+      <div class="f-summary" id="mk-stats-filter-summary"></div>
       <div class="mobile-scroll-hint">💡 표가 넓으면 좌우로 스크롤하세요</div>
       <div class="table-wrap" style="margin-bottom:20px;">
         <table>
@@ -2336,6 +2393,9 @@ function updateBackBtn(){
   btn.style.display = (depth>0 || modalOpen) ? '' : 'none';
 }
 function initAppHistory(){
+  // 주소의 #섹션 을 반영해 새로고침·북마크 시 보던 화면으로 복귀
+  const hash=(location.hash||'').replace('#','');
+  if(hash && SECTIONS[hash]) navigate(hash, true);
   const v=currentAppView();
   try{ history.replaceState({view:v, depth:0}, '', '#'+v.sec); }catch(_){}
   _appHistoryReady=true;
@@ -4140,11 +4200,43 @@ function renderMilkitStats(){
 }
 
 /* --- 주문 내역 --- */
-function mkOrderPeriodChanged(){
-  const v=document.getElementById('mk-order-period').value;
+function toggleMkOrderFilterPanel(){
+  const panel=document.getElementById('mk-order-filter-panel');
+  const btn=document.getElementById('mk-order-filter-toggle');
+  const open=panel.classList.toggle('open');
+  btn.classList.toggle('open', open);
+}
+/* 기간은 칩으로 선택 (드롭다운 + 별도 줄 대신) */
+function setMkOrderPeriod(v){
+  document.getElementById('mk-order-period').value=v;
   const box=document.getElementById('mk-order-custom-range');
   if(box) box.style.display = v==='custom' ? '' : 'none';
+  // 직접 선택 시 기본 범위를 이번달로 채워 빈 화면을 피함
+  if(v==='custom'){
+    const f=document.getElementById('mk-order-from'), t=document.getElementById('mk-order-to');
+    if(f && !f.value){ const n=new Date(); f.value=todayStr(new Date(n.getFullYear(),n.getMonth(),1)); }
+    if(t && !t.value) t.value=todayStr();
+  }
   renderMilkitOrders();
+}
+function mkOrderPeriodChanged(){ setMkOrderPeriod(document.getElementById('mk-order-period').value); }
+
+/* 적용된 필터 개수 · 칩 상태 · 접기 버튼 표시 갱신 */
+function syncMkOrderFilterUi(){
+  const period=document.getElementById('mk-order-period')?.value||'';
+  document.querySelectorAll('#mk-order-filter-panel .f-chip').forEach(c=>{
+    c.classList.toggle('on', (c.dataset.period||'')===period);
+  });
+  let n=0;
+  if(period) n++;
+  ['mk-order-product-filter','mk-order-paystatus-filter','mk-order-delstatus-filter'].forEach(id=>{
+    if((document.getElementById(id)?.value||'')) n++;
+  });
+  if((document.getElementById('mk-order-sort')?.value||'dateDesc')!=='dateDesc') n++;
+  const btn=document.getElementById('mk-order-filter-toggle');
+  const cnt=document.getElementById('mk-order-filter-count');
+  if(btn) btn.classList.toggle('has-filter', n>0);
+  if(cnt) cnt.textContent=n;
 }
 
 /* 선택한 기간을 {from,to} (YYYY-MM-DD) 로 변환 */
@@ -4274,6 +4366,7 @@ function bulkDeleteMkOrders(){
 
 function renderMilkitOrders(){
   renderMkOrderProductFilter();
+  syncMkOrderFilterUi();
   const list=getFilteredMilkitOrders();
   const idsInView=new Set(list.map(o=>o.id));
   mkSelectedOrderIds.forEach(id=>{ if(!idsInView.has(id)) mkSelectedOrderIds.delete(id); });
@@ -4285,11 +4378,9 @@ function renderMilkitOrders(){
   if(sum){
     const label=mkOrderFilterLabel();
     const total=list.reduce((s,o)=>s+(Number(o.payTotal)||0),0);
-    const filtered=list.length!==milkitOrders.length;
-    sum.innerHTML = filtered
-      ? `🔎 ${label||'조건 없음'} — <b>${list.length}건</b> · 합계 <b>${comma(total)}원</b>
-         <button class="btn btn-out btn-sm" style="margin-left:8px;padding:3px 8px;font-size:10.5px;" onclick="resetMkOrderFilters()">필터 초기화</button>`
-      : `전체 ${milkitOrders.length}건 · 합계 ${comma(total)}원`;
+    sum.innerHTML = label
+      ? `<b>${list.length}건</b> · 합계 <b>${comma(total)}원</b> <span style="color:var(--acc-dark);">— ${label}</span>`
+      : `전체 <b>${list.length}건</b> · 합계 <b>${comma(total)}원</b>`;
   }
   const el=document.getElementById('mk-order-list');
   if(!list.length){
@@ -5917,12 +6008,18 @@ function previewMilkitInventoryPrint(){
 
 /* --- 판매 현황 --- */
 /* 판매 현황 기간 필터 — 주문 내역과 같은 방식 */
-function mkStatsPeriodChanged(){
-  const v=document.getElementById('mk-stats-period').value;
+function setMkStatsPeriod(v){
+  document.getElementById('mk-stats-period').value=v;
   const box=document.getElementById('mk-stats-custom-range');
   if(box) box.style.display = v==='custom' ? '' : 'none';
+  if(v==='custom'){
+    const f=document.getElementById('mk-stats-from'), t=document.getElementById('mk-stats-to');
+    if(f && !f.value){ const n=new Date(); f.value=todayStr(new Date(n.getFullYear(),n.getMonth(),1)); }
+    if(t && !t.value) t.value=todayStr();
+  }
   renderMilkitSalesStats();
 }
+function mkStatsPeriodChanged(){ setMkStatsPeriod(document.getElementById('mk-stats-period').value); }
 function mkStatsPeriodRange(){
   const v=document.getElementById('mk-stats-period')?.value||'';
   const now=new Date();
@@ -5958,11 +6055,15 @@ function getStatsScopedOrders(){
 function renderMilkitSalesStats(){
   const scoped=getStatsScopedOrders();
   const range=mkStatsPeriodRange();
+  const period=document.getElementById('mk-stats-period')?.value||'';
+  document.querySelectorAll('#mk-pane-stats .f-chip').forEach(c=>{
+    c.classList.toggle('on', (c.dataset.period||'')===period);
+  });
   const sumEl=document.getElementById('mk-stats-filter-summary');
   if(sumEl){
     sumEl.innerHTML = range
-      ? `🔎 기간: <b>${range.label}</b> (${range.from} ~ ${range.to}) — 주문 <b>${scoped.length}건</b>`
-      : `전체 누적 기준 · 주문 ${scoped.length}건`;
+      ? `<b>${range.label}</b> (${range.from} ~ ${range.to}) · 주문 <b>${scoped.length}건</b>`
+      : `전체 누적 · 주문 <b>${scoped.length}건</b>`;
   }
   const rows = milkitProducts.map(p=>{
     const qty = scoped.reduce((s,o)=>s+(Number(o.qty?.[p.id])||0),0);
