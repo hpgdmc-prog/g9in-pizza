@@ -370,15 +370,18 @@ tr:hover td{background:var(--bg2);}
 .mk-cook-card .cook-badge{font-size:11px;color:#5B4F44;background:#F0EBE1;border:1px solid #D8CDBB;border-radius:20px;padding:5px 12px;white-space:nowrap;}
 .mk-cook-card .cook-guide{font-size:12.5px;color:#4A3F38;background:#FBF3EE;border:1px solid #EBD6C9;border-radius:8px;padding:10px 13px;margin-bottom:12px;line-height:1.5;}
 .mk-cook-card .cook-steps{border:1px solid #C9BCA9;border-radius:10px;overflow:hidden;}
-.mk-cook-card .cook-step{display:grid;grid-template-columns:52px 1fr 92px 44px;align-items:center;border-bottom:1px solid #E4DACB;}
+.mk-cook-card .cook-step{display:flex;align-items:center;gap:2px;border-bottom:1px solid #E4DACB;}
+.mk-cook-card .cook-step:nth-child(odd){background:#FAF7F2;}
 .mk-cook-card .cook-step:last-child{border-bottom:none;}
-.mk-cook-card .cook-step-hd{background:#F0EBE1;font-size:11px;color:#5B4F44;font-weight:700;letter-spacing:.05em;}
-.mk-cook-card .cook-step-hd .cook-no,.mk-cook-card .cook-step-hd .cook-ing,.mk-cook-card .cook-step-hd .cook-amt,.mk-cook-card .cook-step-hd .cook-chk{padding:7px 8px;font-size:11px;}
-.mk-cook-card .cook-no{text-align:center;font-weight:800;font-size:17px;color:#C0562F;padding:12px 6px;}
-.mk-cook-card .cook-step-hd .cook-no{color:#5B4F44;}
-.mk-cook-card .cook-ing{font-size:15px;font-weight:600;padding:12px 8px;}
-.mk-cook-card .cook-amt{font-size:16px;font-weight:800;text-align:right;padding:12px 8px;font-variant-numeric:tabular-nums;}
-.mk-cook-card .cook-chk{text-align:center;font-size:18px;color:#8A7D6E;padding:12px 6px;}
+.mk-cook-card .cook-step-hd{background:#F0EBE1!important;font-size:11px;color:#5B4F44;font-weight:700;letter-spacing:.05em;}
+.mk-cook-card .cook-step-hd .cook-no,.mk-cook-card .cook-step-hd .cook-body,.mk-cook-card .cook-step-hd .cook-chk{padding-top:7px;padding-bottom:7px;font-size:11px;}
+.mk-cook-card .cook-no{flex:0 0 46px;text-align:center;font-weight:800;font-size:18px;color:#fff;background:#C0562F;align-self:stretch;display:flex;align-items:center;justify-content:center;padding:12px 4px;}
+.mk-cook-card .cook-step-hd .cook-no{color:#5B4F44;background:transparent;font-size:11px;}
+.mk-cook-card .cook-body{flex:1;min-width:0;display:flex;align-items:center;flex-wrap:wrap;gap:8px 10px;padding:11px 12px;}
+.mk-cook-card .cook-ing{font-size:16px;font-weight:600;}
+.mk-cook-card .cook-amt{font-size:17px;font-weight:800;color:#1E1A17;background:#F4E4D0;border:1px solid #E0C7A8;border-radius:7px;padding:3px 11px;white-space:nowrap;font-variant-numeric:tabular-nums;}
+.mk-cook-card .cook-step-hd .cook-body{padding:7px 12px;}
+.mk-cook-card .cook-chk{flex:0 0 44px;text-align:center;font-size:20px;color:#8A7D6E;padding:12px 6px;}
 .mk-cook-card .cook-foot{margin-top:14px;border:1px dashed #C9BCA9;border-radius:8px;padding:10px 12px;}
 .mk-cook-card .cook-foot-t{font-size:11px;font-weight:700;color:#5B4F44;margin-bottom:5px;}
 .mk-cook-card .cook-foot-b{font-size:12.5px;color:#4A3F38;line-height:1.9;}
@@ -4949,8 +4952,10 @@ function mkRecipeCardHtml(p){
     const amtStr=(Math.round(amt*100)/100)+ (unit?unit:'');
     return `<div class="cook-step">
       <div class="cook-no">${i+1}</div>
-      <div class="cook-ing">${nm}</div>
-      <div class="cook-amt">${amtStr}</div>
+      <div class="cook-body">
+        <span class="cook-ing">${nm}</span>
+        <span class="cook-amt">${amtStr}</span>
+      </div>
       <div class="cook-chk">☐</div>
     </div>`;
   }).join('');
@@ -4966,7 +4971,7 @@ function mkRecipeCardHtml(p){
     <div class="cook-guide">아래 <b>번호 순서대로</b> 재료를 올리면 완성됩니다. 담을 때마다 ☐ 에 체크하세요.</div>
     <div class="cook-steps">
       <div class="cook-step cook-step-hd">
-        <div class="cook-no">순서</div><div class="cook-ing">재료</div><div class="cook-amt">사용량</div><div class="cook-chk">확인</div>
+        <div class="cook-no">순서</div><div class="cook-body"><span>재료 · 사용량</span></div><div class="cook-chk">확인</div>
       </div>
       ${steps||empty}
     </div>
@@ -5096,57 +5101,64 @@ function ingAcBlur(){
 }
 
 /* ===== 눌러서 드래그로 순서 변경 (터치/마우스 공통) =====
-   container 안의 rowSelector 행을 드래그 핸들(.drag-handle)로 끌어 순서를 바꾸고,
-   arr(데이터 배열)을 동일하게 재배열한 뒤 onReorder()를 호출한다. */
+   핸들(.drag-handle)을 잡고 끌면 잡은 행은 손가락을 따라오고, 주변 행들이
+   놓일 자리를 부드럽게 비켜준다(아이폰 앱 아이콘 재배치 방식).
+   DOM은 드래그 중 재배열하지 않고 transform 으로만 밀어내며, 놓을 때 실제로 재배열한다. */
 function makeListDraggable(container, rowSelector, arr, onReorder){
   if(!container) return;
-  let dragEl=null, startIdx=-1, placeholder=null;
   function rowsNow(){ return [...container.querySelectorAll(rowSelector)]; }
+  let dragEl=null, rowEls=[], startIdx=-1, targetIdx=-1, rowH=0, startY=0, origMid=[];
   function onDown(e){
-    const handle=e.target.closest('.drag-handle');
-    if(!handle) return;
-    const row=handle.closest(rowSelector);
-    if(!row) return;
+    const handle=e.target.closest('.drag-handle'); if(!handle) return;
+    const row=handle.closest(rowSelector); if(!row || !container.contains(row)) return;
     e.preventDefault();
-    dragEl=row; startIdx=rowsNow().indexOf(row);
-    row.classList.add('dragging');
-    placeholder=document.createElement('div');
-    placeholder.className='drag-placeholder';
-    placeholder.style.height=row.getBoundingClientRect().height+'px';
-    row.parentNode.insertBefore(placeholder, row.nextSibling);
-    row.style.position='relative'; row.style.zIndex='50';
+    rowEls=rowsNow(); startIdx=rowEls.indexOf(row); if(startIdx<0) return;
+    dragEl=row; targetIdx=startIdx;
+    rowH=row.getBoundingClientRect().height;
+    startY=e.clientY;
+    origMid=rowEls.map(r=>{ const b=r.getBoundingClientRect(); return b.top+b.height/2; });
+    rowEls.forEach((r,i)=>{ if(i!==startIdx){ r.style.transition='transform .18s cubic-bezier(.2,.7,.3,1)'; } });
+    dragEl.style.transition='none';
+    dragEl.style.zIndex='50';
+    dragEl.style.position='relative';
+    dragEl.classList.add('dragging');
+    try{ handle.setPointerCapture(e.pointerId); }catch(_){}
     document.addEventListener('pointermove', onMove);
     document.addEventListener('pointerup', onUp, {once:true});
+    document.addEventListener('pointercancel', onUp, {once:true});
   }
   function onMove(e){
     if(!dragEl) return;
-    const rows=rowsNow().filter(r=>r!==dragEl);
-    let placed=false;
-    for(const r of rows){
-      const rect=r.getBoundingClientRect();
-      if(e.clientY < rect.top + rect.height/2){
-        r.parentNode.insertBefore(placeholder, r); placed=true; break;
-      }
+    // 잡은 행은 손가락을 따라온다
+    dragEl.style.transform='translateY('+(e.clientY-startY)+'px)';
+    // 포인터 위에 있는(중심선을 지난) 다른 행 개수 = 놓일 목표 인덱스
+    let count=0;
+    for(let i=0;i<rowEls.length;i++){ if(i===startIdx) continue; if(origMid[i] < e.clientY) count++; }
+    if(count!==targetIdx){
+      targetIdx=count;
+      // 목표 위치를 비워주도록 이웃 행을 위/아래로 민다
+      rowEls.forEach((r,i)=>{
+        if(i===startIdx) return;
+        let shift=0;
+        if(startIdx<targetIdx){ if(i>startIdx && i<=targetIdx) shift=-rowH; }
+        else if(startIdx>targetIdx){ if(i>=targetIdx && i<startIdx) shift=rowH; }
+        r.style.transform = shift ? 'translateY('+shift+'px)' : '';
+      });
     }
-    if(!placed) container.appendChild(placeholder);
   }
   function onUp(){
     document.removeEventListener('pointermove', onMove);
-    if(!dragEl){ return; }
-    dragEl.classList.remove('dragging');
-    dragEl.style.position=''; dragEl.style.zIndex='';
-    placeholder.parentNode.insertBefore(dragEl, placeholder);
-    placeholder.remove();
-    const newRows=rowsNow();
-    const endIdx=newRows.indexOf(dragEl);
-    if(startIdx>=0 && endIdx>=0 && startIdx!==endIdx && Array.isArray(arr)){
-      const moved=arr.splice(startIdx,1)[0];
-      arr.splice(endIdx,0,moved);
+    if(!dragEl) return;
+    const el=dragEl, s=startIdx, t=targetIdx;
+    rowEls.forEach(r=>{ r.style.transition=''; r.style.transform=''; r.style.zIndex=''; r.style.position=''; });
+    el.classList.remove('dragging');
+    if(s>=0 && t>=0 && s!==t && Array.isArray(arr)){
+      const moved=arr.splice(s,1)[0];
+      arr.splice(t,0,moved);
       if(typeof onReorder==='function') onReorder();
-    } else if(typeof onReorder==='function'){ onReorder(); }
-    dragEl=null; startIdx=-1; placeholder=null;
+    }
+    dragEl=null; rowEls=[]; startIdx=-1; targetIdx=-1;
   }
-  // 중복 바인딩 방지
   if(container._dragBound) container.removeEventListener('pointerdown', container._dragBound);
   container._dragBound=onDown;
   container.addEventListener('pointerdown', onDown);
