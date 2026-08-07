@@ -1206,18 +1206,18 @@ img{max-width:100%;height:auto;}
           <select id="mk-bulk-action" onchange="mkBulkApply(this)">
             <option value="">일괄 변경 선택…</option>
             <optgroup label="🚚 배송상태">
-              <option value="deliveryStatus:준비중">준비중으로</option>
-              <option value="deliveryStatus:배송중">배송중으로</option>
-              <option value="deliveryStatus:배송완료">배송완료로</option>
+              <option value="deliveryStatus:준비중">준비중</option>
+              <option value="deliveryStatus:배송중">배송중</option>
+              <option value="deliveryStatus:배송완료">배송완료</option>
             </optgroup>
             <optgroup label="💳 결제상태">
-              <option value="payStatus:완료">결제완료로</option>
-              <option value="payStatus:대기">결제대기(미납)로</option>
+              <option value="payStatus:완료">결제완료</option>
+              <option value="payStatus:대기">결제대기(미납)</option>
             </optgroup>
             <optgroup label="📦 배송방법">
-              <option value="deliveryMethod:택배발송">택배발송으로</option>
-              <option value="deliveryMethod:직접배송">직접배송으로</option>
-              <option value="deliveryMethod:직접수령">직접수령으로</option>
+              <option value="deliveryMethod:택배발송">택배발송</option>
+              <option value="deliveryMethod:직접배송">직접배송</option>
+              <option value="deliveryMethod:직접수령">직접수령</option>
             </optgroup>
           </select>
           <button class="btn btn-out btn-sm" onclick="mkBulkTracking()">📮 송장 입력</button>
@@ -2408,7 +2408,7 @@ function numVal(id){ var el=document.getElementById(id); return el?unComma(el.va
    한 번만 막아야 선택이 유지된다. */
 function isNumericInput(el){
   return !!el && el.tagName==='INPUT' &&
-    (el.type==='number' || el.inputMode==='numeric' || el.dataset.selectOnFocus!==undefined);
+    (el.type==='number' || el.inputMode==='numeric' || el.inputMode==='decimal' || el.dataset.selectOnFocus!==undefined);
 }
 function selectNumericInput(el){
   try{
@@ -2876,6 +2876,8 @@ function computeMilkitStats(){
 function milkitStatsCardsHtml(){
   const {total, totalRevenue, monthOrders, monthRevenue, payWaiting, trackingMissing, totalProfit, monthProfit} = computeMilkitStats();
   const pcol=v=>v>=0?'var(--green)':'var(--red)';
+  const totalRate=totalRevenue>0?totalProfit/totalRevenue:0;
+  const monthRate=monthRevenue>0?monthProfit/monthRevenue:0;
   return `
     <div class="stat-card acc-border">
       <div class="s-label">전체 주문 건수 (누적)</div>
@@ -2890,12 +2892,12 @@ function milkitStatsCardsHtml(){
     <div class="stat-card acc-border">
       <div class="s-label">전체 순수익 (누적)</div>
       <div class="s-val num" style="color:${pcol(totalProfit)};">${comma(Math.round(totalProfit))}</div>
-      <div class="s-sub">매출 − 원가·수수료</div>
+      <div class="s-sub">수익률 <b style="color:${pcol(totalProfit)};">${pct(totalRate)}</b> · 매출 대비</div>
     </div>
     <div class="stat-card acc-border">
       <div class="s-label">이번달 매출 / 순수익</div>
       <div class="s-val num">${comma(monthRevenue)}</div>
-      <div class="s-sub">순수익 <b style="color:${pcol(monthProfit)};">${comma(Math.round(monthProfit))}원</b> · ${monthOrders.length}건</div>
+      <div class="s-sub">순수익 <b style="color:${pcol(monthProfit)};">${comma(Math.round(monthProfit))}원 (${pct(monthRate)})</b> · ${monthOrders.length}건</div>
     </div>
     <div class="stat-card acc-border">
       <div class="s-label">결제 대기</div>
@@ -3349,7 +3351,7 @@ function renderRecipeItems(){
       <div class="ac-wrap" style="display:flex;align-items:center;gap:4px;min-width:0;">${it.label?`<span class="badge badge-acc" style="flex-shrink:0;">${it.label}</span>`:''}<input class="ing-ac-input" placeholder="재료 검색·입력…" autocomplete="off" value="${it.ingredientId?ingName(it.ingredientId).replace(/"/g,'&quot;'):''}" style="min-width:0;flex:1;"
         oninput="ingAcSuggest('rec',${idx},this)" onfocus="ingAcSuggest('rec',${idx},this)" onblur="ingAcBlur()"><div class="ac-list" id="rec-ing-ac-${idx}"></div></div>
       <div style="display:flex;align-items:center;gap:5px;min-width:0;">
-        <input type="text" inputmode="decimal" value="${it.amount!=null&&it.amount!==''?it.amount:''}" placeholder="0" style="flex:1;min-width:0;text-align:right;"
+        <input type="text" inputmode="decimal" value="${it.amount?it.amount:''}" placeholder="0" style="flex:1;min-width:0;text-align:right;"
           oninput="decFilter(this);recipeItems[${idx}].amount=decVal(this.value);recUpdateRowCost(${idx});updateRecipeModalCost();">
         <span style="font-size:11px;color:var(--sub);white-space:nowrap;flex-shrink:0;min-width:14px;">${it.ingredientId?ingUnit(it.ingredientId):''}</span>
       </div>
@@ -7187,7 +7189,7 @@ function renderMkRecipeItems(){
             <div class="ac-list" id="mk-ing-ac-${idx}"></div>
           </div>
           <div class="mkr-mid">
-            <input type="text" inputmode="decimal" id="mk-amt-${idx}" value="${it.amount!=null&&it.amount!==''?it.amount:''}" placeholder="0"
+            <input type="text" inputmode="decimal" id="mk-amt-${idx}" value="${it.amount?it.amount:''}" placeholder="0"
               oninput="decFilter(this);mkRecipeItems[${idx}].amount=decVal(this.value);mkUpdateRecipeRowCost(${idx});updateMkRecipeModalCost();">
             <span class="mkr-unit">${it.ingredientId?ingUnit(it.ingredientId):''}</span>
             <span class="ri-cost" id="mk-cost-${idx}">${comma(Math.round(cost))}원</span>
