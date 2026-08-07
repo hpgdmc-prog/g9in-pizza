@@ -413,6 +413,18 @@ tr:hover td{background:var(--bg2);}
 .mk-cook-card .cook-foot-t{font-size:11px;font-weight:700;color:#5B4F44;margin-bottom:5px;}
 .mk-cook-card .cook-foot-b{font-size:12.5px;color:#4A3F38;line-height:1.9;}
 .mk-cook-card .cook-brand{margin-top:12px;font-size:10px;color:#999;text-align:right;}
+/* 컴팩트 요약 그리드 — A4 한 장에 여러 메뉴 */
+.mk-print-sheet .mk-cook-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:6px;}
+.mk-print-sheet .mk-cc{border:1px solid #C9BCA9;border-radius:8px;overflow:hidden;break-inside:avoid;page-break-inside:avoid;background:#fff;}
+.mk-print-sheet .mk-cc-hd{background:#1E1A17;color:#fff;padding:6px 10px;display:flex;justify-content:space-between;align-items:baseline;gap:8px;}
+.mk-print-sheet .mk-cc-name{font-weight:700;font-size:13.5px;}
+.mk-print-sheet .mk-cc-cat{font-size:10px;color:#E9C9B8;white-space:nowrap;}
+.mk-print-sheet .mk-cc-body{padding:2px 0;}
+.mk-print-sheet .mk-cc-row{display:flex;justify-content:space-between;gap:10px;padding:4px 10px;font-size:11.5px;line-height:1.35;}
+.mk-print-sheet .mk-cc-row:nth-child(even){background:#FAF7F2;}
+.mk-print-sheet .mk-cc-ing{color:#2A2420;}
+.mk-print-sheet .mk-cc-amt{font-weight:800;white-space:nowrap;color:#1E1A17;font-variant-numeric:tabular-nums;}
+@media(max-width:560px){ .mk-print-sheet .mk-cook-grid{grid-template-columns:1fr;} }
 /* order/customer print — readable ledger rows (not a dense grid) */
 .mk-print-sheet .mp-row{border-bottom:1px solid #D8D0C2;padding:11px 2px;break-inside:avoid;page-break-inside:avoid;}
 .mk-print-sheet .mp-row:first-child{padding-top:0;}
@@ -1262,7 +1274,8 @@ img{max-width:100%;height:auto;}
       <div class="page-hdr" style="border-bottom:none;margin-bottom:10px;padding-bottom:0;">
         <h3 style="font-size:14px;">상품 · 가격</h3>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <button class="btn btn-out btn-sm" onclick="previewMilkitRecipeCards()">👨‍🍳 조리 레시피 인쇄</button>
+          <button class="btn btn-out btn-sm" onclick="previewMilkitRecipeCardsCompact()">📋 레시피 요약 인쇄</button>
+          <button class="btn btn-out btn-sm" onclick="previewMilkitRecipeCards()">👨‍🍳 조리 카드 (크게)</button>
           <button class="btn btn-out btn-sm" onclick="addMilkitProductRow()">+ 상품 추가</button>
         </div>
       </div>
@@ -5236,6 +5249,36 @@ function previewMilkitRecipeCards(){
   const cnt=milkitProducts.filter(p=>(p.items||[]).some(it=>it.ingredientId)).length;
   if(!cnt){ alert('레시피가 등록된 밀키트 상품이 없습니다.\n상품별 "＋ 레시피"로 재료를 먼저 등록해 주세요.'); return; }
   mkPreviewPrint('밀키트 조리 레시피 인쇄 미리보기', `레시피가 등록된 상품 ${cnt}개 · 상품마다 한 장씩 출력됩니다`, mkRecipeCardsHtml());
+}
+
+/* 컴팩트 요약 — A4 한 장에 여러 메뉴가 들어가는 2단 그리드 */
+function mkRecipeCompactHtml(p){
+  const items=(p.items||[]).filter(it=>it.ingredientId);
+  const rows=items.map((it,i)=>{
+    const unit=ingUnit(it.ingredientId)||'';
+    const amt=Math.round((Number(it.amount)||0)*100)/100;
+    return `<div class="mk-cc-row"><span class="mk-cc-ing">${i+1}. ${ingName(it.ingredientId)}</span><span class="mk-cc-amt">${amt}${unit}</span></div>`;
+  }).join('') || `<div class="mk-cc-row"><span class="mk-cc-ing" style="color:#999;">레시피 미등록</span></div>`;
+  return `<div class="mk-cc">
+    <div class="mk-cc-hd"><span class="mk-cc-name">${p.name}</span><span class="mk-cc-cat">${p.category||''}</span></div>
+    <div class="mk-cc-body">${rows}</div>
+  </div>`;
+}
+function mkRecipeCardsCompactHtml(){
+  const withRecipe=milkitProducts.filter(p=>(p.items||[]).some(it=>it.ingredientId));
+  if(!withRecipe.length){
+    return `<div class="mk-print-sheet"><div style="text-align:center;color:#999;padding:40px 0;">레시피가 등록된 밀키트 상품이 없습니다.</div></div>`;
+  }
+  return `<div class="mk-print-sheet">
+    ${mkPrintHeader('지구인피자 · 밀키트 레시피 요약', `상품 ${withRecipe.length}종 · 재료 구성 한눈에 보기`)}
+    <div class="mk-cook-grid">${withRecipe.map(mkRecipeCompactHtml).join('')}</div>
+    <div class="mp-foot">지구인피자 밀키트 판매관리 시스템에서 출력됨</div>
+  </div>`;
+}
+function previewMilkitRecipeCardsCompact(){
+  const cnt=milkitProducts.filter(p=>(p.items||[]).some(it=>it.ingredientId)).length;
+  if(!cnt){ alert('레시피가 등록된 밀키트 상품이 없습니다.\n상품별 "＋ 레시피"로 재료를 먼저 등록해 주세요.'); return; }
+  mkPreviewPrint('밀키트 레시피 요약 인쇄 미리보기', `상품 ${cnt}종을 한 장에 모아서 출력합니다`, mkRecipeCardsCompactHtml());
 }
 
 function mkAutofillCustomer(){
