@@ -275,6 +275,25 @@ tr:hover td{background:var(--bg2);}
   font-size:8px;line-height:1;cursor:pointer;border-radius:3px;font-family:inherit;display:flex;align-items:center;justify-content:center;}
 .ri-move-btn:hover:not(:disabled){border-color:var(--acc);color:var(--acc);}
 .ri-move-btn:disabled{opacity:.3;cursor:default;}
+/* 주문 일괄 처리 바 */
+.mk-bulkbar{background:var(--acc-pale);border:1px solid var(--acc);border-radius:var(--r-md);padding:10px 12px;margin-bottom:10px;}
+.mk-bulkbar-title{font-size:12.5px;color:var(--acc-dark);margin-bottom:8px;}
+.mk-bulkbar-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.mk-bulkbar-actions select{flex:1;min-width:150px;padding:8px 10px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:13px;font-family:inherit;background:#fff;color:var(--text);}
+/* 주문 카드 — 항목별로 줄을 나눠 한눈에 */
+.mko-drag{cursor:grab;color:var(--sub2);font-size:17px;line-height:1;flex-shrink:0;touch-action:none;user-select:none;-webkit-user-select:none;padding:0 4px 0 0;}
+.mko-row.dragging{opacity:.97;box-shadow:var(--shadow-md);background:#fff;border-radius:var(--r-lg);z-index:50;}
+.mrow-inner.mko-inner{flex-direction:column;align-items:stretch;gap:0;}
+.mko-top{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.mko-id{display:flex;align-items:center;gap:7px;min-width:0;}
+.mko-no{font-size:11px;font-weight:700;color:#fff;background:var(--sub2);border-radius:6px;padding:2px 7px;flex-shrink:0;}
+.mko-name{font-weight:700;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mko-amt{font-weight:700;font-size:16px;flex-shrink:0;}
+.mko-badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px;}
+.mko-line{margin-top:5px;font-size:12.5px;color:var(--sub);line-height:1.5;}
+.mko-dim{color:var(--sub2);}
+.mko-items{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;}
+.mko-meta{margin-top:7px;font-size:11px;color:var(--sub2);}
 /* 드래그 순서변경 핸들 */
 .drag-handle{cursor:grab;color:var(--sub2);font-size:16px;line-height:1;padding:0 6px 0 0;flex-shrink:0;
   touch-action:none;user-select:none;-webkit-user-select:none;align-self:center;}
@@ -709,9 +728,7 @@ img{max-width:100%;height:auto;}
 <main id="main">
   <div id="swipe-back-hint"></div>
   <div id="topbar">
-    <div style="display:flex;align-items:center;gap:6px;min-width:0;">
-      <button id="back-btn" onclick="goBackInApp()" title="뒤로 가기" style="display:none;">‹</button>
-      <span id="topbar-sep" style="display:none;width:1px;height:20px;background:var(--border);margin:0 4px;"></span>
+    <div style="display:flex;align-items:center;gap:10px;min-width:0;">
       <button id="menu-btn" onclick="toggleSidebar()">☰</button>
       <h2 id="topbar-title" style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">대시보드</h2>
     </div>
@@ -1170,9 +1187,34 @@ img{max-width:100%;height:auto;}
         <label style="font-size:12px;color:var(--sub2);display:flex;align-items:center;gap:6px;cursor:pointer;">
           <input type="checkbox" id="mk-order-select-all" onchange="toggleMkOrderSelectAll(this)"> 전체 선택
         </label>
-        <button class="btn btn-del btn-sm" id="mk-order-bulk-del-btn" disabled onclick="bulkDeleteMkOrders()">선택 삭제 (0)</button>
+        <span id="mk-order-selcount" style="font-size:12px;color:var(--sub2);"></span>
       </div>
-      <div class="list-hint"><span class="hover-only">💡 행을 클릭하면 수정 · 마우스를 올리면 삭제가 나타납니다</span><span class="swipe-only">💡 행을 누르면 수정 · 왼쪽으로 밀면 삭제가 나타납니다</span></div>
+      <!-- 여러 건 일괄 처리 바 (선택 시 표시) -->
+      <div id="mk-order-bulkbar" class="mk-bulkbar" style="display:none;">
+        <div class="mk-bulkbar-title"><b id="mk-bulk-count">0</b>건 선택 — 한 번에 변경</div>
+        <div class="mk-bulkbar-actions">
+          <select id="mk-bulk-action" onchange="mkBulkApply(this)">
+            <option value="">일괄 변경 선택…</option>
+            <optgroup label="🚚 배송상태">
+              <option value="deliveryStatus:준비중">준비중으로</option>
+              <option value="deliveryStatus:배송중">배송중으로</option>
+              <option value="deliveryStatus:배송완료">배송완료로</option>
+            </optgroup>
+            <optgroup label="💳 결제상태">
+              <option value="payStatus:완료">결제완료로</option>
+              <option value="payStatus:대기">결제대기(미납)로</option>
+            </optgroup>
+            <optgroup label="📦 배송방법">
+              <option value="deliveryMethod:택배발송">택배발송으로</option>
+              <option value="deliveryMethod:직접배송">직접배송으로</option>
+              <option value="deliveryMethod:직접수령">직접수령으로</option>
+            </optgroup>
+          </select>
+          <button class="btn btn-out btn-sm" onclick="mkBulkTracking()">📮 송장 일괄</button>
+          <button class="btn btn-del btn-sm" onclick="bulkDeleteMkOrders()">🗑 삭제</button>
+        </div>
+      </div>
+      <div class="list-hint"><span class="hover-only">💡 행을 클릭하면 수정 · ⠿ 를 끌면 순서 변경</span><span class="swipe-only">💡 행을 누르면 수정 · 꾹 눌러 끌면 순서 변경 · 왼쪽으로 밀면 삭제</span></div>
       <div class="mlist" id="mk-order-list"></div>
     </div>
 
@@ -2347,6 +2389,7 @@ function mrowClick(inner, fn, id){
   var row=inner.closest('.mrow');
   if(row && row.classList.contains('revealed')){ row.classList.remove('revealed'); return; }
   if(row && row.dataset.suppressClick){ return; }
+  if(row && row._suppressClick){ return; }   // 방금 드래그로 순서를 바꾼 경우 편집 열지 않음
   if(typeof window[fn]==='function') window[fn](id);
 }
 function attachSwipe(scopeId){
@@ -2489,6 +2532,14 @@ function navigate(name, fromHistory){
   if(name==='milkit') renderMilkit();
   if(name==='settings') renderSettings();
   if(!fromHistory) pushAppHistory();
+  mkSaveLastView();
+}
+/* 마지막으로 본 화면(섹션·밀키트 탭)을 저장 → 다음에 앱을 열면 그 화면으로 복귀 */
+function mkSaveLastView(){
+  try{
+    const v=currentAppView();
+    localStorage.setItem('jgp_lastView', JSON.stringify(v));
+  }catch(_){}
 }
 function toggleSidebar(){
   document.getElementById('sidebar').classList.toggle('open');
@@ -2562,20 +2613,21 @@ function goBackInApp(){
   history.back();
   return true;
 }
-function updateBackBtn(){
-  const btn=document.getElementById('back-btn');
-  if(!btn) return;
-  const depth=(history.state&&typeof history.state.depth==='number')?history.state.depth:0;
-  const modalOpen=!!document.querySelector('.modal-bg.open');
-  const show = (depth>0 || modalOpen);
-  btn.style.display = show ? '' : 'none';
-  const sep=document.getElementById('topbar-sep');
-  if(sep) sep.style.display = show ? '' : 'none';
-}
+function updateBackBtn(){ /* 뒤로가기 버튼 제거 — 스와이프 제스처만 사용 */ }
 function initAppHistory(){
-  // 주소의 #섹션 을 반영해 새로고침·북마크 시 보던 화면으로 복귀
+  // 복귀 우선순위: 주소의 #섹션 > 마지막으로 본 화면 (매번 대시보드로 가지 않도록)
   const hash=(location.hash||'').replace('#','');
-  if(hash && SECTIONS[hash]) navigate(hash, true);
+  if(hash && SECTIONS[hash]){
+    navigate(hash, true);
+  } else {
+    try{
+      const lv=JSON.parse(localStorage.getItem('jgp_lastView')||'null');
+      if(lv && lv.sec && SECTIONS[lv.sec]){
+        navigate(lv.sec, true);
+        if(lv.sec==='milkit' && lv.tab) showMilkitTab(lv.tab, true);
+      }
+    }catch(_){}
+  }
   const v=currentAppView();
   try{ history.replaceState({view:v, depth:0}, '', '#'+v.sec); }catch(_){}
   _appHistoryReady=true;
@@ -4432,6 +4484,7 @@ function showMilkitTab(tab, fromHistory){
   if(tab==='stats') renderMilkitSalesStats();
   if(tab==='costs') renderMilkitCosts();
   if(!fromHistory) pushAppHistory();
+  mkSaveLastView();
 }
 
 function renderMilkit(){
@@ -4620,10 +4673,13 @@ function toggleMkOrderSelectAll(el){
   renderMilkitOrders();
 }
 function updateMkOrderBulkBtn(){
-  const btn=document.getElementById('mk-order-bulk-del-btn');
-  if(!btn) return;
-  btn.textContent=`선택 삭제 (${mkSelectedOrderIds.size})`;
-  btn.disabled=mkSelectedOrderIds.size===0;
+  const n=mkSelectedOrderIds.size;
+  const bar=document.getElementById('mk-order-bulkbar');
+  const cnt=document.getElementById('mk-bulk-count');
+  const sel=document.getElementById('mk-order-selcount');
+  if(bar) bar.style.display = n>0 ? '' : 'none';
+  if(cnt) cnt.textContent=n;
+  if(sel) sel.textContent = n>0 ? `${n}건 선택됨` : '';
 }
 function bulkDeleteMkOrders(){
   if(!mkSelectedOrderIds.size) return;
@@ -4634,6 +4690,36 @@ function bulkDeleteMkOrders(){
   DB.save('milkitOrders',milkitOrders);
   renderMilkitStats();
   renderMilkitOrders();
+}
+/* 선택한 여러 주문의 한 필드를 한꺼번에 변경 (배송상태/결제상태/배송방법) */
+function mkBulkApply(selEl){
+  const val=selEl.value; selEl.value='';
+  if(!val || !mkSelectedOrderIds.size) return;
+  const [field, to]=val.split(':');
+  const n=mkSelectedOrderIds.size;
+  milkitOrders.forEach(o=>{
+    if(!mkSelectedOrderIds.has(o.id)) return;
+    o[field]=to;
+    // 결제방법 없이 결제완료로 바꾸면 방법을 '기타'로 채워 일관성 유지
+    if(field==='payStatus' && to==='완료' && !o.payMethod) o.payMethod='기타';
+    if(field==='payStatus' && to==='대기') o.payMethod='';
+  });
+  DB.save('milkitOrders',milkitOrders);
+  renderMilkitStats(); renderMilkitOrders();
+  const label={deliveryStatus:'배송상태',payStatus:'결제상태',deliveryMethod:'배송방법'}[field]||field;
+  alert(`${n}건의 ${label}을(를) "${to}"(으)로 변경했습니다.`);
+}
+/* 선택한 여러 주문에 송장번호 일괄 입력 (택배발송 건만) */
+function mkBulkTracking(){
+  if(!mkSelectedOrderIds.size) return;
+  const t=prompt('선택한 주문에 입력할 송장번호를 입력하세요.\n(같은 번호가 모두에 들어갑니다)');
+  if(t==null) return;
+  const tv=t.trim();
+  let cnt=0;
+  milkitOrders.forEach(o=>{ if(mkSelectedOrderIds.has(o.id)){ o.tracking=tv; if(tv && o.deliveryStatus==='준비중') o.deliveryStatus='배송중'; cnt++; } });
+  DB.save('milkitOrders',milkitOrders);
+  renderMilkitStats(); renderMilkitOrders();
+  alert(`${cnt}건에 송장번호를 입력했습니다.`);
 }
 
 function renderMilkitOrders(){
@@ -4660,44 +4746,56 @@ function renderMilkitOrders(){
     return;
   }
   const payBadge={'완료':'badge-green','대기':'badge-orange'};
-  const payBadgeTxt={'완료':'💳 결제완료','대기':'💳 결제대기'};
+  const payBadgeTxt={'완료':'💳 결제완료','대기':'💳 미납'};
   const delBadge={'배송완료':'badge-green','배송중':'badge-blue','준비중':'badge-orange'};
   const delBadgeTxt={'배송완료':'🚚 배송완료','배송중':'🚚 배송중','준비중':'🚚 배송준비중'};
   const sort=document.getElementById('mk-order-sort')?.value||'noDesc';
   const reorderable = (sort==='noDesc'||sort==='noAsc');
-  el.innerHTML=list.map((o,i)=>{
+  el.innerHTML=list.map((o)=>{
     const items = milkitProducts.filter(p=>Number(o.qty?.[p.id])>0)
-      .map(p=>`<span style="font-size:11px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:2px 8px;">${p.name} × ${o.qty[p.id]}</span>`).join('');
+      .map(p=>`<span style="font-size:11px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:2px 8px;white-space:nowrap;">${p.name} <b>×${o.qty[p.id]}</b></span>`).join('');
     const dt = (o.orderDate||'') + (o.orderTime?' '+o.orderTime:'');
     const recip = (o.recipient && o.recipient!==o.customer)
-      ? `<div style="margin-top:3px;font-size:12px;color:var(--acc-dark);">🎁 받는 분: ${o.recipient}${o.recipientPhone?' · '+formatPhone(o.recipientPhone):''}</div>` : '';
-    const reorder = reorderable ? `<div class="ri-move" style="margin-right:2px;" onclick="event.stopPropagation();">
-        <button class="ri-move-btn" title="위로" ${i===0?'disabled':''} onclick="event.stopPropagation();moveMilkitOrder('${o.id}',-1)">▲</button>
-        <button class="ri-move-btn" title="아래로" ${i===list.length-1?'disabled':''} onclick="event.stopPropagation();moveMilkitOrder('${o.id}',1)">▼</button>
-      </div>` : '';
-    return `<div class="mrow">
+      ? `<div class="mko-line" style="color:var(--acc-dark);">🎁 받는 분 ${o.recipient}${o.recipientPhone?' · '+formatPhone(o.recipientPhone):''}</div>` : '';
+    const handle = reorderable ? `<span class="mko-drag" title="꾹 눌러 끌면 순서 변경">⠿</span>` : '';
+    const meta=[`${o.setType||'낱개'}×${o.setQty||1}`, o.payMethod||'미납', o.deliveryMethod||''].filter(Boolean).join(' · ');
+    return `<div class="mrow mko-row" data-oid="${o.id}">
       <input type="checkbox" class="mrow-check" ${mkSelectedOrderIds.has(o.id)?'checked':''} onclick="event.stopPropagation()" onchange="toggleMkOrderSelect(this,'${o.id}')">
       <button class="mrow-del" onclick="event.stopPropagation();deleteMilkitOrder('${o.id}')">삭제</button>
-      <div class="mrow-inner" style="flex-direction:column;align-items:stretch;gap:0;" onclick="mrowClick(this,'openMilkitOrderModal','${o.id}')">
-        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
-          <div style="display:flex;align-items:center;gap:6px;min-width:0;flex-wrap:wrap;">
-            ${reorder}
-            <span class="badge badge-gray" style="flex-shrink:0;">No.${o.no||'-'}</span>
-            <span style="font-weight:700;font-size:15px;">${o.customer||'(이름 없음)'}</span>
-            <span class="badge ${payBadge[o.payStatus]||'badge-orange'}">${payBadgeTxt[o.payStatus]||payBadgeTxt['대기']}</span>
-            <span class="badge ${delBadge[o.deliveryStatus]||'badge-orange'}">${delBadgeTxt[o.deliveryStatus]||delBadgeTxt['준비중']}</span>
-          </div>
-          <span class="num" style="font-weight:700;font-size:15px;">${comma(o.payTotal)}원</span>
+      <div class="mrow-inner mko-inner" onclick="mrowClick(this,'openMilkitOrderModal','${o.id}')">
+        <div class="mko-top">
+          <div class="mko-id">${handle}<span class="mko-no">No.${o.no||'-'}</span><span class="mko-name">${o.customer||'(이름 없음)'}</span></div>
+          <span class="mko-amt num">${comma(o.payTotal)}원</span>
         </div>
-        <div style="margin-top:4px;font-size:12px;color:var(--sub2);">${dt} · ${o.phone?formatPhone(o.phone):'연락처 없음'}${o.address?' · '+o.address:''}</div>
+        <div class="mko-badges">
+          <span class="badge ${payBadge[o.payStatus]||'badge-orange'}">${payBadgeTxt[o.payStatus]||payBadgeTxt['대기']}</span>
+          <span class="badge ${delBadge[o.deliveryStatus]||'badge-orange'}">${delBadgeTxt[o.deliveryStatus]||delBadgeTxt['준비중']}</span>
+        </div>
+        <div class="mko-line">📞 ${o.phone?formatPhone(o.phone):'연락처 없음'} <span class="mko-dim">· ${dt}</span></div>
+        ${o.address?`<div class="mko-line">📍 ${o.address}</div>`:''}
         ${recip}
-        <div style="margin-top:9px;display:flex;flex-wrap:wrap;gap:6px;">${items}</div>
-        <div style="margin-top:6px;font-size:11px;color:var(--sub2);">${o.setType||'낱개'} × ${o.setQty||1} · ${o.payMethod||'미납'} · ${o.deliveryMethod||''}${o.tracking?' · 송장 '+o.tracking:''}</div>
-        ${o.note?`<div style="margin-top:6px;font-size:12px;color:var(--sub2);">📝 ${o.note}</div>`:''}
+        <div class="mko-items">${items||'<span class="mko-dim">상품 없음</span>'}</div>
+        <div class="mko-meta">${meta}${o.tracking?` · 📮 ${o.tracking}`:''}</div>
+        ${o.note?`<div class="mko-line mko-dim">📝 ${o.note}</div>`:''}
       </div>
     </div>`;
   }).join('');
   attachSwipe('mk-order-list');
+  // 꾹 눌러 끌어서 순서 변경 (번호 정렬일 때만)
+  if(reorderable) mkInitOrderDrag();
+}
+
+/* 주문 목록 드래그 순서변경 — 화면 순서를 번호(no)에 반영 */
+function mkInitOrderDrag(){
+  const el=document.getElementById('mk-order-list');
+  const disp=getFilteredMilkitOrders();   // 현재 화면 순서와 동일
+  makeListDraggable(el, '.mko-row', disp, function(){
+    const sort=document.getElementById('mk-order-sort')?.value||'noDesc';
+    const nos=disp.map(o=>Number(o.no)||0).sort((a,b)=> sort==='noAsc' ? a-b : b-a);
+    disp.forEach((o,i)=>{ o.no=nos[i]; });
+    DB.save('milkitOrders',milkitOrders);
+    renderMilkitOrders();
+  }, {longPress:true, handleSelector:'.mko-drag', ignore:'input,button,select,a,textarea,.badge'});
 }
 
 /* 주문 순서(번호) 변경 — 화면에 보이는 목록에서 위/아래 이웃과 번호를 맞바꿈 */
@@ -5104,39 +5202,37 @@ function ingAcBlur(){
    핸들(.drag-handle)을 잡고 끌면 잡은 행은 손가락을 따라오고, 주변 행들이
    놓일 자리를 부드럽게 비켜준다(아이폰 앱 아이콘 재배치 방식).
    DOM은 드래그 중 재배열하지 않고 transform 으로만 밀어내며, 놓을 때 실제로 재배열한다. */
-function makeListDraggable(container, rowSelector, arr, onReorder){
+function makeListDraggable(container, rowSelector, arr, onReorder, opts){
   if(!container) return;
+  opts=opts||{};
   function rowsNow(){ return [...container.querySelectorAll(rowSelector)]; }
   let dragEl=null, rowEls=[], startIdx=-1, targetIdx=-1, rowH=0, startY=0, origMid=[];
-  function onDown(e){
-    const handle=e.target.closest('.drag-handle'); if(!handle) return;
-    const row=handle.closest(rowSelector); if(!row || !container.contains(row)) return;
-    e.preventDefault();
-    rowEls=rowsNow(); startIdx=rowEls.indexOf(row); if(startIdx<0) return;
+  // 롱프레스 후보 상태
+  let pressTimer=null, pressRow=null, pressX=0, pressY=0, pressId=0, pressCap=null;
+
+  function beginDrag(row, clientY, pointerId, capEl){
+    rowEls=rowsNow(); startIdx=rowEls.indexOf(row); if(startIdx<0) return false;
     dragEl=row; targetIdx=startIdx;
     rowH=row.getBoundingClientRect().height;
-    startY=e.clientY;
+    startY=clientY;
     origMid=rowEls.map(r=>{ const b=r.getBoundingClientRect(); return b.top+b.height/2; });
     rowEls.forEach((r,i)=>{ if(i!==startIdx){ r.style.transition='transform .18s cubic-bezier(.2,.7,.3,1)'; } });
-    dragEl.style.transition='none';
-    dragEl.style.zIndex='50';
-    dragEl.style.position='relative';
+    dragEl.style.transition='none'; dragEl.style.zIndex='50'; dragEl.style.position='relative';
     dragEl.classList.add('dragging');
-    try{ handle.setPointerCapture(e.pointerId); }catch(_){}
+    try{ (capEl||row).setPointerCapture(pointerId); }catch(_){}
     document.addEventListener('pointermove', onMove);
     document.addEventListener('pointerup', onUp, {once:true});
     document.addEventListener('pointercancel', onUp, {once:true});
+    return true;
   }
   function onMove(e){
     if(!dragEl) return;
-    // 잡은 행은 손가락을 따라온다
+    e.preventDefault();
     dragEl.style.transform='translateY('+(e.clientY-startY)+'px)';
-    // 포인터 위에 있는(중심선을 지난) 다른 행 개수 = 놓일 목표 인덱스
     let count=0;
     for(let i=0;i<rowEls.length;i++){ if(i===startIdx) continue; if(origMid[i] < e.clientY) count++; }
     if(count!==targetIdx){
       targetIdx=count;
-      // 목표 위치를 비워주도록 이웃 행을 위/아래로 민다
       rowEls.forEach((r,i)=>{
         if(i===startIdx) return;
         let shift=0;
@@ -5149,15 +5245,54 @@ function makeListDraggable(container, rowSelector, arr, onReorder){
   function onUp(){
     document.removeEventListener('pointermove', onMove);
     if(!dragEl) return;
-    const el=dragEl, s=startIdx, t=targetIdx;
+    const s=startIdx, t=targetIdx, el=dragEl;
     rowEls.forEach(r=>{ r.style.transition=''; r.style.transform=''; r.style.zIndex=''; r.style.position=''; });
     el.classList.remove('dragging');
+    el._suppressClick=true; setTimeout(()=>{ try{ delete el._suppressClick; }catch(_){ el._suppressClick=false; } }, 60);
     if(s>=0 && t>=0 && s!==t && Array.isArray(arr)){
       const moved=arr.splice(s,1)[0];
       arr.splice(t,0,moved);
       if(typeof onReorder==='function') onReorder();
     }
     dragEl=null; rowEls=[]; startIdx=-1; targetIdx=-1;
+  }
+  function clearPress(){
+    if(pressTimer){ clearTimeout(pressTimer); pressTimer=null; }
+    pressRow=null;
+    document.removeEventListener('pointermove', onPressMove);
+    document.removeEventListener('pointerup', onPressUp);
+    document.removeEventListener('pointercancel', onPressUp);
+  }
+  function onPressMove(e){
+    if(Math.abs(e.clientX-pressX)>9 || Math.abs(e.clientY-pressY)>9) clearPress();  // 스크롤/스와이프면 취소
+  }
+  function onPressUp(){ clearPress(); }
+
+  function onDown(e){
+    if(e.pointerType==='mouse' && e.button!==0) return;
+    // 1) 명시적 핸들: 즉시 드래그
+    const hSel=opts.handleSelector||'.drag-handle';
+    const handle=e.target.closest(hSel);
+    if(handle && container.contains(handle)){
+      const row=handle.closest(rowSelector);
+      if(row && container.contains(row)){ e.preventDefault(); beginDrag(row, e.clientY, e.pointerId, handle); return; }
+    }
+    // 2) 롱프레스: 잠시 꾹 누르면 드래그 시작 (버튼/입력 등은 제외)
+    if(opts.longPress){
+      if(opts.ignore && e.target.closest(opts.ignore)) return;
+      const row=e.target.closest(rowSelector);
+      if(!row || !container.contains(row)) return;
+      pressRow=row; pressX=e.clientX; pressY=e.clientY; pressId=e.pointerId;
+      document.addEventListener('pointermove', onPressMove);
+      document.addEventListener('pointerup', onPressUp, {once:true});
+      document.addEventListener('pointercancel', onPressUp, {once:true});
+      pressTimer=setTimeout(()=>{
+        pressTimer=null;
+        document.removeEventListener('pointermove', onPressMove);
+        document.removeEventListener('pointerup', onPressUp);
+        if(pressRow) beginDrag(pressRow, pressY, pressId, pressRow);
+      }, 380);
+    }
   }
   if(container._dragBound) container.removeEventListener('pointerdown', container._dragBound);
   container._dragBound=onDown;
