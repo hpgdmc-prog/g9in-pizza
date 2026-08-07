@@ -294,6 +294,14 @@ tr:hover td{background:var(--bg2);}
 .mko-dim{color:var(--sub2);}
 .mko-items{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;}
 .mko-meta{margin-top:7px;font-size:11px;color:var(--sub2);}
+/* 선택 모드 체크 표시 (큰 탭 영역은 카드 전체) */
+#mk-order-list .mko-checkbox{position:absolute;left:12px;top:16px;z-index:2;width:22px;height:22px;border-radius:6px;
+  border:2px solid var(--border-strong);background:#fff;display:flex;align-items:center;justify-content:center;
+  font-size:14px;font-weight:800;color:#fff;pointer-events:none;}
+#mk-order-list .mko-checkbox.on{background:var(--acc);border-color:var(--acc);}
+#mk-order-list.select-mode .mko-inner{padding-left:44px;}
+.mko-row.row-selected{box-shadow:0 0 0 2px var(--acc);}
+.mko-row.row-selected .mrow-inner{background:var(--acc-pale);}
 /* 드래그 순서변경 핸들 */
 .drag-handle{cursor:grab;color:var(--sub2);font-size:16px;line-height:1;padding:0 6px 0 0;flex-shrink:0;
   touch-action:none;user-select:none;-webkit-user-select:none;align-self:center;}
@@ -503,7 +511,7 @@ tr:hover td{background:var(--bg2);}
 .mlist{display:flex;flex-direction:column;gap:8px;}
 .mrow{position:relative;overflow:hidden;border:1px solid var(--border);border-radius:var(--r-md);background:var(--red);box-shadow:var(--shadow-sm);}
 .mrow-del{position:absolute;top:0;right:0;height:100%;width:88px;border:none;background:var(--red);color:#fff;font-weight:700;font-size:13px;letter-spacing:.08em;cursor:pointer;}
-#mk-order-list .mrow-inner,#mk-cust-list .mrow-inner{padding-left:40px;}
+#mk-cust-list .mrow-inner{padding-left:40px;}
 #mk-cust-list .mrow-check{position:absolute;left:14px;top:50%;transform:translateY(-50%);z-index:2;width:16px;height:16px;cursor:pointer;}
 #mk-order-list .mrow-check{position:absolute;left:14px;top:22px;z-index:2;width:16px;height:16px;cursor:pointer;}
 .mrow-inner{position:relative;display:flex;align-items:center;gap:12px;padding:13px 15px;background:var(--card);cursor:pointer;transition:transform .22s ease,background .15s;z-index:1;min-height:58px;}
@@ -1183,11 +1191,13 @@ img{max-width:100%;height:auto;}
         <option value="7"></option><option value="30"></option><option value="custom"></option>
       </select>
       <div class="f-summary" id="mk-order-filter-summary"></div>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px;">
-        <label style="font-size:12px;color:var(--sub2);display:flex;align-items:center;gap:6px;cursor:pointer;">
-          <input type="checkbox" id="mk-order-select-all" onchange="toggleMkOrderSelectAll(this)"> 전체 선택
+      <div id="mko-seltools" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;justify-content:flex-end;">
+        <button class="btn btn-out btn-sm" id="mk-select-enter" onclick="mkSetSelectMode(true)">☑️ 선택</button>
+        <label id="mk-selall-wrap" style="display:none;font-size:13px;color:var(--sub);align-items:center;gap:7px;cursor:pointer;">
+          <input type="checkbox" id="mk-order-select-all" onchange="toggleMkOrderSelectAll(this)" style="width:20px;height:20px;"> 전체 선택
         </label>
-        <span id="mk-order-selcount" style="font-size:12px;color:var(--sub2);"></span>
+        <span id="mk-order-selcount" style="font-size:12.5px;color:var(--acc-dark);flex:1;text-align:center;"></span>
+        <button class="btn btn-acc btn-sm" id="mk-select-done" style="display:none;" onclick="mkSetSelectMode(false)">완료</button>
       </div>
       <!-- 여러 건 일괄 처리 바 (선택 시 표시) -->
       <div id="mk-order-bulkbar" class="mk-bulkbar" style="display:none;">
@@ -1214,7 +1224,7 @@ img{max-width:100%;height:auto;}
           <button class="btn btn-del btn-sm" onclick="bulkDeleteMkOrders()">🗑 삭제</button>
         </div>
       </div>
-      <div class="list-hint"><span class="hover-only">💡 행을 클릭하면 수정 · ⠿ 를 끌면 순서 변경</span><span class="swipe-only">💡 행을 누르면 수정 · 꾹 눌러 끌면 순서 변경 · 왼쪽으로 밀면 삭제</span></div>
+      <div class="list-hint" id="mk-order-hint"><span class="hover-only">💡 행을 클릭하면 수정 · ⠿ 를 끌면 순서 변경</span><span class="swipe-only">💡 행을 누르면 수정 · 꾹 눌러 끌면 순서 변경 · 왼쪽으로 밀면 삭제</span></div>
       <div class="mlist" id="mk-order-list"></div>
     </div>
 
@@ -4696,9 +4706,9 @@ function updateMkOrderBulkBtn(){
   const bar=document.getElementById('mk-order-bulkbar');
   const cnt=document.getElementById('mk-bulk-count');
   const sel=document.getElementById('mk-order-selcount');
-  if(bar) bar.style.display = n>0 ? '' : 'none';
+  if(bar) bar.style.display = (n>0 && mkSelectMode) ? '' : 'none';
   if(cnt) cnt.textContent=n;
-  if(sel) sel.textContent = n>0 ? `${n}건 선택됨` : '';
+  if(sel) sel.textContent = !mkSelectMode ? '' : (n>0 ? `${n}건 선택됨` : '목록을 탭해 선택하세요');
 }
 function bulkDeleteMkOrders(){
   if(!mkSelectedOrderIds.size) return;
@@ -4780,7 +4790,8 @@ function renderMilkitOrders(){
   const delBadge={'배송완료':'badge-green','배송중':'badge-blue','준비중':'badge-orange'};
   const delBadgeTxt={'배송완료':'🚚 배송완료','배송중':'🚚 배송중','준비중':'🚚 배송준비중'};
   const sort=document.getElementById('mk-order-sort')?.value||'noDesc';
-  const reorderable = (sort==='noDesc'||sort==='noAsc');
+  const reorderable = (sort==='noDesc'||sort==='noAsc') && !mkSelectMode;   // 선택 모드에서는 드래그 대신 탭 선택
+  el.className='mlist'+(mkSelectMode?' select-mode':'');
   el.innerHTML=list.map((o)=>{
     const items = milkitProducts.filter(p=>Number(o.qty?.[p.id])>0)
       .map(p=>`<span style="font-size:11px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:2px 8px;white-space:nowrap;">${p.name} <b>×${o.qty[p.id]}</b></span>`).join('');
@@ -4789,10 +4800,11 @@ function renderMilkitOrders(){
       ? `<div class="mko-line" style="color:var(--acc-dark);">🎁 받는 분 ${o.recipient}${o.recipientPhone?' · '+formatPhone(o.recipientPhone):''}</div>` : '';
     const handle = reorderable ? `<span class="mko-drag" title="꾹 눌러 끌면 순서 변경">⠿</span>` : '';
     const meta=[`${o.setType||'낱개'}×${o.setQty||1}`, o.payMethod||'', o.deliveryMethod||''].filter(Boolean).join(' · ');
-    return `<div class="mrow mko-row" data-oid="${o.id}">
-      <input type="checkbox" class="mrow-check" ${mkSelectedOrderIds.has(o.id)?'checked':''} onclick="event.stopPropagation()" onchange="toggleMkOrderSelect(this,'${o.id}')">
+    const sel=mkSelectedOrderIds.has(o.id);
+    return `<div class="mrow mko-row${sel?' row-selected':''}" data-oid="${o.id}">
+      ${mkSelectMode?`<span class="mko-checkbox ${sel?'on':''}">${sel?'✓':''}</span>`:''}
       <button class="mrow-del" onclick="event.stopPropagation();deleteMilkitOrder('${o.id}')">삭제</button>
-      <div class="mrow-inner mko-inner" onclick="mrowClick(this,'openMilkitOrderModal','${o.id}')">
+      <div class="mrow-inner mko-inner" onclick="mkOrderRowClick(this,'${o.id}')">
         <div class="mko-top">
           <div class="mko-id">${handle}<span class="mko-no">No.${o.no||'-'}</span><span class="mko-name">${o.customer||'(이름 없음)'}</span></div>
           <span class="mko-amt num">${comma(o.payTotal)}원</span>
@@ -4810,9 +4822,41 @@ function renderMilkitOrders(){
       </div>
     </div>`;
   }).join('');
-  attachSwipe('mk-order-list');
-  // 꾹 눌러 끌어서 순서 변경 (번호 정렬일 때만)
+  if(!mkSelectMode) attachSwipe('mk-order-list');   // 선택 모드에서는 스와이프 삭제 비활성
+  // 꾹 눌러 끌어서 순서 변경 (번호 정렬 + 선택 모드 아닐 때만)
   if(reorderable) mkInitOrderDrag();
+}
+
+/* ===== 선택 모드 =====
+   평소엔 체크박스 없이 탭하면 편집. "선택"을 누르면 선택 모드가 되어 목록을 탭하면
+   선택/해제되고, 일괄 처리 바가 나타난다. */
+let mkSelectMode=false;
+function mkSetSelectMode(on){
+  mkSelectMode=on;
+  if(!on) mkSelectedOrderIds.clear();
+  const enter=document.getElementById('mk-select-enter');
+  const selall=document.getElementById('mk-selall-wrap');
+  const done=document.getElementById('mk-select-done');
+  const tools=document.getElementById('mko-seltools');
+  if(enter) enter.style.display=on?'none':'';
+  if(selall) selall.style.display=on?'flex':'none';
+  if(done) done.style.display=on?'':'none';
+  if(tools) tools.style.justifyContent=on?'space-between':'flex-end';
+  const hint=document.getElementById('mk-order-hint');
+  if(hint) hint.innerHTML = on ? '💡 목록을 탭하면 선택/해제 · 여러 건 골라 한 번에 변경하세요'
+    : '<span class="hover-only">💡 행을 클릭하면 수정 · ⠿ 를 끌면 순서 변경</span><span class="swipe-only">💡 행을 누르면 수정 · 꾹 눌러 끌면 순서 변경 · 왼쪽으로 밀면 삭제</span>';
+  renderMilkitOrders();
+}
+function mkOrderRowClick(inner, id){
+  const row=inner.closest('.mrow');
+  if(row && row.classList.contains('revealed')){ row.classList.remove('revealed'); return; }
+  if(row && (row.dataset.suppressClick || row._suppressClick)) return;
+  if(mkSelectMode){ mkToggleRowSelect(id); return; }
+  openMilkitOrderModal(id);
+}
+function mkToggleRowSelect(id){
+  if(mkSelectedOrderIds.has(id)) mkSelectedOrderIds.delete(id); else mkSelectedOrderIds.add(id);
+  renderMilkitOrders();
 }
 
 /* 주문 목록 드래그 순서변경 — 화면 순서를 번호(no)에 반영 */
