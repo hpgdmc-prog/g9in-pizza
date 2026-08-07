@@ -2028,8 +2028,8 @@ img{max-width:100%;height:auto;}
         </div>
         <div class="form-row">
           <label>결제상태</label>
-          <select id="mk-order-paystatus">
-            <option value="대기">대기</option>
+          <select id="mk-order-paystatus" onchange="mkOrderPayStatusChanged()">
+            <option value="대기">대기(미납)</option>
             <option value="완료">완료</option>
           </select>
         </div>
@@ -2062,6 +2062,25 @@ img{max-width:100%;height:auto;}
     <div class="modal-footer">
       <button class="btn btn-out" onclick="closeModal('mk-order-modal')">취소</button>
       <button class="btn btn-acc" onclick="saveMilkitOrder()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 결제방법 선택 (결제완료 시 즉시) -->
+<div class="modal-bg" id="mk-paymethod-modal">
+  <div class="modal" style="max-width:360px;">
+    <div class="modal-hdr">
+      <h4>💳 결제 방법</h4>
+      <button class="btn btn-icon btn-out" onclick="mkPayMethodPick(null)">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="mk-paymethod-msg" style="font-size:13px;color:var(--sub);margin-bottom:14px;line-height:1.5;">결제완료로 표시합니다. 어떻게 받으셨나요?</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <button class="btn btn-out" style="padding:14px;" onclick="mkPayMethodPick('현금')">💵 현금</button>
+        <button class="btn btn-out" style="padding:14px;" onclick="mkPayMethodPick('계좌이체')">🏦 계좌이체</button>
+        <button class="btn btn-out" style="padding:14px;" onclick="mkPayMethodPick('카드')">💳 카드</button>
+        <button class="btn btn-out" style="padding:14px;" onclick="mkPayMethodPick('기타')">✏️ 기타</button>
+      </div>
     </div>
   </div>
 </div>
@@ -4696,18 +4715,29 @@ function mkBulkApply(selEl){
   const val=selEl.value; selEl.value='';
   if(!val || !mkSelectedOrderIds.size) return;
   const [field, to]=val.split(':');
+  // 결제완료로 일괄 변경 시에는 결제방법을 먼저 물어봄
+  if(field==='payStatus' && to==='완료'){
+    mkAskPayMethod(function(m){
+      if(!m) return;   // 취소 시 변경 안 함
+      mkBulkApplyField('payStatus','완료', m);
+    }, `선택한 ${mkSelectedOrderIds.size}건을 결제완료로 표시합니다. 결제 방법은?`);
+    return;
+  }
+  mkBulkApplyField(field, to);
+}
+function mkBulkApplyField(field, to, payMethod){
   const n=mkSelectedOrderIds.size;
   milkitOrders.forEach(o=>{
     if(!mkSelectedOrderIds.has(o.id)) return;
     o[field]=to;
-    // 결제방법 없이 결제완료로 바꾸면 방법을 '기타'로 채워 일관성 유지
-    if(field==='payStatus' && to==='완료' && !o.payMethod) o.payMethod='기타';
+    if(field==='payStatus' && to==='완료') o.payMethod = payMethod || o.payMethod || '기타';
     if(field==='payStatus' && to==='대기') o.payMethod='';
   });
   DB.save('milkitOrders',milkitOrders);
   renderMilkitStats(); renderMilkitOrders();
   const label={deliveryStatus:'배송상태',payStatus:'결제상태',deliveryMethod:'배송방법'}[field]||field;
-  alert(`${n}건의 ${label}을(를) "${to}"(으)로 변경했습니다.`);
+  const suffix = (field==='payStatus'&&to==='완료'&&payMethod) ? `(${payMethod})` : '';
+  alert(`${n}건의 ${label}을(를) "${to}"${suffix}(으)로 변경했습니다.`);
 }
 /* 선택한 여러 주문에 송장번호 일괄 입력 (택배발송 건만) */
 function mkBulkTracking(){
@@ -4758,7 +4788,7 @@ function renderMilkitOrders(){
     const recip = (o.recipient && o.recipient!==o.customer)
       ? `<div class="mko-line" style="color:var(--acc-dark);">🎁 받는 분 ${o.recipient}${o.recipientPhone?' · '+formatPhone(o.recipientPhone):''}</div>` : '';
     const handle = reorderable ? `<span class="mko-drag" title="꾹 눌러 끌면 순서 변경">⠿</span>` : '';
-    const meta=[`${o.setType||'낱개'}×${o.setQty||1}`, o.payMethod||'미납', o.deliveryMethod||''].filter(Boolean).join(' · ');
+    const meta=[`${o.setType||'낱개'}×${o.setQty||1}`, o.payMethod||'', o.deliveryMethod||''].filter(Boolean).join(' · ');
     return `<div class="mrow mko-row" data-oid="${o.id}">
       <input type="checkbox" class="mrow-check" ${mkSelectedOrderIds.has(o.id)?'checked':''} onclick="event.stopPropagation()" onchange="toggleMkOrderSelect(this,'${o.id}')">
       <button class="mrow-del" onclick="event.stopPropagation();deleteMilkitOrder('${o.id}')">삭제</button>
@@ -5420,6 +5450,31 @@ function mkToggleRecipient(){
 function mkPayMethodChanged(){
   const m=document.getElementById('mk-order-paymethod').value;
   document.getElementById('mk-order-paystatus').value = m ? '완료' : '대기';
+}
+/* 결제상태를 '완료'로 바꾸면 결제방법을 즉시 물어봄 (원스톱) */
+function mkOrderPayStatusChanged(){
+  const st=document.getElementById('mk-order-paystatus').value;
+  if(st==='완료' && !document.getElementById('mk-order-paymethod').value){
+    mkAskPayMethod(function(m){
+      if(m) document.getElementById('mk-order-paymethod').value=m;
+      else document.getElementById('mk-order-paystatus').value='대기'; // 취소 시 되돌림
+    }, '결제완료로 표시합니다. 어떻게 받으셨나요?');
+  } else if(st==='대기'){
+    document.getElementById('mk-order-paymethod').value='';
+  }
+}
+
+/* 결제방법 선택 모달 — cb(method|null) 콜백으로 결과 전달 */
+let _mkPayMethodCb=null;
+function mkAskPayMethod(cb, msg){
+  _mkPayMethodCb=cb;
+  const m=document.getElementById('mk-paymethod-msg'); if(m && msg) m.textContent=msg;
+  openModal('mk-paymethod-modal');
+}
+function mkPayMethodPick(method){
+  closeModal('mk-paymethod-modal');
+  const cb=_mkPayMethodCb; _mkPayMethodCb=null;
+  if(cb) cb(method);
 }
 
 /* 택배발송 + 희망수령일이 있으면 전날 발송 안내 */
@@ -7376,12 +7431,16 @@ function registerServiceWorker(){
 /* ============================
    실시간 동기화 (Firebase Firestore) — 밀키트 판매 데이터
    ============================ */
+/* milkitOrders 는 여러 기기가 동시에 자주 고치는 데이터라, 배열 전체를 한 문서에 담으면
+   한쪽 수정이 다른 쪽을 통째로 덮어써 되돌아간다. 그래서 주문은 건별 문서로 따로 동기화한다. */
 const SYNC_KEYS = [
   'ingredients','suppliers','recipes','stores','fees','receivings','orderCart',
-  'milkitProducts','milkitSetRules','milkitCustomers','milkitOrders','milkitFees',
+  'milkitProducts','milkitSetRules','milkitCustomers','milkitFees',
   'milkitProduction','cheeseSplits','labels'
 ];
 let fbDb=null, fbConnected=false;
+let _mkOrderShadow={};      // 주문 id -> 마지막 동기화된 JSON (변경분만 전송)
+let _mkOrdersSeeded=false;  // 첫 스냅샷 병합 완료 여부
 
 function _cleanCfgValue(s){
   if(s==null) return '';
@@ -7466,8 +7525,64 @@ function refreshActiveSectionView(){
 }
 
 function syncPush(key, value){
-  if(!fbConnected || !SYNC_KEYS.includes(key) || !fbDb) return;
+  if(!fbConnected || !fbDb) return;
+  if(key==='milkitOrders'){ mkOrdersSyncPush(); return; }
+  if(!SYNC_KEYS.includes(key)) return;
   fbDb.collection('sync').doc(key).set({value, updatedAt:new Date().toISOString()}).catch(e=>console.warn('동기화 전송 실패', key, e));
+}
+
+/* 주문 건별 동기화 — 변경/추가된 주문만 각자 문서로 올리고, 삭제된 주문은 문서를 지운다.
+   서로 다른 주문을 동시에 고쳐도 충돌하지 않는다. */
+/* 기존 보안 규칙이 허용하는 sync 컬렉션을 그대로 쓰되, 주문은 mko_<id> 문서 + type:'order' 로 저장.
+   (별도 컬렉션은 규칙에 없어 거부되므로 sync 컬렉션 안에 둔다) */
+function mkOrdersSyncPush(){
+  if(!fbConnected || !fbDb) return;
+  try{
+    const col=fbDb.collection('sync');
+    const batch=fbDb.batch();
+    let ops=0;
+    const curIds=new Set();
+    milkitOrders.forEach(o=>{
+      if(!o || !o.id) return;
+      curIds.add(o.id);
+      const js=JSON.stringify(o);
+      if(_mkOrderShadow[o.id]!==js){
+        batch.set(col.doc('mko_'+o.id), {type:'order', data:o, updatedAt:new Date().toISOString()});
+        _mkOrderShadow[o.id]=js; ops++;
+      }
+    });
+    Object.keys(_mkOrderShadow).forEach(id=>{
+      if(!curIds.has(id)){ batch.delete(col.doc('mko_'+id)); delete _mkOrderShadow[id]; ops++; }
+    });
+    if(ops>0) batch.commit().catch(e=>console.warn('주문 동기화 전송 실패', e));
+  }catch(e){ console.warn('주문 동기화 오류', e); }
+}
+
+function attachOrdersListener(){
+  fbDb.collection('sync').where('type','==','order').onSnapshot(function(snap){
+    const remote=[];
+    snap.forEach(function(doc){ const d=doc.data(); if(d && d.data) remote.push(d.data); });
+    if(!_mkOrdersSeeded){
+      // 첫 수신: 클라우드에만 있는 주문 + 이 기기에만 있는(오프라인 등록) 주문을 합쳐서 보존
+      _mkOrdersSeeded=true;
+      const remoteIds=new Set(remote.map(o=>o.id));
+      const localOnly=milkitOrders.filter(o=>o && o.id && !remoteIds.has(o.id));
+      const merged=remote.concat(localOnly);
+      milkitOrders=merged;
+      _mkOrderShadow={};
+      remote.forEach(o=>{ _mkOrderShadow[o.id]=JSON.stringify(o); });
+      localStorage.setItem('jgp_milkitOrders', JSON.stringify(milkitOrders));
+      if(localOnly.length) mkOrdersSyncPush();   // 이 기기에만 있던 주문을 클라우드로 올림
+      refreshActiveSectionView();
+      return;
+    }
+    // 이후 수신: 클라우드 상태를 그대로 반영 (다른 기기의 변경/삭제 포함)
+    milkitOrders=remote;
+    _mkOrderShadow={};
+    remote.forEach(o=>{ _mkOrderShadow[o.id]=JSON.stringify(o); });
+    localStorage.setItem('jgp_milkitOrders', JSON.stringify(milkitOrders));
+    refreshActiveSectionView();
+  }, function(err){ console.warn('주문 수신 오류', err); });
 }
 
 function attachSyncListener(key){
@@ -7495,7 +7610,9 @@ function connectFirebase(cfg){
     try{ fbDb.enablePersistence({synchronizeTabs:true}).catch(()=>{}); }catch(e){}
     fbConnected=true;
     syncPanelExpanded=false;
+    _mkOrdersSeeded=false; _mkOrderShadow={};
     SYNC_KEYS.forEach(attachSyncListener);
+    attachOrdersListener();
     renderSyncStatusBanner();
   }catch(e){
     fbConnected=false;
