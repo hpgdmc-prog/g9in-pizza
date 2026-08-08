@@ -334,6 +334,16 @@ tr:hover td{background:var(--bg2);}
 .sms-bytes b{color:var(--acc-dark);}
 .sms-footer{display:flex;gap:8px;flex-wrap:wrap;}
 .sms-footer .btn{flex:1;min-width:120px;}
+.ship-auto{display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--txt);cursor:pointer;background:var(--acc-pale);border-radius:8px;padding:10px 12px;}
+.ship-auto input{width:17px;height:17px;flex:0 0 auto;}
+.ship-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--border);}
+.ship-row:last-child{border-bottom:none;}
+.ship-row .shr-info{min-width:0;flex:1;}
+.ship-row .shr-name{font-size:13.5px;font-weight:600;color:var(--txt);}
+.ship-row .shr-sub{font-size:11.5px;color:var(--sub);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ship-row .shr-send{flex:0 0 auto;padding:7px 13px;font-size:12.5px;border-radius:7px;border:1px solid var(--acc);background:var(--acc);color:#fff;font-family:inherit;cursor:pointer;}
+.ship-row.sent .shr-send{background:#EEF3EC;color:#5A6B58;border-color:#CFE0CB;}
+.ship-row.sent .shr-name::after{content:' ✓';color:#4C7A46;}
 @media(prefers-color-scheme:dark){
   .sms-chip,.sms-select,.sms-recip .sr-cnt{background:#2a2a2a;}
 }
@@ -1180,6 +1190,7 @@ img{max-width:100%;height:auto;}
           <button class="btn btn-out btn-sm" onclick="exportMilkitOrders()">📥 엑셀 내보내기</button>
           <button class="btn btn-out btn-sm" onclick="openMkOcrModal()">📷 사진/텍스트로 등록</button>
           <button class="btn btn-out btn-sm" onclick="openMkSmsModal()">📨 단체 문자</button>
+          <button class="btn btn-out btn-sm" onclick="openMkShipSmsModal()">🚚 발송문자</button>
           <button class="btn btn-acc btn-sm" onclick="openMilkitOrderModal()">+ 주문 등록</button>
         </div>
       </div>
@@ -2191,6 +2202,34 @@ img{max-width:100%;height:auto;}
   </div>
 </div>
 
+<!-- 발송 안내 문자 (배송중 전환 시 반자동) -->
+<div class="modal-bg" id="mk-shipsms-modal">
+  <div class="modal" style="max-width:540px;">
+    <div class="modal-hdr">
+      <h4>🚚 발송 안내 문자</h4>
+      <button class="btn btn-icon btn-out" onclick="closeModal('mk-shipsms-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <label class="ship-auto"><input type="checkbox" id="mk-shipsms-auto" onchange="mkShipSmsToggleAuto(this)">
+        <span>배송중으로 바뀌면 이 창을 자동으로 열기</span></label>
+
+      <div class="sms-scope-label" style="margin-top:12px;">문자 내용 <span style="font-weight:400;color:var(--sub);">치환: {이름} {송장번호} {상품} {수령일}</span></div>
+      <textarea id="mk-shipsms-tpl" class="sms-body" rows="4" oninput="mkShipSmsSaveTpl()"></textarea>
+      <div style="text-align:right;margin-top:4px;"><button class="btn btn-out btn-sm" onclick="mkShipSmsResetTpl()">기본 문구로</button></div>
+
+      <div class="sms-recip-bar">
+        <span class="sms-count" id="mk-shipsms-count"></span>
+      </div>
+      <div id="mk-shipsms-list" class="sms-list"></div>
+      <div class="sms-note">각 고객에게 <b>개별</b>로 열려 이름·송장번호가 자동으로 채워집니다. 실제 전송은 문자 앱에서 확인 후 눌러주세요.</div>
+    </div>
+    <div class="modal-footer sms-footer">
+      <button class="btn btn-out" onclick="mkShipSmsCopyTable()">📇 번호+문자 복사</button>
+      <button class="btn btn-acc" onclick="closeModal('mk-shipsms-modal')">닫기</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="mk-paymethod-modal">
   <div class="modal" style="max-width:360px;">
     <div class="modal-hdr">
@@ -2453,6 +2492,10 @@ let milkitSetRules = DB.load('milkitSetRules', [
 ]);
 let milkitCustomers = DB.load('milkitCustomers', []);
 let milkitOrders = DB.load('milkitOrders', []);
+// 발송 안내 문자 자동화 설정
+const MK_SHIPSMS_DEFAULT='[지구인피자] {이름}님, 주문하신 밀키트를 발송했습니다.\n송장번호: {송장번호}\n감사합니다 :)';
+let mkShipSmsTpl = DB.load('mkShipSmsTpl', MK_SHIPSMS_DEFAULT);
+let mkShipSmsAuto = DB.load('mkShipSmsAuto', true);
 // 재고 입출고 기록: {id, date, productId, type:'생산'|'폐기'|'조정', qty, note}
 let milkitProduction = DB.load('milkitProduction', []);
 let mkEditId = null;
@@ -4902,8 +4945,10 @@ function mkBulkApply(selEl){
 }
 function mkBulkApplyField(field, to, payMethod){
   const n=mkSelectedOrderIds.size;
+  const shipChanged=[];
   milkitOrders.forEach(o=>{
     if(!mkSelectedOrderIds.has(o.id)) return;
+    if(field==='deliveryStatus' && to==='배송중' && o.deliveryStatus!=='배송중') shipChanged.push(o.id);
     o[field]=to;
     if(field==='payStatus' && to==='완료') o.payMethod = payMethod || o.payMethod || '기타';
     if(field==='payStatus' && to==='대기') o.payMethod='';
@@ -4913,6 +4958,7 @@ function mkBulkApplyField(field, to, payMethod){
   const label={deliveryStatus:'배송상태',payStatus:'결제상태',deliveryMethod:'배송방법'}[field]||field;
   const suffix = (field==='payStatus'&&to==='완료'&&payMethod) ? `(${payMethod})` : '';
   alert(`${n}건의 ${label}을(를) "${to}"${suffix}(으)로 변경했습니다.`);
+  mkShipSmsAfterTransition(shipChanged);   // 배송중 전환 건 발송 안내 문자
 }
 /* 선택한 여러 주문에 송장번호 일괄 입력 (택배발송 건만) */
 /* 송장번호는 주문마다 다르므로, 선택한 주문 각각에 개별 입력하도록 목록으로 띄운다 */
@@ -4931,18 +4977,19 @@ function mkBulkTracking(){
 }
 function saveMkBulkTracking(){
   const sel=getFilteredMilkitOrders().filter(o=>mkSelectedOrderIds.has(o.id));
-  let cnt=0;
+  let cnt=0; const shipChanged=[];
   sel.forEach(o=>{
     const el=document.getElementById('mk-trk-'+o.id);
     if(!el) return;
     const tv=el.value.trim();
     const ord=milkitOrders.find(x=>x.id===o.id);
-    if(ord){ ord.tracking=tv; if(tv && ord.deliveryStatus==='준비중') ord.deliveryStatus='배송중'; if(tv) cnt++; }
+    if(ord){ ord.tracking=tv; if(tv && ord.deliveryStatus==='준비중'){ ord.deliveryStatus='배송중'; shipChanged.push(ord.id); } if(tv) cnt++; }
   });
   DB.save('milkitOrders',milkitOrders);
   closeModal('mk-tracking-modal');
   renderMilkitStats(); renderMilkitOrders();
   alert(`${cnt}건에 송장번호를 입력했습니다.`);
+  mkShipSmsAfterTransition(shipChanged);   // 배송중 전환 건 발송 안내 문자
 }
 
 /* 주문 카드용 발송 안내 — 택배발송 + 희망수령일 + 아직 배송 전이면 발송 권장일 표시 */
@@ -5873,6 +5920,77 @@ function mkSmsOpenApp(){
   window.location.href = 'sms:'+nums+(body?`?&body=${encodeURIComponent(body)}`:'');
 }
 
+/* ===== 발송 안내 문자 (배송중 전환 반자동) =====
+   주문이 '배송중'으로 바뀌면(송장 입력·상태변경·주문수정) 자동 옵션에 따라 창을 띄운다.
+   고객마다 개별로 sms 앱을 열어 이름·송장번호를 자동으로 채운다. */
+let _mkShipSmsSent=new Set();
+
+function mkShipSmsResolve(o){
+  const wd=['일','월','화','수','목','금','토'];
+  let recv='';
+  if(o.desiredDate){ const dt=new Date(o.desiredDate+'T00:00:00'); if(!isNaN(dt)) recv=`${dt.getMonth()+1}월 ${dt.getDate()}일(${wd[dt.getDay()]})`; }
+  let msg=(mkShipSmsTpl||'')
+    .replace(/\{이름\}/g, o.customer||'고객')
+    .replace(/\{송장번호\}/g, o.tracking||'(미입력)')
+    .replace(/\{상품\}/g, mkOrderItemsText(o.qty))
+    .replace(/\{수령일\}/g, recv||'');
+  return msg.replace(/[ \t]+\n/g,'\n').trim();
+}
+/* 배송중으로 전환된 주문 id들을 받아, 자동 옵션이 켜져 있으면 발송 문자 창을 연다 */
+function mkShipSmsAfterTransition(ids){
+  if(!mkShipSmsAuto) return;
+  const targets=ids.map(id=>milkitOrders.find(o=>o.id===id))
+    .filter(o=>o && (o.deliveryStatus==='배송중') && String(o.phone||'').replace(/\D/g,''));
+  if(!targets.length) return;
+  openMkShipSmsModal(targets.map(o=>o.id));
+}
+/* 수동/자동 공통 진입. ids 없으면 현재 '배송중'인 전화번호 있는 주문 전체 */
+function openMkShipSmsModal(ids){
+  let list = ids && ids.length
+    ? ids.map(id=>milkitOrders.find(o=>o.id===id)).filter(Boolean)
+    : milkitOrders.filter(o=>o.deliveryStatus==='배송중');
+  list = list.filter(o=>String(o.phone||'').replace(/\D/g,''));
+  document.getElementById('mk-shipsms-auto').checked = !!mkShipSmsAuto;
+  document.getElementById('mk-shipsms-tpl').value = mkShipSmsTpl||'';
+  _mkShipSmsOrderIds = list.map(o=>o.id);
+  renderMkShipSmsList();
+  openModal('mk-shipsms-modal');
+}
+let _mkShipSmsOrderIds=[];
+function renderMkShipSmsList(){
+  const list=_mkShipSmsOrderIds.map(id=>milkitOrders.find(o=>o.id===id)).filter(Boolean);
+  document.getElementById('mk-shipsms-count').textContent = `배송중 · 연락처 있는 주문 ${list.length}건`;
+  document.getElementById('mk-shipsms-list').innerHTML = list.map(o=>{
+    const sent=_mkShipSmsSent.has(o.id);
+    const preview=mkShipSmsResolve(o).replace(/\n/g,' ');
+    return `<div class="ship-row${sent?' sent':''}" id="shiprow-${o.id}">
+      <div class="shr-info">
+        <div class="shr-name">No.${o.no||'-'} ${o.customer||''} <span style="font-weight:400;color:var(--sub);">${formatPhone(o.phone)}</span></div>
+        <div class="shr-sub" title="${preview.replace(/"/g,'&quot;')}">${preview}</div>
+      </div>
+      <button class="shr-send" onclick="mkShipSmsSendOne('${o.id}')">${sent?'다시':'💬 보내기'}</button>
+    </div>`;
+  }).join('');
+}
+function mkShipSmsSendOne(id){
+  const o=milkitOrders.find(x=>x.id===id); if(!o) return;
+  const num=String(o.phone||'').replace(/\D/g,''); if(!num){ alert('연락처가 없습니다.'); return; }
+  const body=mkShipSmsResolve(o);
+  _mkShipSmsSent.add(id);
+  const row=document.getElementById('shiprow-'+id);
+  if(row){ row.classList.add('sent'); const b=row.querySelector('.shr-send'); if(b) b.textContent='다시'; }
+  window.location.href = 'sms:'+num+`?&body=${encodeURIComponent(body)}`;
+}
+function mkShipSmsCopyTable(){
+  const list=_mkShipSmsOrderIds.map(id=>milkitOrders.find(o=>o.id===id)).filter(Boolean);
+  if(!list.length){ alert('대상 주문이 없습니다.'); return; }
+  const text=list.map(o=>`${String(o.phone||'').replace(/\D/g,'')}\t${mkShipSmsResolve(o).replace(/\n/g,' ')}`).join('\n');
+  mkSmsCopy(text, `${list.length}건의 번호+문자를 복사했습니다.\n(번호⇥문자) 단체문자 서비스에 붙여넣으세요.`);
+}
+function mkShipSmsToggleAuto(cb){ mkShipSmsAuto=cb.checked; DB.save('mkShipSmsAuto', mkShipSmsAuto); }
+function mkShipSmsSaveTpl(){ mkShipSmsTpl=document.getElementById('mk-shipsms-tpl').value; DB.save('mkShipSmsTpl', mkShipSmsTpl); renderMkShipSmsList(); }
+function mkShipSmsResetTpl(){ mkShipSmsTpl=MK_SHIPSMS_DEFAULT; DB.save('mkShipSmsTpl', mkShipSmsTpl); document.getElementById('mk-shipsms-tpl').value=mkShipSmsTpl; renderMkShipSmsList(); }
+
 function openMilkitOrderModal(id){
   mkEditId=id||null;
   document.getElementById('mk-order-modal-title').textContent=id?'주문 수정':'주문 등록';
@@ -6064,8 +6182,14 @@ function saveMilkitOrder(){
 
 /* 중복 확인을 마친 뒤 실제로 저장 */
 function commitMilkitOrder(obj){
-  if(mkEditId){ const idx=milkitOrders.findIndex(x=>x.id===mkEditId); milkitOrders[idx]=obj; }
-  else { milkitOrders.push(obj); }
+  let shipNow=false;
+  if(mkEditId){
+    const idx=milkitOrders.findIndex(x=>x.id===mkEditId);
+    const old=milkitOrders[idx];
+    shipNow = obj.deliveryStatus==='배송중' && (!old || old.deliveryStatus!=='배송중');
+    milkitOrders[idx]=obj;
+  }
+  else { shipNow = obj.deliveryStatus==='배송중'; milkitOrders.push(obj); }
   DB.save('milkitOrders',milkitOrders);
   // 신규 고객이면 고객DB에 자동 등록
   if(obj.customer && !milkitCustomers.find(c=>c.name===obj.customer)){
@@ -6075,6 +6199,7 @@ function commitMilkitOrder(obj){
   closeModal('mk-order-modal');
   renderMilkitStats();
   renderMilkitOrders();
+  if(shipNow) mkShipSmsAfterTransition([obj.id]);   // 배송중 전환 시 발송 안내 문자
 }
 
 /* ---- 중복 확인 모달 ---- */
@@ -7968,7 +8093,8 @@ function registerServiceWorker(){
 const SYNC_KEYS = [
   'ingredients','suppliers','recipes','stores','fees','receivings','orderCart',
   'milkitProducts','milkitSetRules','milkitCustomers','milkitFees',
-  'milkitProduction','cheeseSplits','labels'
+  'milkitProduction','cheeseSplits','labels',
+  'mkShipSmsTpl','mkShipSmsAuto'
 ];
 let fbDb=null, fbConnected=false;
 let _mkOrderShadow={};      // 주문 id -> 마지막 동기화된 JSON (변경분만 전송)
