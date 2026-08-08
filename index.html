@@ -2044,31 +2044,27 @@ img{max-width:100%;height:auto;}
           <label>주문자명 *</label>
           <div class="ac-wrap">
             <input type="text" id="mk-order-customer" placeholder="고객명" autocomplete="off"
-              oninput="mkCustomerInput()" onfocus="mkCustomerSuggest(false)" onblur="mkCustomerBlur()">
+              oninput="mkCustomerInput();mkSyncRecipientPh()" onfocus="mkCustomerSuggest(false)" onblur="mkCustomerBlur()">
             <button type="button" class="ac-all-btn" title="전체 고객 목록" onclick="mkCustomerSuggest(true)">📋</button>
             <div class="ac-list" id="mk-customer-suggest"></div>
           </div>
         </div>
         <div class="form-row">
           <label>연락처</label>
-          <input type="tel" id="mk-order-phone" placeholder="010-0000-0000" oninput="this.value=formatPhone(this.value)">
+          <input type="tel" id="mk-order-phone" placeholder="010-0000-0000" oninput="this.value=formatPhone(this.value);mkSyncRecipientPh()">
         </div>
       </div>
-      <div style="display:flex;align-items:center;gap:8px;margin:2px 0 10px;">
-        <label style="font-size:12px;color:var(--sub);display:flex;align-items:center;gap:6px;cursor:pointer;">
-          <input type="checkbox" id="mk-order-diffrecipient" onchange="mkToggleRecipient()"> 받는 분이 주문자와 달라요 (선물·대리주문)
-        </label>
-      </div>
-      <div class="form-grid" id="mk-order-recipient-box" style="display:none;">
+      <div class="form-grid" id="mk-order-recipient-box">
         <div class="form-row">
           <label>받는 분</label>
-          <input type="text" id="mk-order-recipient" placeholder="받는 분 성함">
+          <input type="text" id="mk-order-recipient" placeholder="주문자와 동일">
         </div>
         <div class="form-row">
           <label>받는 분 연락처</label>
-          <input type="tel" id="mk-order-recipient-phone" placeholder="010-0000-0000" oninput="this.value=formatPhone(this.value)">
+          <input type="tel" id="mk-order-recipient-phone" placeholder="주문자와 동일" oninput="this.value=formatPhone(this.value)">
         </div>
       </div>
+      <div style="font-size:11.5px;color:var(--sub);margin:-2px 0 10px;line-height:1.5;">💡 선물·대리주문 등 <b>받는 분이 다르면</b> 이름을 입력하세요. 비워두면 주문자와 동일하게 처리됩니다.</div>
       <div class="form-grid">
         <div class="form-row">
           <label>배송주소</label>
@@ -6054,11 +6050,9 @@ function openMilkitOrderModal(id){
     document.getElementById('mk-order-phone').value=formatPhone(o.phone||'');
     document.getElementById('mk-order-desired').value=o.desiredDate||'';
     document.getElementById('mk-order-address').value=o.address||'';
-    document.getElementById('mk-order-recipient').value=o.recipient||'';
-    document.getElementById('mk-order-recipient-phone').value=formatPhone(o.recipientPhone||'');
-    const diff=!!(o.recipient && o.recipient!==o.customer);
-    document.getElementById('mk-order-diffrecipient').checked=diff;
-    document.getElementById('mk-order-recipient-box').style.display=diff?'':'none';
+    document.getElementById('mk-order-recipient').value=(o.recipient && o.recipient!==o.customer) ? o.recipient : '';
+    document.getElementById('mk-order-recipient-phone').value=(o.recipient && o.recipient!==o.customer) ? formatPhone(o.recipientPhone||'') : '';
+    mkSyncRecipientPh();
     renderMilkitOrderQtyRows(o.qty);
     setSel.value=o.setType||'낱개';
     document.getElementById('mk-order-setqty').value=o.setQty||1;
@@ -6073,8 +6067,7 @@ function openMilkitOrderModal(id){
     document.getElementById('mk-order-date').value=todayStr();
     document.getElementById('mk-order-time').value=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
     ['mk-order-customer','mk-order-phone','mk-order-desired','mk-order-address','mk-order-tracking','mk-order-note','mk-order-recipient','mk-order-recipient-phone'].forEach(f=>document.getElementById(f).value='');
-    document.getElementById('mk-order-diffrecipient').checked=false;
-    document.getElementById('mk-order-recipient-box').style.display='none';
+    mkSyncRecipientPh();
     renderMilkitOrderQtyRows({});
     setSel.value='낱개';
     document.getElementById('mk-order-setqty').value=1;
@@ -6088,13 +6081,14 @@ function openMilkitOrderModal(id){
   openModal('mk-order-modal');
 }
 
-function mkToggleRecipient(){
-  const on=document.getElementById('mk-order-diffrecipient').checked;
-  document.getElementById('mk-order-recipient-box').style.display=on?'':'none';
-  if(!on){
-    document.getElementById('mk-order-recipient').value='';
-    document.getElementById('mk-order-recipient-phone').value='';
-  }
+/* 받는 분 칸의 안내(placeholder)를 주문자 이름·연락처로 자동 표기. 비워두면 주문자와 동일 */
+function mkSyncRecipientPh(){
+  const name=(document.getElementById('mk-order-customer').value||'').trim();
+  const phone=(document.getElementById('mk-order-phone').value||'').trim();
+  const rn=document.getElementById('mk-order-recipient');
+  if(rn) rn.placeholder = name ? `${name} (주문자와 동일)` : '주문자와 동일';
+  const rp=document.getElementById('mk-order-recipient-phone');
+  if(rp) rp.placeholder = phone ? `${phone} (주문자와 동일)` : '주문자와 동일';
 }
 
 /* 결제방법을 고르면 결제상태를 자동으로 완료 처리, 미납(빈값)이면 대기로 */
@@ -6201,9 +6195,10 @@ function saveMilkitOrder(){
   const {listTotal,discount,payTotal}=mkCalcTotals(qty,setType,setQty);
   const phone=formatPhone(document.getElementById('mk-order-phone').value);
   const address=document.getElementById('mk-order-address').value.trim();
-  const diffRecipient=document.getElementById('mk-order-diffrecipient').checked;
-  const recipient=diffRecipient ? document.getElementById('mk-order-recipient').value.trim() : '';
-  const recipientPhone=diffRecipient ? formatPhone(document.getElementById('mk-order-recipient-phone').value) : '';
+  // 받는 분: 비워두면 주문자와 동일(빈값 저장). 주문자와 같은 이름을 적어도 동일로 처리
+  let recipient=document.getElementById('mk-order-recipient').value.trim();
+  let recipientPhone=formatPhone(document.getElementById('mk-order-recipient-phone').value);
+  if(!recipient || recipient===customer){ recipient=''; recipientPhone=''; }
   const existing=mkEditId ? milkitOrders.find(x=>x.id===mkEditId) : null;
   const obj={
     id:mkEditId||uid(),
