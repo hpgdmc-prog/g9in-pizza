@@ -299,6 +299,21 @@ tr:hover td{background:var(--bg2);}
 .mko-dim{color:var(--sub2);}
 .mko-items{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;}
 .mko-meta{margin-top:7px;font-size:11px;color:var(--sub2);}
+/* 세트 메뉴 선택 버튼 */
+.mk-setpick-btn{display:flex;flex-direction:column;align-items:flex-start;gap:2px;position:relative;
+  padding:12px 12px 10px;border:1.5px solid var(--border);border-radius:var(--r-md);background:#fff;
+  font-family:inherit;font-size:13.5px;font-weight:600;color:var(--text);cursor:pointer;text-align:left;}
+.mk-setpick-btn.on{border-color:var(--acc);background:var(--acc-pale);}
+.mk-setpick-btn .sp-check{position:absolute;top:8px;right:9px;width:20px;height:20px;border-radius:5px;
+  border:1.5px solid var(--border-strong);display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff;}
+.mk-setpick-btn.on .sp-check{background:var(--acc);border-color:var(--acc);}
+.mk-setpick-btn .sp-price{font-size:11px;font-weight:400;color:var(--sub2);}
+.mko-ship{margin-top:6px;font-size:12px;color:var(--acc-dark);background:var(--acc-pale);border-radius:6px;padding:5px 9px;line-height:1.4;}
+.mko-ship.urgent{color:#9E2828;background:#F7E4E4;font-weight:600;}
+/* 배송완료 주문 카드는 전체 색을 달리해 구분 (연한 회록색 + 흐리게) */
+.mko-row.deliv-done .mrow-inner{background:#EEF3EC;}
+.mko-row.deliv-done .mko-name,.mko-row.deliv-done .mko-amt{color:#5A6B58;}
+.mko-row.deliv-done{opacity:.92;}
 /* 선택 모드 체크 표시 (큰 탭 영역은 카드 전체) */
 #mk-order-list .mko-checkbox,#mk-cust-list .mko-checkbox{position:absolute;left:12px;top:16px;z-index:2;width:22px;height:22px;border-radius:6px;
   border:2px solid var(--border-strong);background:#fff;display:flex;align-items:center;justify-content:center;
@@ -2034,7 +2049,7 @@ img{max-width:100%;height:auto;}
       <div class="form-grid">
         <div class="form-row">
           <label>구성유형</label>
-          <select id="mk-order-settype" onchange="mkUpdateOrderTotals()"></select>
+          <select id="mk-order-settype" onchange="mkSetTypeChanged()"></select>
         </div>
         <div class="form-row">
           <label>세트수량</label>
@@ -2098,6 +2113,24 @@ img{max-width:100%;height:auto;}
 </div>
 
 <!-- 결제방법 선택 (결제완료 시 즉시) -->
+<!-- 세트 구성 선택 (2종/4종 세트 선택 시 메뉴 고르기) -->
+<div class="modal-bg" id="mk-setpick-modal">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-hdr">
+      <h4 id="mk-setpick-title">세트 메뉴 선택</h4>
+      <button class="btn btn-icon btn-out" onclick="mkSetPickCancel()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="mk-setpick-hint" style="font-size:12.5px;color:var(--sub);margin-bottom:12px;line-height:1.5;"></div>
+      <div id="mk-setpick-list" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-out" onclick="mkSetPickCancel()">취소</button>
+      <button class="btn btn-acc" id="mk-setpick-ok" onclick="mkSetPickConfirm()" disabled>선택 완료</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="mk-paymethod-modal">
   <div class="modal" style="max-width:360px;">
     <div class="modal-hdr">
@@ -4852,6 +4885,25 @@ function saveMkBulkTracking(){
   alert(`${cnt}건에 송장번호를 입력했습니다.`);
 }
 
+/* 주문 카드용 발송 안내 — 택배발송 + 희망수령일 + 아직 배송 전이면 발송 권장일 표시 */
+function mkOrderShipLine(o){
+  if(o.deliveryMethod!=='택배발송' || !o.desiredDate) return '';
+  if((o.deliveryStatus||'준비중')!=='준비중') return '';   // 이미 발송했으면 안내 불필요
+  const wd=['일','월','화','수','목','금','토'];
+  const fmt=dt=>`${dt.getMonth()+1}월 ${dt.getDate()}일(${wd[dt.getDay()]})`;
+  const recv=new Date(o.desiredDate+'T00:00:00');
+  if(isNaN(recv)) return '';
+  const ship=new Date(recv); ship.setDate(ship.getDate()-1);
+  // 발송 권장일이 지났거나 임박하면 강조
+  const today=new Date(); today.setHours(0,0,0,0);
+  const diff=Math.round((ship-today)/86400000);
+  let tag='', cls='mko-ship';
+  if(diff<0){ tag=' · ⚠️ 발송일 지남'; cls='mko-ship urgent'; }
+  else if(diff===0){ tag=' · 🔴 오늘 발송'; cls='mko-ship urgent'; }
+  else if(diff===1){ tag=' · 내일 발송'; }
+  return `<div class="${cls}">🚚 발송 권장 <b>${fmt(ship)}</b> <span class="mko-dim">(수령 ${fmt(recv)})</span>${tag}</div>`;
+}
+
 function renderMilkitOrders(){
   renderMkOrderProductFilter();
   syncMkOrderFilterUi();
@@ -4891,7 +4943,10 @@ function renderMilkitOrders(){
     const handle = reorderable ? `<span class="mko-drag" title="꾹 눌러 끌면 순서 변경">⠿</span>` : '';
     const meta=[`${o.setType||'낱개'}×${o.setQty||1}`, o.payMethod||'', o.deliveryMethod||''].filter(Boolean).join(' · ');
     const sel=mkSelectedOrderIds.has(o.id);
-    return `<div class="mrow mko-row${sel?' row-selected':''}" data-oid="${o.id}">
+    // 택배발송 + 희망수령일이 있고 아직 발송 전이면 "발송 권장일" 안내
+    const shipLine = mkOrderShipLine(o);
+    const done = (o.deliveryStatus||'준비중')==='배송완료';
+    return `<div class="mrow mko-row${sel?' row-selected':''}${done?' deliv-done':''}" data-oid="${o.id}">
       ${mkSelectMode?`<span class="mko-checkbox ${sel?'on':''}">${sel?'✓':''}</span>`:''}
       <button class="mrow-del" onclick="event.stopPropagation();deleteMilkitOrder('${o.id}')">삭제</button>
       <div class="mrow-inner mko-inner" onclick="mkOrderRowClick(this,'${o.id}')">
@@ -4903,6 +4958,7 @@ function renderMilkitOrders(){
           <span class="badge ${payBadge[o.payStatus]||'badge-orange'}">${payBadgeTxt[o.payStatus]||payBadgeTxt['대기']}</span>
           <span class="badge ${delBadge[o.deliveryStatus]||'badge-orange'}">${delBadgeTxt[o.deliveryStatus]||delBadgeTxt['준비중']}</span>
         </div>
+        ${shipLine}
         <div class="mko-line">📞 ${o.phone?formatPhone(o.phone):'연락처 없음'} <span class="mko-dim">· ${dt}</span></div>
         ${o.address?`<div class="mko-line">📍 ${o.address}</div>`:''}
         ${recip}
@@ -5571,6 +5627,66 @@ function mkUpdateOrderTotals(){
   document.getElementById('mk-order-listtotal').textContent=comma(listTotal)+'원';
   document.getElementById('mk-order-discount').textContent=comma(discount)+'원';
   document.getElementById('mk-order-paytotal').textContent=comma(payTotal)+'원';
+}
+
+/* ===== 세트 구성유형 선택 → 메뉴 고르기 팝업 =====
+   2종세트를 고르면 피자 2가지, 4종세트를 고르면 4가지를 선택하게 하고 자동으로 수량을 채운다 */
+let _mkSetPickRule='', _mkSetPickSize=0, _mkSetPickSel=new Set();
+function mkSetTypeChanged(){
+  const v=document.getElementById('mk-order-settype').value;
+  const rule=milkitSetRules.find(r=>r.name===v);
+  const size=rule?mkSetRuleSize(rule):0;
+  if(size>=2){ openMkSetPicker(v, size); }
+  else { mkUpdateOrderTotals(); }   // 낱개 등
+}
+function openMkSetPicker(ruleName, size){
+  const pizzas=milkitProducts.filter(p=>p.category==='피자');
+  if(pizzas.length<size){
+    alert(`${ruleName}는 피자 ${size}종 이상이 등록돼 있어야 선택할 수 있습니다.\n(현재 피자 ${pizzas.length}종)`);
+    mkAutoApplySet(); mkUpdateOrderTotals();
+    return;
+  }
+  _mkSetPickRule=ruleName; _mkSetPickSize=size; _mkSetPickSel=new Set();
+  // 이미 수량이 있는 피자를 우선 선택 (size 이하)
+  pizzas.forEach(p=>{ if(_mkSetPickSel.size<size && numVal('mk-qty-'+p.id)>0) _mkSetPickSel.add(p.id); });
+  document.getElementById('mk-setpick-title').textContent=`${ruleName} — 피자 ${size}가지 선택`;
+  renderMkSetPicker();
+  openModal('mk-setpick-modal');
+}
+function renderMkSetPicker(){
+  const pizzas=milkitProducts.filter(p=>p.category==='피자');
+  const hint=document.getElementById('mk-setpick-hint');
+  if(hint) hint.innerHTML=`서로 다른 피자 <b>${_mkSetPickSize}가지</b>를 선택하세요. (현재 ${_mkSetPickSel.size}/${_mkSetPickSize})`;
+  document.getElementById('mk-setpick-list').innerHTML=pizzas.map(p=>{
+    const on=_mkSetPickSel.has(p.id);
+    return `<button type="button" class="mk-setpick-btn${on?' on':''}" onclick="mkSetPickToggle('${p.id}')">
+      <span class="sp-check">${on?'✓':''}</span>${p.name}<span class="sp-price">${comma(p.price)}원</span></button>`;
+  }).join('');
+  const ok=document.getElementById('mk-setpick-ok');
+  if(ok) ok.disabled = _mkSetPickSel.size!==_mkSetPickSize;
+}
+function mkSetPickToggle(id){
+  if(_mkSetPickSel.has(id)) _mkSetPickSel.delete(id);
+  else { if(_mkSetPickSel.size>=_mkSetPickSize){ return; } _mkSetPickSel.add(id); }
+  renderMkSetPicker();
+}
+function mkSetPickConfirm(){
+  if(_mkSetPickSel.size!==_mkSetPickSize) return;
+  // 피자 수량 초기화 후 선택한 것만 1개씩
+  milkitProducts.filter(p=>p.category==='피자').forEach(p=>{
+    const el=document.getElementById('mk-qty-'+p.id);
+    if(el) el.value = _mkSetPickSel.has(p.id) ? '1' : '';
+  });
+  document.getElementById('mk-order-settype').value=_mkSetPickRule;
+  document.getElementById('mk-order-setqty').value=1;
+  closeModal('mk-setpick-modal');
+  mkUpdateOrderTotals();
+}
+function mkSetPickCancel(){
+  closeModal('mk-setpick-modal');
+  // 취소하면 현재 수량에 맞는 세트로 되돌림
+  mkAutoApplySet();
+  mkUpdateOrderTotals();
 }
 
 function openMilkitOrderModal(id){
