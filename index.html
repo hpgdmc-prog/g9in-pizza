@@ -310,6 +310,13 @@ tr:hover td{background:var(--bg2);}
 .mk-setpick-btn .sp-price{font-size:11px;font-weight:400;color:var(--sub2);}
 .mko-ship{margin-top:6px;font-size:12px;color:var(--acc-dark);background:var(--acc-pale);border-radius:6px;padding:5px 9px;line-height:1.4;}
 .mko-ship.urgent{color:#9E2828;background:#F7E4E4;font-weight:600;}
+/* 밀키트 상위 그룹 네비 (판매·운영 / 관리·설정) */
+.mk-groupnav{display:flex;gap:8px;margin:2px 0 12px;}
+.mk-group{flex:1;padding:12px 10px;border:1px solid var(--border);border-radius:11px;background:#fff;font-family:inherit;font-size:14px;font-weight:700;color:var(--sub);cursor:pointer;transition:.15s;line-height:1.3;}
+.mk-group .mk-group-sub{display:block;font-size:11px;font-weight:500;color:var(--sub2);margin-top:2px;}
+.mk-group.active{background:var(--acc);border-color:var(--acc);color:#fff;box-shadow:var(--shadow-sm);}
+.mk-group.active .mk-group-sub{color:rgba(255,255,255,.85);}
+@media(prefers-color-scheme:dark){ .mk-group{background:#2a2a2a;} }
 /* 단체 문자 모달 */
 .sms-scope-label{font-size:13px;font-weight:600;color:var(--txt);margin-bottom:8px;}
 .sms-scope{display:flex;flex-wrap:wrap;gap:7px;}
@@ -1171,12 +1178,16 @@ img{max-width:100%;height:auto;}
     </div>
     <div class="stat-grid" id="mk-stats"></div>
     <div class="stat-grid" id="mk-inv-summary" style="margin-top:12px;"></div>
+    <div class="mk-groupnav">
+      <button class="mk-group active" data-g="sales" onclick="mkSelectGroup('sales')">🛒 판매 · 운영<span class="mk-group-sub">주문 · 재고 · 판매현황</span></button>
+      <button class="mk-group" data-g="manage" onclick="mkSelectGroup('manage')">⚙️ 관리 · 설정<span class="mk-group-sub">메뉴가격 · 고객 · 원가</span></button>
+    </div>
     <div class="tabs">
       <button class="tab active" id="mk-tabbtn-orders" onclick="showMilkitTab('orders')">📝 주문 내역</button>
-      <button class="tab" id="mk-tabbtn-customers" onclick="showMilkitTab('customers')">👤 고객 관리</button>
-      <button class="tab" id="mk-tabbtn-products" onclick="showMilkitTab('products')">💰 메뉴 · 가격 설정</button>
       <button class="tab" id="mk-tabbtn-inventory" onclick="showMilkitTab('inventory')">📦 재고 관리</button>
       <button class="tab" id="mk-tabbtn-stats" onclick="showMilkitTab('stats')">📊 판매 현황</button>
+      <button class="tab" id="mk-tabbtn-products" onclick="showMilkitTab('products')">💰 메뉴 · 가격 설정</button>
+      <button class="tab" id="mk-tabbtn-customers" onclick="showMilkitTab('customers')">👤 고객 관리</button>
       <button class="tab" id="mk-tabbtn-costs" onclick="showMilkitTab('costs')">🧮 원가 · 수익 분석</button>
     </div>
 
@@ -4725,10 +4736,20 @@ function mkCalcTotals(qtyMap, setType, setQty){
   return {listTotal, discount, payTotal};
 }
 
+const MK_TAB_GROUPS={sales:['orders','inventory','stats'], manage:['products','customers','costs']};
+let _mkGroupLast={sales:'orders', manage:'products'};
+function mkTabGroup(tab){ return MK_TAB_GROUPS.manage.includes(tab)?'manage':'sales'; }
+function mkSelectGroup(g){ showMilkitTab(_mkGroupLast[g]||MK_TAB_GROUPS[g][0]); }
+
 function showMilkitTab(tab, fromHistory){
+  const g=mkTabGroup(tab);
+  _mkGroupLast[g]=tab;
+  document.querySelectorAll('.mk-group').forEach(b=>b.classList.toggle('active', b.dataset.g===g));
   ['orders','customers','products','inventory','stats','costs'].forEach(t=>{
+    const btn=document.getElementById('mk-tabbtn-'+t);
+    btn.style.display = mkTabGroup(t)===g ? '' : 'none';   // 현재 그룹의 탭만 표시
+    btn.classList.toggle('active', t===tab);
     document.getElementById('mk-pane-'+t).style.display = t===tab?'':'none';
-    document.getElementById('mk-tabbtn-'+t).classList.toggle('active', t===tab);
   });
   if(tab==='customers') renderMilkitCustomers();
   if(tab==='products') renderMilkitProductSettings();
