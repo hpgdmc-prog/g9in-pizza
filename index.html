@@ -2202,6 +2202,25 @@ img{max-width:100%;height:auto;}
   </div>
 </div>
 
+<!-- 여러 명에게 문자 앱으로 개별 발송 -->
+<div class="modal-bg" id="mk-sms-send-modal">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-hdr">
+      <h4>💬 문자 앱으로 보내기</h4>
+      <button class="btn btn-icon btn-out" onclick="closeModal('mk-sms-send-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="sms-note" style="margin-bottom:10px;">아이폰은 문자 앱에 여러 명을 한 번에 채우는 것을 지원하지 않아, 아래에서 <b>한 명씩</b> 눌러 보냅니다. 문자 앱에서 보낸 뒤 이 화면으로 돌아오면 다음 사람을 이어서 보낼 수 있어요.<br>많은 인원에게 한꺼번에 보내려면 <b>번호 복사</b>로 단체문자 서비스를 이용하세요.</div>
+      <div class="sms-recip-bar"><span class="sms-count" id="mk-sms-send-count"></span></div>
+      <div id="mk-sms-send-list" class="sms-list"></div>
+    </div>
+    <div class="modal-footer sms-footer">
+      <button class="btn btn-out" onclick="mkSmsCopyNumbers()">📋 번호 복사</button>
+      <button class="btn btn-acc" onclick="closeModal('mk-sms-send-modal')">닫기</button>
+    </div>
+  </div>
+</div>
+
 <!-- 발송 안내 문자 (배송중 전환 시 반자동) -->
 <div class="modal-bg" id="mk-shipsms-modal">
   <div class="modal" style="max-width:540px;">
@@ -5912,12 +5931,41 @@ function mkSmsCopyTable(){
   const sel=mkSmsSelected(); if(!sel.length){ alert('선택된 수신자가 없습니다.'); return; }
   mkSmsCopy(sel.map(r=>`${r.name}\t${r.digits}`).join('\n'), `이름+번호 ${sel.length}건을 복사했습니다.\n엑셀·문자서비스에 붙여넣으세요.`);
 }
+/* sms 링크 생성 — 안드로이드는 ?body, 그 외(아이폰 등)는 &body */
+function mkSmsLink(digits, body){
+  const ua=navigator.userAgent||'';
+  const isAndroid=/Android/i.test(ua);
+  if(!body) return 'sms:'+digits;
+  return 'sms:'+digits+(isAndroid?'?body=':'&body=')+encodeURIComponent(body);
+}
+let _mkSmsSendList=[], _mkSmsSent2=new Set(), _mkSmsSendBody='';
 function mkSmsOpenApp(){
   const sel=mkSmsSelected(); if(!sel.length){ alert('선택된 수신자가 없습니다.'); return; }
-  if(sel.length>1 && !confirm(`${sel.length}명에게 문자 앱을 엽니다.\n\n※ 여러 명을 한 번에 열면 단체(그룹) 문자로 보내져 서로의 번호가 노출될 수 있습니다.\n개별로 보내려면 '번호 복사'로 단체문자 서비스를 이용하세요.\n\n계속할까요?`)) return;
-  const body=document.getElementById('mk-sms-body').value;
-  const nums=sel.map(r=>r.digits).join(',');
-  window.location.href = 'sms:'+nums+(body?`?&body=${encodeURIComponent(body)}`:'');
+  _mkSmsSendBody=document.getElementById('mk-sms-body').value;
+  // 한 명이면 바로 문자 앱 열기
+  if(sel.length===1){ window.location.href=mkSmsLink(sel[0].digits,_mkSmsSendBody); return; }
+  // 여러 명: 아이폰은 URL로 여러 명 미리채우기가 안 되므로 한 명씩 개별 발송
+  _mkSmsSendList=sel.slice(); _mkSmsSent2=new Set();
+  mkSmsRenderSendList();
+  openModal('mk-sms-send-modal');
+}
+function mkSmsRenderSendList(){
+  document.getElementById('mk-sms-send-count').textContent=`받는 사람 ${_mkSmsSendList.length}명 · 보낸 사람 ${_mkSmsSent2.size}명`;
+  document.getElementById('mk-sms-send-list').innerHTML=_mkSmsSendList.map(r=>{
+    const sent=_mkSmsSent2.has(r.digits);
+    return `<div class="ship-row${sent?' sent':''}" id="smssend-${r.digits}">
+      <div class="shr-info"><div class="shr-name">${r.name} <span style="font-weight:400;color:var(--sub);">${r.phone}</span></div></div>
+      <button class="shr-send" onclick="mkSmsSendOne('${r.digits}')">${sent?'다시':'💬 보내기'}</button>
+    </div>`;
+  }).join('');
+}
+function mkSmsSendOne(digits){
+  const r=_mkSmsSendList.find(x=>x.digits===digits); if(!r) return;
+  _mkSmsSent2.add(digits);
+  const row=document.getElementById('smssend-'+digits);
+  if(row){ row.classList.add('sent'); const b=row.querySelector('.shr-send'); if(b) b.textContent='다시'; }
+  document.getElementById('mk-sms-send-count').textContent=`받는 사람 ${_mkSmsSendList.length}명 · 보낸 사람 ${_mkSmsSent2.size}명`;
+  window.location.href=mkSmsLink(digits,_mkSmsSendBody);
 }
 
 /* ===== 발송 안내 문자 (배송중 전환 반자동) =====
@@ -5979,7 +6027,7 @@ function mkShipSmsSendOne(id){
   _mkShipSmsSent.add(id);
   const row=document.getElementById('shiprow-'+id);
   if(row){ row.classList.add('sent'); const b=row.querySelector('.shr-send'); if(b) b.textContent='다시'; }
-  window.location.href = 'sms:'+num+`?&body=${encodeURIComponent(body)}`;
+  window.location.href = mkSmsLink(num, body);
 }
 function mkShipSmsCopyTable(){
   const list=_mkShipSmsOrderIds.map(id=>milkitOrders.find(o=>o.id===id)).filter(Boolean);
