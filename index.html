@@ -310,6 +310,33 @@ tr:hover td{background:var(--bg2);}
 .mk-setpick-btn .sp-price{font-size:11px;font-weight:400;color:var(--sub2);}
 .mko-ship{margin-top:6px;font-size:12px;color:var(--acc-dark);background:var(--acc-pale);border-radius:6px;padding:5px 9px;line-height:1.4;}
 .mko-ship.urgent{color:#9E2828;background:#F7E4E4;font-weight:600;}
+/* 단체 문자 모달 */
+.sms-scope-label{font-size:13px;font-weight:600;color:var(--txt);margin-bottom:8px;}
+.sms-scope{display:flex;flex-wrap:wrap;gap:7px;}
+.sms-chip{border:1px solid var(--border);background:#fff;border-radius:20px;padding:7px 14px;font-size:13px;font-family:inherit;cursor:pointer;color:var(--txt);white-space:nowrap;}
+.sms-chip.on{border-color:var(--acc);background:var(--acc-pale);color:var(--acc-dark);font-weight:600;}
+.sms-select{width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;background:#fff;}
+.sms-recip-bar{display:flex;align-items:center;justify-content:space-between;margin:14px 0 6px;}
+.sms-selall{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--txt);cursor:pointer;}
+.sms-selall input{width:16px;height:16px;}
+.sms-count{font-size:12.5px;color:var(--acc-dark);font-weight:600;}
+.sms-list{max-height:230px;overflow-y:auto;border:1px solid var(--border);border-radius:10px;background:var(--bg);}
+.sms-list:empty::after{content:'조건에 맞는 수신자가 없습니다';display:block;padding:22px;text-align:center;color:var(--sub);font-size:13px;}
+.sms-recip{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--border);cursor:pointer;}
+.sms-recip:last-child{border-bottom:none;}
+.sms-recip input{width:18px;height:18px;flex:0 0 auto;}
+.sms-recip .sr-name{font-size:13.5px;font-weight:600;color:var(--txt);}
+.sms-recip .sr-phone{font-size:12.5px;color:var(--sub);margin-left:auto;font-variant-numeric:tabular-nums;}
+.sms-recip .sr-cnt{font-size:11px;color:var(--sub2);background:#fff;border:1px solid var(--border);border-radius:10px;padding:1px 7px;}
+.sms-note{font-size:12px;color:var(--sub);margin-top:7px;line-height:1.5;}
+.sms-body{width:100%;padding:11px;border:1px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;line-height:1.5;resize:vertical;box-sizing:border-box;}
+.sms-bytes{font-size:12px;color:var(--sub);margin-top:5px;text-align:right;}
+.sms-bytes b{color:var(--acc-dark);}
+.sms-footer{display:flex;gap:8px;flex-wrap:wrap;}
+.sms-footer .btn{flex:1;min-width:120px;}
+@media(prefers-color-scheme:dark){
+  .sms-chip,.sms-select,.sms-recip .sr-cnt{background:#2a2a2a;}
+}
 /* 배송완료 주문 카드는 전체 색을 진하게 달리해 발송 전 목록과 확실히 대비 */
 .mko-row.deliv-done .mrow-inner{background:#CFE0CB;border-left:5px solid #4C7A46;}
 .mko-row.deliv-done .mko-name{color:#2F4A2C;}
@@ -1152,6 +1179,7 @@ img{max-width:100%;height:auto;}
           <button class="btn btn-out btn-sm" onclick="document.getElementById('mk-order-import-file').click()" title="클릭하거나, 엑셀 파일을 이 화면에 끌어다 놓아도 업로드됩니다">📤 엑셀 업로드</button>
           <button class="btn btn-out btn-sm" onclick="exportMilkitOrders()">📥 엑셀 내보내기</button>
           <button class="btn btn-out btn-sm" onclick="openMkOcrModal()">📷 사진/텍스트로 등록</button>
+          <button class="btn btn-out btn-sm" onclick="openMkSmsModal()">📨 단체 문자</button>
           <button class="btn btn-acc btn-sm" onclick="openMilkitOrderModal()">+ 주문 등록</button>
         </div>
       </div>
@@ -2127,6 +2155,38 @@ img{max-width:100%;height:auto;}
     <div class="modal-footer">
       <button class="btn btn-out" onclick="mkSetPickCancel()">취소</button>
       <button class="btn btn-acc" id="mk-setpick-ok" onclick="mkSetPickConfirm()" disabled>선택 완료</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="mk-sms-modal">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-hdr">
+      <h4>📨 단체 문자</h4>
+      <button class="btn btn-icon btn-out" onclick="closeModal('mk-sms-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="sms-scope-label">받는 사람 고르기</div>
+      <div id="mk-sms-scope" class="sms-scope"></div>
+      <div id="mk-sms-date-wrap" style="display:none;margin-top:8px;">
+        <select id="mk-sms-date" class="sms-select" onchange="mkSmsScopeChanged()"></select>
+      </div>
+
+      <div class="sms-recip-bar">
+        <label class="sms-selall"><input type="checkbox" id="mk-sms-selall" onchange="mkSmsToggleAll(this)"> 전체선택</label>
+        <span id="mk-sms-count" class="sms-count"></span>
+      </div>
+      <div id="mk-sms-list" class="sms-list"></div>
+      <div id="mk-sms-nophone" class="sms-note"></div>
+
+      <div class="sms-scope-label" style="margin-top:14px;">메시지 <span style="font-weight:400;color:var(--sub);">(문자 앱으로 보낼 때 사용)</span></div>
+      <textarea id="mk-sms-body" class="sms-body" rows="4" placeholder="예) [지구인피자] 주문하신 밀키트가 오늘 발송됩니다. 감사합니다!" oninput="mkSmsCountBytes()"></textarea>
+      <div id="mk-sms-bytes" class="sms-bytes"></div>
+    </div>
+    <div class="modal-footer sms-footer">
+      <button class="btn btn-out" onclick="mkSmsCopyNumbers()">📋 번호 복사</button>
+      <button class="btn btn-out" onclick="mkSmsCopyTable()">📇 이름+번호</button>
+      <button class="btn btn-acc" onclick="mkSmsOpenApp()">💬 문자 앱 열기</button>
     </div>
   </div>
 </div>
@@ -5696,6 +5756,121 @@ function mkSetPickCancel(){
   // 취소하면 현재 수량에 맞는 세트로 되돌림
   mkAutoApplySet();
   mkUpdateOrderTotals();
+}
+
+/* ===== 고객 단체 문자 =====
+   전체 / 일자별 / 미발송 / 배송중 / 배송완료 / 결제대기 중 골라 수신자를 추리고,
+   번호를 복사(단체문자 서비스에 붙여넣기)하거나 폰의 문자 앱을 바로 연다. */
+const MK_SMS_SCOPES=[
+  {k:'all',   label:'전체 주문자'},
+  {k:'date',  label:'일자별'},
+  {k:'준비중', label:'미발송(준비중)'},
+  {k:'배송중', label:'배송중'},
+  {k:'배송완료',label:'배송완료'},
+  {k:'미납',   label:'결제 대기'},
+];
+let _mkSmsScope='all', _mkSmsSel=new Set(), _mkSmsNoPhone=0;
+
+function openMkSmsModal(){
+  _mkSmsScope='all'; _mkSmsSel=new Set();
+  document.getElementById('mk-sms-scope').innerHTML=MK_SMS_SCOPES.map(s=>
+    `<button type="button" class="sms-chip${s.k===_mkSmsScope?' on':''}" data-k="${s.k}" onclick="mkSmsPickScope('${s.k}')">${s.label}</button>`).join('');
+  const dates=[...new Set(milkitOrders.map(o=>o.orderDate).filter(Boolean))].sort().reverse();
+  document.getElementById('mk-sms-date').innerHTML = dates.length
+    ? dates.map(d=>`<option value="${d}">${mkSmsFmtDate(d)}</option>`).join('')
+    : `<option value="">주문일 없음</option>`;
+  document.getElementById('mk-sms-date-wrap').style.display='none';
+  document.getElementById('mk-sms-body').value='';
+  mkSmsCountBytes();
+  mkSmsScopeChanged();
+  openModal('mk-sms-modal');
+}
+function mkSmsFmtDate(d){
+  const dt=new Date(d+'T00:00:00'); if(isNaN(dt)) return d;
+  const wd=['일','월','화','수','목','금','토'];
+  return `${dt.getFullYear()}. ${dt.getMonth()+1}. ${dt.getDate()}.(${wd[dt.getDay()]})`;
+}
+function mkSmsPickScope(k){
+  _mkSmsScope=k;
+  document.querySelectorAll('#mk-sms-scope .sms-chip').forEach(b=>b.classList.toggle('on', b.dataset.k===k));
+  document.getElementById('mk-sms-date-wrap').style.display = k==='date' ? 'block':'none';
+  mkSmsScopeChanged();
+}
+function mkSmsScopeOrders(){
+  const k=_mkSmsScope;
+  if(k==='date'){ const d=document.getElementById('mk-sms-date').value; return milkitOrders.filter(o=>o.orderDate===d); }
+  if(k==='준비중'||k==='배송중'||k==='배송완료') return milkitOrders.filter(o=>(o.deliveryStatus||'준비중')===k);
+  if(k==='미납') return milkitOrders.filter(o=>(o.payStatus||'대기')==='대기');
+  return milkitOrders.slice();   // all
+}
+function mkSmsRecipients(){
+  const map=new Map(); let noPhone=0;
+  mkSmsScopeOrders().forEach(o=>{
+    const digits=String(o.phone||'').replace(/\D/g,'');
+    if(!digits){ noPhone++; return; }
+    if(map.has(digits)) map.get(digits).count++;
+    else map.set(digits,{digits, phone:formatPhone(o.phone), name:o.customer||'(이름없음)', count:1});
+  });
+  _mkSmsNoPhone=noPhone;
+  return [...map.values()];
+}
+function mkSmsScopeChanged(){
+  const recips=mkSmsRecipients();
+  _mkSmsSel=new Set(recips.map(r=>r.digits));   // 새 조건은 전체 선택으로 시작
+  mkSmsRenderList(recips);
+}
+function mkSmsRenderList(recips){
+  recips=recips||mkSmsRecipients();
+  document.getElementById('mk-sms-list').innerHTML=recips.map(r=>{
+    const on=_mkSmsSel.has(r.digits);
+    return `<label class="sms-recip"><input type="checkbox" ${on?'checked':''} onchange="mkSmsToggle('${r.digits}',this.checked)">
+      <span class="sr-name">${r.name}</span>${r.count>1?`<span class="sr-cnt">주문 ${r.count}건</span>`:''}
+      <span class="sr-phone">${r.phone}</span></label>`;
+  }).join('');
+  document.getElementById('mk-sms-nophone').textContent = _mkSmsNoPhone
+    ? `※ 연락처가 없는 주문 ${_mkSmsNoPhone}건은 제외됐습니다.` : '';
+  mkSmsUpdateCount(recips.length);
+}
+function mkSmsUpdateCount(total){
+  document.getElementById('mk-sms-count').textContent=`${_mkSmsSel.size}명 선택 · 중복번호 제외 ${total}명`;
+  const sa=document.getElementById('mk-sms-selall');
+  if(sa) sa.checked = total>0 && _mkSmsSel.size===total;
+}
+function mkSmsToggle(digits,on){ if(on) _mkSmsSel.add(digits); else _mkSmsSel.delete(digits); mkSmsUpdateCount(mkSmsRecipients().length); }
+function mkSmsToggleAll(cb){ const r=mkSmsRecipients(); _mkSmsSel = cb.checked ? new Set(r.map(x=>x.digits)) : new Set(); mkSmsRenderList(r); }
+function mkSmsSelected(){ return mkSmsRecipients().filter(r=>_mkSmsSel.has(r.digits)); }
+
+function mkSmsCountBytes(){
+  const t=document.getElementById('mk-sms-body').value;
+  let b=0; for(const ch of t) b += ch.charCodeAt(0)>127 ? 2 : 1;
+  const type = b===0 ? '' : (b<=90 ? 'SMS' : (b<=2000?'LMS':'⚠️ 2000byte 초과'));
+  document.getElementById('mk-sms-bytes').innerHTML = b===0 ? '' : `<b>${b}</b> byte · ${type} 기준`;
+}
+function mkSmsCopy(text, okMsg){
+  if(navigator.clipboard && navigator.clipboard.writeText)
+    navigator.clipboard.writeText(text).then(()=>alert(okMsg)).catch(()=>mkSmsCopyFallback(text,okMsg));
+  else mkSmsCopyFallback(text,okMsg);
+}
+function mkSmsCopyFallback(text,okMsg){
+  const ta=document.createElement('textarea'); ta.value=text;
+  ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select();
+  try{ document.execCommand('copy'); alert(okMsg); }catch(e){ prompt('아래 내용을 복사하세요:', text); }
+  document.body.removeChild(ta);
+}
+function mkSmsCopyNumbers(){
+  const sel=mkSmsSelected(); if(!sel.length){ alert('선택된 수신자가 없습니다.'); return; }
+  mkSmsCopy(sel.map(r=>r.digits).join('\n'), `번호 ${sel.length}개를 복사했습니다.\n단체문자 서비스에 붙여넣으세요.`);
+}
+function mkSmsCopyTable(){
+  const sel=mkSmsSelected(); if(!sel.length){ alert('선택된 수신자가 없습니다.'); return; }
+  mkSmsCopy(sel.map(r=>`${r.name}\t${r.digits}`).join('\n'), `이름+번호 ${sel.length}건을 복사했습니다.\n엑셀·문자서비스에 붙여넣으세요.`);
+}
+function mkSmsOpenApp(){
+  const sel=mkSmsSelected(); if(!sel.length){ alert('선택된 수신자가 없습니다.'); return; }
+  if(sel.length>1 && !confirm(`${sel.length}명에게 문자 앱을 엽니다.\n\n※ 여러 명을 한 번에 열면 단체(그룹) 문자로 보내져 서로의 번호가 노출될 수 있습니다.\n개별로 보내려면 '번호 복사'로 단체문자 서비스를 이용하세요.\n\n계속할까요?`)) return;
+  const body=document.getElementById('mk-sms-body').value;
+  const nums=sel.map(r=>r.digits).join(',');
+  window.location.href = 'sms:'+nums+(body?`?&body=${encodeURIComponent(body)}`:'');
 }
 
 function openMilkitOrderModal(id){
