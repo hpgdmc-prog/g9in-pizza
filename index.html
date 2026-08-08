@@ -500,6 +500,12 @@ tr:hover td{background:var(--bg2);}
 .mk-print-sheet .mp-row-mid{font-size:11px;color:#444;margin-top:4px;word-break:break-word;}
 .mk-print-sheet .mp-row-items{font-size:11px;color:#333;margin-top:4px;word-break:break-word;}
 .mk-print-sheet .mp-row-note{font-size:10.5px;color:#777;margin-top:4px;word-break:break-word;}
+/* 배송상태 강조 (인쇄) */
+.mk-print-sheet .pc-done{color:#166A2B;font-size:13.5px;font-weight:800;letter-spacing:.01em;}
+.mk-print-sheet .pc-ing{color:#1E5FA8;font-weight:700;}
+.mk-print-sheet .pc-ready{color:#8A6D3B;font-weight:600;}
+.mk-print-sheet .mp-row.mp-done{background:#EAF2E7;border-left:4px solid #4C7A46;padding-left:8px;}
+.mk-print-sheet .mp-row.mp-done .mp-name{color:#1C3F1A;}
 /* expiry warning colors */
 .expiry-ok{color:var(--green);}
 .expiry-warn{color:var(--orange);font-weight:600;}
@@ -5200,18 +5206,26 @@ function mkPrintDeliveryHtml(method){
   if(method==='직접수령') return '<span class="pc-pickup">■ 직접수령</span>';
   return '<span>'+(method||'배송방법 미지정')+'</span>';
 }
+/* 인쇄 배송상태 — 배송완료는 크고 진하게 강조 */
+function mkPrintDelivStatusHtml(status){
+  const s=status||'준비중';
+  if(s==='배송완료') return '<b class="pc-done">🚚 배송완료</b>';
+  if(s==='배송중') return '<span class="pc-ing">🚚 배송중</span>';
+  return '<span class="pc-ready">🚚 배송준비중</span>';
+}
 function mkOrderPrintHtml(list){
   const totalAmt = list.reduce((s,o)=>s+(Number(o.payTotal)||0),0);
   const rows = list.map(o=>{
     const recip = (o.recipient && o.recipient!==o.customer)
       ? ` · 받는 분 ${o.recipient}${o.recipientPhone?'('+formatPhone(o.recipientPhone)+')':''}` : '';
     const dt = (o.orderDate||'') + (o.orderTime?' '+o.orderTime:'');
+    const done = (o.deliveryStatus||'준비중')==='배송완료';
     return `
-    <div class="mp-row">
+    <div class="mp-row${done?' mp-done':''}">
       <div class="mp-row-top">
         <span class="mp-no">No.${o.no||''}</span>
         <span class="mp-name">${o.customer||'(이름 없음)'}</span>
-        <span class="mp-tags">${dt} · ${mkPrintPayHtml(o.payStatus)} · ${mkPrintDeliveryHtml(o.deliveryMethod)} · ${o.deliveryStatus||'준비중'}${o.tracking?' · 송장 '+o.tracking:''}</span>
+        <span class="mp-tags">${dt} · ${mkPrintPayHtml(o.payStatus)} · ${mkPrintDeliveryHtml(o.deliveryMethod)} · ${mkPrintDelivStatusHtml(o.deliveryStatus)}${o.tracking?' · 송장 '+o.tracking:''}</span>
         <span class="mp-amt">${comma(o.payTotal)}원</span>
       </div>
       <div class="mp-row-mid">${o.phone?formatPhone(o.phone):'연락처 없음'}${o.address?' · '+o.address:''}${recip}</div>
