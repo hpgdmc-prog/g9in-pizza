@@ -5636,8 +5636,17 @@ function mkSetTypeChanged(){
   const v=document.getElementById('mk-order-settype').value;
   const rule=milkitSetRules.find(r=>r.name===v);
   const size=rule?mkSetRuleSize(rule):0;
-  if(size>=2){ openMkSetPicker(v, size); }
-  else { mkUpdateOrderTotals(); }   // 낱개 등
+  const pizzas=milkitProducts.filter(p=>p.category==='피자');
+  if(size>=2 && size<pizzas.length){
+    openMkSetPicker(v, size);   // 종류를 골라야 하는 경우만 팝업 (예: 2종세트 = 4종 중 2종)
+  } else if(size>=2){
+    // 세트 구성 수가 전체 피자 종류 수 이상 → 전 종류 자동 선택 (예: 4종세트 = 피자 4종 전체)
+    pizzas.forEach(p=>{ const el=document.getElementById('mk-qty-'+p.id); if(el) el.value='1'; });
+    const sq=document.getElementById('mk-order-setqty'); if(sq) sq.value=1;
+    mkUpdateOrderTotals();
+  } else {
+    mkUpdateOrderTotals();   // 낱개 등
+  }
 }
 function openMkSetPicker(ruleName, size){
   const pizzas=milkitProducts.filter(p=>p.category==='피자');
