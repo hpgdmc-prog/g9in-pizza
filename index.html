@@ -1453,11 +1453,11 @@ img{max-width:100%;height:auto;}
 
     <!-- 원가 · 수익 분석 -->
     <div id="mk-pane-costs" style="display:none;">
-      <div style="font-size:12px;color:var(--sub);margin-bottom:16px;line-height:1.6;">밀키트는 일반 피자와 원가 구조가 달라서 <b>배달앱 수수료 대신 포장재비용 · 택배비용</b>을 반영해 별도로 계산합니다. 재료원가는 상품별 레시피를 등록해야 계산됩니다. ※ 포장재·택배비는 주문 1건 기준이며, 세트로 여러 개를 묶어 보내면 실제 개당 비용은 더 낮아질 수 있습니다.</div>
+      <div style="font-size:12px;color:var(--sub);margin-bottom:16px;line-height:1.6;">밀키트는 일반 피자와 원가 구조가 달라서 <b>배달앱 수수료 대신 포장비 · 택배비</b>를 반영해 별도로 계산합니다. 재료원가는 상품별 레시피를 등록해야 계산됩니다. ※ <b>개별 포장비</b>는 피자 개수만큼, <b>포장 박스·택배비</b>는 주문(세트) 1건당 1번만 반영되므로, 세트로 묶어 보내면 박스·배송을 나눠 써 개당 비용이 낮아집니다.</div>
       <div class="page-hdr" style="border-bottom:none;margin-bottom:6px;padding-bottom:0;">
         <h3 style="font-size:14px;">① 주문 1건당 드는 비용</h3>
       </div>
-      <div style="font-size:11.5px;color:var(--sub2);margin-bottom:10px;">주문 한 건을 보낼 때마다 실제로 나가는 돈입니다.</div>
+      <div style="font-size:11.5px;color:var(--sub2);margin-bottom:10px;line-height:1.6;">주문을 보낼 때 나가는 돈입니다. <b>개별 포장비</b>는 피자 <b>1개당</b> 드는 진공팩·라벨·속지 등, <b>포장 박스·부자재</b>는 바깥 상자·보냉백·아이스팩처럼 <b>주문(세트) 1건에 1번</b> 드는 비용입니다.</div>
       <div class="fee-grid" id="mk-fee-grid-per" style="margin-bottom:20px;"></div>
 
       <div class="page-hdr" style="border-bottom:none;margin-bottom:6px;padding-bottom:0;">
@@ -2558,7 +2558,7 @@ let milkitProduction = DB.load('milkitProduction', []);
 let mkEditId = null;
 let mkProdEditId = null;
 let milkitFees = DB.load('milkitFees', {
-  packagingCost:500, shippingCost:3000,
+  packagingCost:500, boxCost:0, shippingCost:3000,
   cardFee:1.5, vat:10, localTax:0,
   lossRate:0,
   rent:0, labor:0, utilities:0, other:0,
@@ -3057,9 +3057,11 @@ function renderDashboard(){
 function calcMkOrderProfit(o){
   const f=milkitFees||{};
   const revenue=Number(o.payTotal)||0;
-  let material=0;
-  milkitProducts.forEach(p=>{ material += (Number(o.qty&&o.qty[p.id])||0) * calcMkRecipeCost(p); });
-  const packaging=Number(f.packagingCost)||0;
+  let material=0, itemCount=0;
+  milkitProducts.forEach(p=>{ const q=(Number(o.qty&&o.qty[p.id])||0); material += q*calcMkRecipeCost(p); itemCount+=q; });
+  const packItems=(Number(f.packagingCost)||0)*itemCount;   // 개별 포장비 × 개수
+  const box=Number(f.boxCost)||0;                            // 포장 박스·부자재 (주문 1건당 1개)
+  const packaging=packItems+box;
   const shipping=(o.deliveryMethod==='택배발송') ? (Number(f.shippingCost)||0) : 0;
   const cardFee=(o.payMethod==='카드') ? revenue*(Number(f.cardFee)||0)/100 : 0;
   const vat=revenue*(Number(f.vat)||0)/100;
@@ -3068,7 +3070,7 @@ function calcMkOrderProfit(o){
   const monthlyFixed=(Number(f.rent)||0)+(Number(f.labor)||0)+(Number(f.utilities)||0)+(Number(f.other)||0);
   const fixedPerOrder=monthlyFixed/Math.max(Number(f.monthlyOrders)||1,1);
   const cost=material+packaging+shipping+cardFee+vat+localTax+loss+fixedPerOrder;
-  return {revenue, cost, profit:revenue-cost, material, packaging, shipping, cardFee, vat, localTax, loss, fixedPerOrder};
+  return {revenue, cost, profit:revenue-cost, material, packaging, packItems, box, shipping, cardFee, vat, localTax, loss, fixedPerOrder};
 }
 function mkTotalNetProfit(list){
   return (list||milkitOrders).reduce((s,o)=>s+calcMkOrderProfit(o).profit, 0);
@@ -5430,7 +5432,7 @@ function mkCostsPrintHtml(){
   `).join('');
   return `
     <div class="mk-print-sheet">
-      ${mkPrintHeader('지구인피자 · 밀키트 원가·수익 분석', `포장재비용 ${comma(f.packagingCost)}원 · 택배비용 ${comma(f.shippingCost)}원 (주문 1건 기준)<br>카드수수료 ${f.cardFee}% · 부가세 ${f.vat}% · 지방세 ${f.localTax}% · 배송사고 로스율 ${Number(f.lossRate)||0}%<br>월 고정비 ${comma((Number(f.rent)||0)+(Number(f.labor)||0)+(Number(f.utilities)||0)+(Number(f.other)||0))}원 ÷ 월 ${comma(f.monthlyOrders)}건`)}
+      ${mkPrintHeader('지구인피자 · 밀키트 원가·수익 분석', `개별 포장비 ${comma(f.packagingCost)}원/개 · 포장 박스 ${comma(Number(f.boxCost)||0)}원 · 택배비 ${comma(f.shippingCost)}원 (주문 1건 기준)<br>카드수수료 ${f.cardFee}% · 부가세 ${f.vat}% · 지방세 ${f.localTax}% · 배송사고 로스율 ${Number(f.lossRate)||0}%<br>월 고정비 ${comma((Number(f.rent)||0)+(Number(f.labor)||0)+(Number(f.utilities)||0)+(Number(f.other)||0))}원 ÷ 월 ${comma(f.monthlyOrders)}건`)}
       <table>
         <thead><tr><th>구분</th><th>상품명</th><th>판매가</th><th>총원가</th><th>원가율</th><th>순마진</th><th>마진율</th></tr></thead>
         <tbody>${rowsHtml || `<tr><td colspan="7" style="text-align:center;color:#999;">등록된 상품이 없습니다</td></tr>`}</tbody>
@@ -7881,7 +7883,8 @@ function calcMkTotalCostPerItem(product){
   const matCost=calcMkRecipeCost(product);
   const price=Number(product.price)||0;
   const f=milkitFees;
-  const packagingAmt=Number(f.packagingCost)||0;
+  const packagingAmt=Number(f.packagingCost)||0;   // 개별 포장비 (1개)
+  const boxAmt=Number(f.boxCost)||0;               // 포장 박스·부자재 (낱개 1건 = 박스 1개)
   const shippingAmt=Number(f.shippingCost)||0;
   const cardFeeAmt=price*(Number(f.cardFee)||0)/100;
   const vatAmt=price*(Number(f.vat)||0)/100;
@@ -7889,11 +7892,11 @@ function calcMkTotalCostPerItem(product){
   const monthlyFixed=(Number(f.rent)||0)+(Number(f.labor)||0)+(Number(f.utilities)||0)+(Number(f.other)||0);
   const orders=Math.max(Number(f.monthlyOrders)||1,1);
   const fixedPerItem=monthlyFixed/orders;
-  // 배송사고·로스: 사고가 나면 재료·포장재·택배비를 다시 부담하므로 그 비율만큼 추가
-  const lossAmt=(matCost+packagingAmt+shippingAmt)*(Number(f.lossRate)||0)/100;
-  const total=matCost+packagingAmt+shippingAmt+cardFeeAmt+vatAmt+localTaxAmt+fixedPerItem+lossAmt;
+  // 배송사고·로스: 사고가 나면 재료·포장·박스·택배비를 다시 부담하므로 그 비율만큼 추가
+  const lossAmt=(matCost+packagingAmt+boxAmt+shippingAmt)*(Number(f.lossRate)||0)/100;
+  const total=matCost+packagingAmt+boxAmt+shippingAmt+cardFeeAmt+vatAmt+localTaxAmt+fixedPerItem+lossAmt;
   return {
-    matCost, packagingAmt, shippingAmt, cardFeeAmt, vatAmt, localTaxAmt, fixedPerItem, lossAmt,
+    matCost, packagingAmt, boxAmt, shippingAmt, cardFeeAmt, vatAmt, localTaxAmt, fixedPerItem, lossAmt,
     total, margin:price-total, marginRate:price>0?(price-total)/price:0
   };
 }
@@ -7901,8 +7904,9 @@ function calcMkTotalCostPerItem(product){
 function renderMilkitFeeGrid(){
   const f=milkitFees;
   document.getElementById('mk-fee-grid-per').innerHTML=`
-    ${feeInput('포장재비용', 'mk-fee-packaging', f.packagingCost, '원', 'renderMkFixedPreview()')}
-    ${feeInput('택배비용', 'mk-fee-shipping', f.shippingCost, '원', 'renderMkFixedPreview()')}
+    ${feeInput('개별 포장비 (개당)', 'mk-fee-packaging', f.packagingCost, '원', 'renderMkFixedPreview()')}
+    ${feeInput('포장 박스·부자재 (주문당)', 'mk-fee-box', f.boxCost, '원', 'renderMkFixedPreview()')}
+    ${feeInput('택배비용 (주문당)', 'mk-fee-shipping', f.shippingCost, '원', 'renderMkFixedPreview()')}
   `;
   document.getElementById('mk-fee-grid-rate').innerHTML=`
     ${feeInput('카드 수수료', 'mk-fee-card', f.cardFee, '%', 'renderMkFixedPreview()')}
@@ -7947,6 +7951,7 @@ function renderMkFixedPreview(){
 function saveMilkitFees(){
   milkitFees={
     packagingCost:numVal('mk-fee-packaging'),
+    boxCost:numVal('mk-fee-box'),
     shippingCost:numVal('mk-fee-shipping'),
     cardFee:Number(document.getElementById('mk-fee-card').value)||0,
     vat:Number(document.getElementById('mk-fee-vat').value)||0,
@@ -7971,8 +7976,10 @@ function mkSetProfitFor(pizzaArr, rule){
   const discount=Number(rule.discount)||0;                 // 세트 1개당 할인
   const revenue=Math.max(listTotal-discount,0);
   const material=pizzaArr.reduce((s,p)=>s+calcMkRecipeCost(p),0);
-  const packaging=Number(f.packagingCost)||0;              // 박스 1개
-  const shipping=Number(f.shippingCost)||0;                // 택배 1회
+  const packItems=(Number(f.packagingCost)||0)*pizzaArr.length;   // 개별 포장비 × 피자 개수
+  const box=Number(f.boxCost)||0;                                 // 포장 박스·부자재 1개
+  const packaging=packItems+box;
+  const shipping=Number(f.shippingCost)||0;                       // 택배 1회
   const cardFee=revenue*(Number(f.cardFee)||0)/100;
   const vat=revenue*(Number(f.vat)||0)/100;
   const localTax=revenue*(Number(f.localTax)||0)/100;
@@ -7980,7 +7987,7 @@ function mkSetProfitFor(pizzaArr, rule){
   const monthlyFixed=(Number(f.rent)||0)+(Number(f.labor)||0)+(Number(f.utilities)||0)+(Number(f.other)||0);
   const fixedPerOrder=monthlyFixed/Math.max(Number(f.monthlyOrders)||1,1);
   const cost=material+packaging+shipping+cardFee+vat+localTax+loss+fixedPerOrder;
-  return {listTotal,discount,revenue,material,packaging,shipping,cardFee,vat,localTax,loss,fixedPerOrder,
+  return {listTotal,discount,revenue,material,packItems,box,packaging,shipping,cardFee,vat,localTax,loss,fixedPerOrder,
     cost,profit:revenue-cost,marginRate:revenue>0?(revenue-cost)/revenue:0};
 }
 /* 평균 피자로 채운 세트 1건의 순수익. extraDiscount = 이벤트/프로모션 추가 할인 */
@@ -7997,13 +8004,16 @@ function mkSetAvgProfit(rule, extraDiscount){
   const discount=baseDiscount+extraDiscount;
   const revenue=Math.max(listTotal-discount,0);
   const material=avgMat*size;
-  const packaging=Number(f.packagingCost)||0, shipping=Number(f.shippingCost)||0;
+  const packItems=(Number(f.packagingCost)||0)*size;    // 개별 포장비 × 피자 개수
+  const box=Number(f.boxCost)||0;                        // 포장 박스·부자재 1개
+  const packaging=packItems+box;
+  const shipping=Number(f.shippingCost)||0;
   const cardFee=revenue*(Number(f.cardFee)||0)/100, vat=revenue*(Number(f.vat)||0)/100, localTax=revenue*(Number(f.localTax)||0)/100;
   const loss=(material+packaging+shipping)*(Number(f.lossRate)||0)/100;
   const monthlyFixed=(Number(f.rent)||0)+(Number(f.labor)||0)+(Number(f.utilities)||0)+(Number(f.other)||0);
   const fixedPerOrder=monthlyFixed/Math.max(Number(f.monthlyOrders)||1,1);
   const cost=material+packaging+shipping+cardFee+vat+localTax+loss+fixedPerOrder;
-  return {size,avgPrice,listTotal,baseDiscount,extraDiscount,discount,revenue,material,packaging,shipping,
+  return {size,avgPrice,listTotal,baseDiscount,extraDiscount,discount,revenue,material,packItems,box,packaging,shipping,
     cardFee,vat,localTax,loss,fixedPerOrder,cost,profit:revenue-cost,marginRate:revenue>0?(revenue-cost)/revenue:0};
 }
 /* 세트 규칙 하나에 대한 대표(평균) 순수익 + 구성별 최소~최대 범위 */
@@ -8050,7 +8060,8 @@ function renderMkSetCosts(){
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px;">
         ${costRow(`재료원가(피자 ${s.size}개)`, a.material, a.revenue)}
-        ${costRow('포장박스 (1개)', a.packaging, a.revenue)}
+        ${costRow(`개별 포장비(${s.size}개)`, a.packItems, a.revenue)}
+        ${costRow('포장 박스 (1개)', a.box, a.revenue)}
         ${costRow('택배비 (1회)', a.shipping, a.revenue)}
         ${costRow('카드 수수료', a.cardFee, a.revenue)}
         ${costRow('부가세', a.vat, a.revenue)}
@@ -8179,7 +8190,8 @@ function renderMilkitCosts(){
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px;">
         ${costRow('재료원가', c.matCost, price)}
-        ${costRow('포장재비용', c.packagingAmt, price)}
+        ${costRow('개별 포장비', c.packagingAmt, price)}
+        ${costRow('포장 박스·부자재', c.boxAmt, price)}
         ${costRow('택배비용', c.shippingAmt, price)}
         ${costRow('카드 수수료', c.cardFeeAmt, price)}
         ${costRow('부가세', c.vatAmt, price)}
