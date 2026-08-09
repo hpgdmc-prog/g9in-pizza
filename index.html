@@ -1470,8 +1470,15 @@ img{max-width:100%;height:auto;}
       <div id="mk-fixed-preview" style="background:var(--acc-pale);border-radius:8px;padding:11px 13px;font-size:12.5px;line-height:1.7;margin-bottom:14px;"></div>
 
       <button class="btn btn-acc btn-sm" onclick="saveMilkitFees()" style="margin-bottom:24px;">비용 설정 저장</button>
+
+      <div class="page-hdr" style="border-bottom:none;margin-bottom:6px;padding-bottom:0;">
+        <h3 style="font-size:14px;">세트 순수익 분석</h3>
+      </div>
+      <div style="font-size:11.5px;color:var(--sub2);margin-bottom:12px;line-height:1.6;">세트는 <b>피자 여러 개 + 포장박스 1개 + 택배 1회</b>로 나가므로 개당이 아닌 <b>세트 1건 기준</b>으로 순수익을 계산합니다. 판매가는 <b>평균 피자가</b> 기준이며, 담는 피자 구성에 따른 <b>최소~최대</b> 범위도 함께 보여줍니다. <span style="color:var(--sub);">(택배발송·카드결제 기준)</span></div>
+      <div id="mk-setcost-cards" style="margin-bottom:26px;"></div>
+
       <div class="page-hdr" style="border-bottom:none;margin-bottom:10px;padding-bottom:0;">
-        <h3 style="font-size:14px;">상품별 원가 분석</h3>
+        <h3 style="font-size:14px;">상품별 원가 분석 <span style="font-size:11px;font-weight:400;color:var(--sub2);">(낱개 1개 = 주문 1건 기준)</span></h3>
         <button class="btn btn-out btn-sm" onclick="previewMilkitCostsPrint()">🖨️ 인쇄</button>
       </div>
       <div id="mk-cost-cards"></div>
@@ -7938,8 +7945,117 @@ function saveMilkitFees(){
   alert('저장되었습니다.');
 }
 
+/* 특정 피자 구성(pizzaArr)으로 세트 1건을 팔았을 때의 순수익.
+   재료비는 담은 피자 수만큼, 포장박스·택배비·고정비는 세트 1건당 1회. */
+function mkSetProfitFor(pizzaArr, rule){
+  const f=milkitFees||{};
+  const listTotal=pizzaArr.reduce((s,p)=>s+(Number(p.price)||0),0);
+  const discount=Number(rule.discount)||0;                 // 세트 1개당 할인
+  const revenue=Math.max(listTotal-discount,0);
+  const material=pizzaArr.reduce((s,p)=>s+calcMkRecipeCost(p),0);
+  const packaging=Number(f.packagingCost)||0;              // 박스 1개
+  const shipping=Number(f.shippingCost)||0;                // 택배 1회
+  const cardFee=revenue*(Number(f.cardFee)||0)/100;
+  const vat=revenue*(Number(f.vat)||0)/100;
+  const localTax=revenue*(Number(f.localTax)||0)/100;
+  const loss=(material+packaging+shipping)*(Number(f.lossRate)||0)/100;
+  const monthlyFixed=(Number(f.rent)||0)+(Number(f.labor)||0)+(Number(f.utilities)||0)+(Number(f.other)||0);
+  const fixedPerOrder=monthlyFixed/Math.max(Number(f.monthlyOrders)||1,1);
+  const cost=material+packaging+shipping+cardFee+vat+localTax+loss+fixedPerOrder;
+  return {listTotal,discount,revenue,material,packaging,shipping,cardFee,vat,localTax,loss,fixedPerOrder,
+    cost,profit:revenue-cost,marginRate:revenue>0?(revenue-cost)/revenue:0};
+}
+/* 세트 규칙 하나에 대한 대표(평균) 순수익 + 구성별 최소~최대 범위 */
+function calcMkSetProfit(rule){
+  const size=mkSetRuleSize(rule);
+  const pizzas=milkitProducts.filter(p=>p.category==='피자');
+  if(size<2 || pizzas.length<size) return {size, pizzaCount:pizzas.length, insufficient:true};
+  // 대표값: 평균 피자로 채운 세트
+  const avgPrice=pizzas.reduce((s,p)=>s+(Number(p.price)||0),0)/pizzas.length;
+  const avgMat=pizzas.reduce((s,p)=>s+calcMkRecipeCost(p),0)/pizzas.length;
+  // 평균 피자로 채운 세트를 직접 산출 (calcMkRecipeCost는 items 기반이라 평균은 별도 계산)
+  const f=milkitFees||{};
+  const listTotal=avgPrice*size;
+  const discount=Number(rule.discount)||0;
+  const revenue=Math.max(listTotal-discount,0);
+  const material=avgMat*size;
+  const packaging=Number(f.packagingCost)||0, shipping=Number(f.shippingCost)||0;
+  const cardFee=revenue*(Number(f.cardFee)||0)/100, vat=revenue*(Number(f.vat)||0)/100, localTax=revenue*(Number(f.localTax)||0)/100;
+  const loss=(material+packaging+shipping)*(Number(f.lossRate)||0)/100;
+  const monthlyFixed=(Number(f.rent)||0)+(Number(f.labor)||0)+(Number(f.utilities)||0)+(Number(f.other)||0);
+  const fixedPerOrder=monthlyFixed/Math.max(Number(f.monthlyOrders)||1,1);
+  const cost=material+packaging+shipping+cardFee+vat+localTax+loss+fixedPerOrder;
+  const avg={size,listTotal,discount,revenue,material,packaging,shipping,cardFee,vat,localTax,loss,fixedPerOrder,
+    cost,profit:revenue-cost,marginRate:revenue>0?(revenue-cost)/revenue:0};
+  // 범위: 가격 낮은 size개 조합 vs 높은 size개 조합
+  const sorted=[...pizzas].sort((a,b)=>(Number(a.price)||0)-(Number(b.price)||0));
+  const lo=mkSetProfitFor(sorted.slice(0,size), rule);
+  const hi=mkSetProfitFor(sorted.slice(-size), rule);
+  // 낱개로 size개를 따로따로(각자 포장·배송) 팔 때와 비교 — 세트 묶음의 절감액
+  const singlesProfit = pizzas.reduce((s,p)=>{ const c=calcMkTotalCostPerItem(p); return s+c.margin; },0)/pizzas.length*size;
+  return {size, pizzaCount:pizzas.length, avgPrice, avg,
+    min:Math.min(lo.profit,hi.profit), max:Math.max(lo.profit,hi.profit),
+    singlesProfit, saving:avg.profit-singlesProfit};
+}
+function renderMkSetCosts(){
+  const el=document.getElementById('mk-setcost-cards');
+  if(!el) return;
+  const rules=milkitSetRules.filter(r=>mkSetRuleSize(r)>=2);
+  if(!rules.length){ el.innerHTML=`<div style="font-size:12.5px;color:var(--sub);padding:14px;border:1px dashed var(--border);border-radius:10px;">등록된 세트가 없습니다. ‘메뉴·가격 설정’에서 세트를 추가하면 여기서 세트 순수익을 확인할 수 있습니다.</div>`; return; }
+  el.innerHTML=rules.map(rule=>{
+    const s=calcMkSetProfit(rule);
+    if(s.insufficient){
+      return `<div class="cost-card"><div class="cost-card-hdr"><div class="cost-card-title">${rule.name}</div></div>
+        <div style="font-size:12.5px;color:var(--orange);">피자 ${s.size}종 이상 등록해야 계산됩니다. (현재 피자 ${s.pizzaCount}종)</div></div>`;
+    }
+    const a=s.avg;
+    const ratio=a.revenue>0?a.cost/a.revenue:0;
+    const barCls=ratio>0.8?'bad':ratio>0.65?'warn':'good';
+    const rangeSame=Math.round(s.min)===Math.round(s.max);
+    return `<div class="cost-card">
+      <div class="cost-card-hdr">
+        <div>
+          <div class="cost-card-title">${rule.name} <span style="font-size:11px;font-weight:500;color:var(--sub2);">피자 ${s.size}종 · 박스 1개 · 배송 1회</span></div>
+          <div style="font-size:11px;color:var(--sub2);margin-top:3px;">평균 피자가 ${comma(Math.round(s.avgPrice))}원 기준 · 세트 할인 −${comma(a.discount)}원</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-family:var(--serif);font-size:22px;font-weight:700;color:var(--dark);" class="num">${comma(Math.round(a.revenue))}원</div>
+          <div style="font-size:11px;color:var(--sub2);">세트 판매가</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px;">
+        ${costRow(`재료원가(피자 ${s.size}개)`, a.material, a.revenue)}
+        ${costRow('포장박스 (1개)', a.packaging, a.revenue)}
+        ${costRow('택배비 (1회)', a.shipping, a.revenue)}
+        ${costRow('카드 수수료', a.cardFee, a.revenue)}
+        ${costRow('부가세', a.vat, a.revenue)}
+        ${costRow('지방세', a.localTax, a.revenue)}
+        ${costRow('배송사고·로스', a.loss, a.revenue)}
+        ${costRow('고정비 분담', a.fixedPerOrder, a.revenue)}
+      </div>
+      <div style="border-top:1px solid var(--border);padding-top:12px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+          <span style="font-size:13px;font-weight:600;">총 원가</span>
+          <span class="num" style="font-weight:700;">${comma(Math.round(a.cost))}원 (${pct(ratio)})</span>
+        </div>
+        <div class="cost-bar"><div class="cost-bar-fill ${barCls}" style="width:${Math.min(ratio*100,100)}%;"></div></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding:12px 14px;border-radius:var(--r-sm);background:${a.profit>0?'#EAF2EA':'#F5E6E6'};">
+          <span style="font-size:13px;font-weight:600;">세트 순수익</span>
+          <span class="num" style="font-size:18px;font-weight:800;color:${a.profit>0?'var(--green)':'var(--red)'};">${a.profit>0?'+':''}${comma(Math.round(a.profit))}원 <span style="font-size:13px;">(${pct(a.marginRate)})</span></span>
+        </div>
+        <div style="font-size:11.5px;color:var(--sub);margin-top:9px;line-height:1.7;">
+          ${rangeSame?'':`· 구성에 따라 <b>${comma(Math.round(s.min))}원 ~ ${comma(Math.round(s.max))}원</b><br>`}
+          · 피자 1개당 순수익 ≈ <b>${comma(Math.round(a.profit/s.size))}원</b>
+          ${s.saving>0?`<br>· 낱개로 따로 팔 때보다 <b style="color:var(--green);">약 ${comma(Math.round(s.saving))}원 이득</b> <span style="color:var(--sub2);">(박스·배송 1회로 절감)</span>`:(s.saving<0?`<br>· 낱개로 팔 때보다 <b style="color:var(--red);">약 ${comma(Math.round(-s.saving))}원 손해</b> <span style="color:var(--sub2);">(할인이 절감액보다 큼)</span>`:'')}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
 function renderMilkitCosts(){
   renderMilkitFeeGrid();
+  renderMkSetCosts();
   const el=document.getElementById('mk-cost-cards');
   if(!milkitProducts.length){
     el.innerHTML=`<div class="empty-state"><div class="empty-icon">🧮</div><p>등록된 상품이 없습니다.</p></div>`;
