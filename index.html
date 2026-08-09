@@ -310,13 +310,26 @@ tr:hover td{background:var(--bg2);}
 .mk-setpick-btn .sp-price{font-size:11px;font-weight:400;color:var(--sub2);}
 .mko-ship{margin-top:6px;font-size:12px;color:var(--acc-dark);background:var(--acc-pale);border-radius:6px;padding:5px 9px;line-height:1.4;}
 .mko-ship.urgent{color:#9E2828;background:#F7E4E4;font-weight:600;}
+/* 세트 할인 시뮬레이션 표 */
+.sim-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--border);border-radius:10px;}
+.sim-table{width:100%;border-collapse:collapse;font-size:12.5px;min-width:660px;}
+.sim-table th,.sim-table td{padding:9px 11px;border-bottom:1px solid var(--border);text-align:right;white-space:nowrap;}
+.sim-table th{background:var(--bg);font-size:11px;color:var(--sub);font-weight:600;}
+.sim-table th:first-child,.sim-table td:first-child{text-align:left;}
+.sim-table td.num,.sim-table .num{font-variant-numeric:tabular-nums;}
+.sim-table tfoot td{border-top:2px solid var(--border);border-bottom:none;font-weight:700;background:var(--bg);}
+.sim-inp{width:78px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12.5px;text-align:right;font-family:inherit;background:#fff;}
+.sim-summary{display:flex;gap:10px;margin-top:12px;}
+.sim-summary>div{flex:1;background:var(--acc-pale);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:2px;}
+.sim-summary span{font-size:11.5px;color:var(--sub);}
+.sim-summary b{font-size:18px;font-family:var(--serif);color:var(--acc-dark);}
+.sim-summary b.pos{color:var(--green);} .sim-summary b.neg{color:var(--red);}
 /* 밀키트 상위 그룹 네비 (판매·운영 / 관리·설정) */
 .mk-groupnav{display:flex;gap:8px;margin:2px 0 12px;}
 .mk-group{flex:1;padding:12px 10px;border:1px solid var(--border);border-radius:11px;background:#fff;font-family:inherit;font-size:14px;font-weight:700;color:var(--sub);cursor:pointer;transition:.15s;line-height:1.3;}
 .mk-group .mk-group-sub{display:block;font-size:11px;font-weight:500;color:var(--sub2);margin-top:2px;}
 .mk-group.active{background:var(--acc);border-color:var(--acc);color:#fff;box-shadow:var(--shadow-sm);}
 .mk-group.active .mk-group-sub{color:rgba(255,255,255,.85);}
-@media(prefers-color-scheme:dark){ .mk-group{background:#2a2a2a;} }
 /* 단체 문자 모달 */
 .sms-scope-label{font-size:13px;font-weight:600;color:var(--txt);margin-bottom:8px;}
 .sms-scope{display:flex;flex-wrap:wrap;gap:7px;}
@@ -351,9 +364,6 @@ tr:hover td{background:var(--bg2);}
 .ship-row .shr-send{flex:0 0 auto;padding:7px 13px;font-size:12.5px;border-radius:7px;border:1px solid var(--acc);background:var(--acc);color:#fff;font-family:inherit;cursor:pointer;}
 .ship-row.sent .shr-send{background:#EEF3EC;color:#5A6B58;border-color:#CFE0CB;}
 .ship-row.sent .shr-name::after{content:' ✓';color:#4C7A46;}
-@media(prefers-color-scheme:dark){
-  .sms-chip,.sms-select,.sms-recip .sr-cnt{background:#2a2a2a;}
-}
 /* 배송완료 주문 카드는 전체 색을 진하게 달리해 발송 전 목록과 확실히 대비 */
 .mko-row.deliv-done .mrow-inner{background:#CFE0CB;border-left:5px solid #4C7A46;}
 .mko-row.deliv-done .mko-name{color:#2F4A2C;}
@@ -1477,6 +1487,12 @@ img{max-width:100%;height:auto;}
       <div style="font-size:11.5px;color:var(--sub2);margin-bottom:12px;line-height:1.6;">세트는 <b>피자 여러 개 + 포장박스 1개 + 택배 1회</b>로 나가므로 개당이 아닌 <b>세트 1건 기준</b>으로 순수익을 계산합니다. 판매가는 <b>평균 피자가</b> 기준이며, 담는 피자 구성에 따른 <b>최소~최대</b> 범위도 함께 보여줍니다. <span style="color:var(--sub);">(택배발송·카드결제 기준)</span></div>
       <div id="mk-setcost-cards" style="margin-bottom:26px;"></div>
 
+      <div class="page-hdr" style="border-bottom:none;margin-bottom:6px;padding-bottom:0;">
+        <h3 style="font-size:14px;">세트 할인 시뮬레이션 · 매출/수익 정리</h3>
+      </div>
+      <div style="font-size:11.5px;color:var(--sub2);margin-bottom:12px;line-height:1.6;">이벤트·프로모션 등 <b>추가 할인</b>을 세트별로 넣고 <b>예상 판매 수량</b>을 입력하면, 최종 판매가·세트당 순수익과 전체 <b>예상 매출·순수익</b>이 자동으로 정리됩니다. <span style="color:var(--sub);">(입력값은 저장됩니다)</span></div>
+      <div id="mk-setsim" style="margin-bottom:26px;"></div>
+
       <div class="page-hdr" style="border-bottom:none;margin-bottom:10px;padding-bottom:0;">
         <h3 style="font-size:14px;">상품별 원가 분석 <span style="font-size:11px;font-weight:400;color:var(--sub2);">(낱개 1개 = 주문 1건 기준)</span></h3>
         <button class="btn btn-out btn-sm" onclick="previewMilkitCostsPrint()">🖨️ 인쇄</button>
@@ -2535,6 +2551,8 @@ let milkitOrders = DB.load('milkitOrders', []);
 const MK_SHIPSMS_DEFAULT='[지구인피자] {이름}님, 주문하신 밀키트를 발송했습니다.\n송장번호: {송장번호}\n감사합니다 :)';
 let mkShipSmsTpl = DB.load('mkShipSmsTpl', MK_SHIPSMS_DEFAULT);
 let mkShipSmsAuto = DB.load('mkShipSmsAuto', true);
+// 세트 할인 시뮬레이션: {ruleId:{extra:추가할인원, qty:예상수량}}
+let mkSetSim = DB.load('mkSetSim', {});
 // 재고 입출고 기록: {id, date, productId, type:'생산'|'폐기'|'조정', qty, note}
 let milkitProduction = DB.load('milkitProduction', []);
 let mkEditId = null;
@@ -7965,18 +7983,18 @@ function mkSetProfitFor(pizzaArr, rule){
   return {listTotal,discount,revenue,material,packaging,shipping,cardFee,vat,localTax,loss,fixedPerOrder,
     cost,profit:revenue-cost,marginRate:revenue>0?(revenue-cost)/revenue:0};
 }
-/* 세트 규칙 하나에 대한 대표(평균) 순수익 + 구성별 최소~최대 범위 */
-function calcMkSetProfit(rule){
+/* 평균 피자로 채운 세트 1건의 순수익. extraDiscount = 이벤트/프로모션 추가 할인 */
+function mkSetAvgProfit(rule, extraDiscount){
+  extraDiscount=Number(extraDiscount)||0;
   const size=mkSetRuleSize(rule);
   const pizzas=milkitProducts.filter(p=>p.category==='피자');
-  if(size<2 || pizzas.length<size) return {size, pizzaCount:pizzas.length, insufficient:true};
-  // 대표값: 평균 피자로 채운 세트
+  if(size<2 || pizzas.length<size) return null;
   const avgPrice=pizzas.reduce((s,p)=>s+(Number(p.price)||0),0)/pizzas.length;
   const avgMat=pizzas.reduce((s,p)=>s+calcMkRecipeCost(p),0)/pizzas.length;
-  // 평균 피자로 채운 세트를 직접 산출 (calcMkRecipeCost는 items 기반이라 평균은 별도 계산)
   const f=milkitFees||{};
   const listTotal=avgPrice*size;
-  const discount=Number(rule.discount)||0;
+  const baseDiscount=Number(rule.discount)||0;
+  const discount=baseDiscount+extraDiscount;
   const revenue=Math.max(listTotal-discount,0);
   const material=avgMat*size;
   const packaging=Number(f.packagingCost)||0, shipping=Number(f.shippingCost)||0;
@@ -7985,15 +8003,22 @@ function calcMkSetProfit(rule){
   const monthlyFixed=(Number(f.rent)||0)+(Number(f.labor)||0)+(Number(f.utilities)||0)+(Number(f.other)||0);
   const fixedPerOrder=monthlyFixed/Math.max(Number(f.monthlyOrders)||1,1);
   const cost=material+packaging+shipping+cardFee+vat+localTax+loss+fixedPerOrder;
-  const avg={size,listTotal,discount,revenue,material,packaging,shipping,cardFee,vat,localTax,loss,fixedPerOrder,
-    cost,profit:revenue-cost,marginRate:revenue>0?(revenue-cost)/revenue:0};
+  return {size,avgPrice,listTotal,baseDiscount,extraDiscount,discount,revenue,material,packaging,shipping,
+    cardFee,vat,localTax,loss,fixedPerOrder,cost,profit:revenue-cost,marginRate:revenue>0?(revenue-cost)/revenue:0};
+}
+/* 세트 규칙 하나에 대한 대표(평균) 순수익 + 구성별 최소~최대 범위 */
+function calcMkSetProfit(rule){
+  const size=mkSetRuleSize(rule);
+  const pizzas=milkitProducts.filter(p=>p.category==='피자');
+  if(size<2 || pizzas.length<size) return {size, pizzaCount:pizzas.length, insufficient:true};
+  const avg=mkSetAvgProfit(rule, 0);
   // 범위: 가격 낮은 size개 조합 vs 높은 size개 조합
   const sorted=[...pizzas].sort((a,b)=>(Number(a.price)||0)-(Number(b.price)||0));
   const lo=mkSetProfitFor(sorted.slice(0,size), rule);
   const hi=mkSetProfitFor(sorted.slice(-size), rule);
   // 낱개로 size개를 따로따로(각자 포장·배송) 팔 때와 비교 — 세트 묶음의 절감액
   const singlesProfit = pizzas.reduce((s,p)=>{ const c=calcMkTotalCostPerItem(p); return s+c.margin; },0)/pizzas.length*size;
-  return {size, pizzaCount:pizzas.length, avgPrice, avg,
+  return {size, pizzaCount:pizzas.length, avgPrice:avg.avgPrice, avg,
     min:Math.min(lo.profit,hi.profit), max:Math.max(lo.profit,hi.profit),
     singlesProfit, saving:avg.profit-singlesProfit};
 }
@@ -8053,9 +8078,83 @@ function renderMkSetCosts(){
   }).join('');
 }
 
+/* 세트 할인 시뮬레이션 · 매출/수익 정리표 */
+function renderMkSetSim(){
+  const el=document.getElementById('mk-setsim'); if(!el) return;
+  const rules=milkitSetRules.filter(r=>mkSetRuleSize(r)>=2);
+  if(!rules.length){ el.innerHTML=`<div style="font-size:12.5px;color:var(--sub);padding:14px;border:1px dashed var(--border);border-radius:10px;">등록된 세트가 없습니다.</div>`; return; }
+  const rows=rules.map(r=>{
+    const size=mkSetRuleSize(r);
+    const sim=mkSetSim[r.id]||{}; const extra=Number(sim.extra)||0, qty=Number(sim.qty)||0;
+    const a=mkSetAvgProfit(r, extra);
+    if(!a){
+      return `<tr><td style="font-weight:600;">${r.name}</td><td colspan="7" style="text-align:left;color:var(--orange);">피자 ${size}종 이상 등록 필요</td></tr>`;
+    }
+    return `<tr>
+      <td style="font-weight:600;">${r.name}<div style="font-size:10.5px;color:var(--sub2);font-weight:400;">피자 ${size}종</div></td>
+      <td class="num">-${comma(a.baseDiscount)}원</td>
+      <td><input type="text" inputmode="numeric" class="sim-inp" id="sim-extra-${r.id}" value="${extra||''}" placeholder="0" oninput="mkSetSimInput('${r.id}')"></td>
+      <td class="num" id="sim-price-${r.id}">${comma(Math.round(a.revenue))}원</td>
+      <td class="num"><span id="sim-profit-${r.id}">${comma(Math.round(a.profit))}</span>원<div style="font-size:10.5px;color:var(--sub2);" id="sim-margin-${r.id}">${pct(a.marginRate)}</div></td>
+      <td><input type="text" inputmode="numeric" class="sim-inp" id="sim-qty-${r.id}" value="${qty||''}" placeholder="0" oninput="mkSetSimInput('${r.id}')"></td>
+      <td class="num" id="sim-rev-${r.id}">${comma(Math.round(a.revenue*qty))}원</td>
+      <td class="num" id="sim-net-${r.id}" style="font-weight:700;">${comma(Math.round(a.profit*qty))}원</td>
+    </tr>`;
+  }).join('');
+  el.innerHTML=`
+    <div class="sim-wrap">
+      <table class="sim-table">
+        <thead><tr>
+          <th>세트</th><th>기본할인</th><th>추가할인</th><th>최종 판매가</th><th>세트당 순수익</th><th>예상 수량</th><th>예상 매출</th><th>예상 순수익</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+        <tfoot><tr>
+          <td colspan="5" style="text-align:right;">합계</td>
+          <td class="num" id="sim-tot-qty">0</td>
+          <td class="num" id="sim-tot-rev">0원</td>
+          <td class="num" id="sim-tot-net">0원</td>
+        </tr></tfoot>
+      </table>
+    </div>
+    <div class="sim-summary">
+      <div><span>예상 총 매출</span><b id="sim-sum-rev">0원</b></div>
+      <div><span>예상 총 순수익</span><b id="sim-sum-net" class="pos">0원</b></div>
+    </div>`;
+  mkSetSimRecalc();
+}
+function mkSetSimInput(id){
+  const extra=unComma(document.getElementById('sim-extra-'+id)?.value||'');
+  const qty=unComma(document.getElementById('sim-qty-'+id)?.value||'');
+  mkSetSim[id]={extra, qty};
+  DB.save('mkSetSim', mkSetSim);
+  mkSetSimRecalc();
+}
+function mkSetSimRecalc(){
+  let totQty=0, totRev=0, totNet=0;
+  milkitSetRules.filter(r=>mkSetRuleSize(r)>=2).forEach(r=>{
+    const sim=mkSetSim[r.id]||{}; const extra=Number(sim.extra)||0, qty=Number(sim.qty)||0;
+    const a=mkSetAvgProfit(r, extra); if(!a) return;
+    const set=(id,v)=>{const e=document.getElementById(id); if(e) e.textContent=v;};
+    set('sim-price-'+r.id, comma(Math.round(a.revenue))+'원');
+    set('sim-profit-'+r.id, comma(Math.round(a.profit)));
+    set('sim-margin-'+r.id, pct(a.marginRate));
+    set('sim-rev-'+r.id, comma(Math.round(a.revenue*qty))+'원');
+    set('sim-net-'+r.id, comma(Math.round(a.profit*qty))+'원');
+    totQty+=qty; totRev+=a.revenue*qty; totNet+=a.profit*qty;
+  });
+  const set=(id,v)=>{const e=document.getElementById(id); if(e) e.textContent=v;};
+  set('sim-tot-qty', comma(totQty));
+  set('sim-tot-rev', comma(Math.round(totRev))+'원');
+  set('sim-tot-net', comma(Math.round(totNet))+'원');
+  set('sim-sum-rev', comma(Math.round(totRev))+'원');
+  set('sim-sum-net', comma(Math.round(totNet))+'원');
+  const netB=document.getElementById('sim-sum-net'); if(netB) netB.className = totNet>=0?'pos':'neg';
+}
+
 function renderMilkitCosts(){
   renderMilkitFeeGrid();
   renderMkSetCosts();
+  renderMkSetSim();
   const el=document.getElementById('mk-cost-cards');
   if(!milkitProducts.length){
     el.innerHTML=`<div class="empty-state"><div class="empty-icon">🧮</div><p>등록된 상품이 없습니다.</p></div>`;
@@ -8288,7 +8387,7 @@ const SYNC_KEYS = [
   'ingredients','suppliers','recipes','stores','fees','receivings','orderCart',
   'milkitProducts','milkitSetRules','milkitCustomers','milkitFees',
   'milkitProduction','cheeseSplits','labels',
-  'mkShipSmsTpl','mkShipSmsAuto'
+  'mkShipSmsTpl','mkShipSmsAuto','mkSetSim'
 ];
 let fbDb=null, fbConnected=false;
 let _mkOrderShadow={};      // 주문 id -> 마지막 동기화된 JSON (변경분만 전송)
