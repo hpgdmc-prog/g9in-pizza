@@ -194,9 +194,9 @@ tr:hover td{background:var(--bg2);}
 .modal-body{padding:20px 24px;}
 .modal-footer{padding:16px 24px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;}
 /* 크고 꽉 찬 하단 버튼 (데이터 입력 모달) */
-.modal-footer-lg{padding:14px 20px 18px;border-top:1px solid var(--border);display:flex;gap:10px;}
-.modal-footer-lg .btn{flex:1;padding:16px;font-size:15px;border-radius:11px;letter-spacing:0;}
-.modal-footer-lg .btn-acc{flex:1.7;box-shadow:var(--shadow-sm);}
+.modal-footer-lg{padding:14px 20px 18px;border-top:1px solid var(--border);display:flex;gap:10px;flex-wrap:wrap;}
+.modal-footer-lg .btn{flex:1 1 auto;min-width:120px;padding:16px;font-size:15px;border-radius:11px;letter-spacing:0;}
+.modal-footer-lg .btn-acc{flex:1.7 1 auto;box-shadow:var(--shadow-sm);}
 /* 필수입력 누락 강조 */
 .input-invalid{border:1.5px solid var(--red)!important;background:#FCEDED!important;}
 #mk-order-qty-rows.input-invalid{border-radius:9px;padding:6px;}
@@ -1108,7 +1108,7 @@ img{max-width:100%;height:auto;}
           </label>
         </div>
       </div>
-      <div class="modal-footer">
+      <div class="modal-footer-lg">
         <button class="btn btn-out" onclick="closeModal('recv-modal')">취소</button>
         <button class="btn btn-acc" onclick="saveReceiving()">입고 저장</button>
       </div>
@@ -1704,7 +1704,7 @@ img{max-width:100%;height:auto;}
         </div>
       </div>
     </div>
-    <div class="modal-footer">
+    <div class="modal-footer-lg">
       <button class="btn btn-out" onclick="closeModal('ing-modal')">취소</button>
       <button class="btn btn-acc" onclick="saveIngredient()">저장</button>
     </div>
@@ -1760,7 +1760,7 @@ img{max-width:100%;height:auto;}
         <textarea id="sup-notes" placeholder="특이사항, 거래 조건 등…"></textarea>
       </div>
     </div>
-    <div class="modal-footer">
+    <div class="modal-footer-lg">
       <button class="btn btn-out" onclick="closeModal('sup-modal')">취소</button>
       <button class="btn btn-acc" onclick="saveSupplier()">저장</button>
     </div>
@@ -1818,7 +1818,7 @@ img{max-width:100%;height:auto;}
         <textarea id="rec-notes" placeholder="조리 순서, 포인트, 주의사항…" style="min-height:90px;"></textarea>
       </div>
     </div>
-    <div class="modal-footer">
+    <div class="modal-footer-lg">
       <button class="btn btn-out" onclick="closeModal('rec-modal')">취소</button>
       <button class="btn btn-acc" onclick="saveRecipe()">저장</button>
     </div>
@@ -1876,7 +1876,7 @@ img{max-width:100%;height:auto;}
         <div class="form-row"><label>단백질 g (%)</label><div style="display:flex;gap:6px;"><input type="text" id="lb-n-protein" placeholder="g" style="flex:1;"><input type="text" id="lb-n-proteinP" placeholder="%" style="width:56px;"></div></div>
       </div>
     </div>
-    <div class="modal-footer">
+    <div class="modal-footer-lg">
       <button class="btn btn-out" onclick="closeModal('label-modal')">취소</button>
       <button class="btn btn-out" onclick="saveLabel(); if(labelEditName) previewLabel(labelEditName);">👁 미리보기</button>
       <button class="btn btn-out" onclick="saveLabel(); if(labelEditName) printLabel(labelEditName);">저장 후 인쇄</button>
@@ -1937,7 +1937,7 @@ img{max-width:100%;height:auto;}
       <div id="mk-stockedit-rows" style="border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:6px;"></div>
       <div id="mk-stockedit-summary" style="font-size:12px;color:var(--sub);text-align:right;"></div>
     </div>
-    <div class="modal-footer">
+    <div class="modal-footer-lg">
       <button class="btn btn-out" onclick="closeModal('mk-stockedit-modal')">취소</button>
       <button class="btn btn-acc" id="mk-stockedit-save-btn" onclick="saveMkStockEdit()">저장</button>
     </div>
@@ -2002,7 +2002,7 @@ img{max-width:100%;height:auto;}
         <input type="text" id="mk-prod-note" placeholder="예: 오전 생산분">
       </div>
     </div>
-    <div class="modal-footer">
+    <div class="modal-footer-lg">
       <button class="btn btn-out" onclick="closeModal('mk-production-modal')">취소</button>
       <button class="btn btn-acc" id="mk-prod-save-btn" onclick="saveMkProduction()">저장</button>
     </div>
@@ -2035,7 +2035,7 @@ img{max-width:100%;height:auto;}
       </div>
       <div id="bulk-preview" style="font-size:12px;color:var(--acc-dark);min-height:16px;"></div>
     </div>
-    <div class="modal-footer">
+    <div class="modal-footer-lg">
       <button class="btn btn-out" onclick="closeModal('bulk-modal')">취소</button>
       <button class="btn btn-acc" onclick="applyBulkAmount()">일괄 적용</button>
     </div>
@@ -2095,7 +2095,7 @@ img{max-width:100%;height:auto;}
         <textarea id="store-notes" placeholder="특이사항…"></textarea>
       </div>
     </div>
-    <div class="modal-footer">
+    <div class="modal-footer-lg">
       <button class="btn btn-out" onclick="closeModal('store-modal')">취소</button>
       <button class="btn btn-acc" onclick="saveStore()">저장</button>
     </div>
@@ -2270,7 +2270,7 @@ img{max-width:100%;height:auto;}
       <div id="mk-setpick-hint" style="font-size:12.5px;color:var(--sub);margin-bottom:12px;line-height:1.5;"></div>
       <div id="mk-setpick-list" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;"></div>
     </div>
-    <div class="modal-footer">
+    <div class="modal-footer-lg">
       <button class="btn btn-out" onclick="mkSetPickCancel()">취소</button>
       <button class="btn btn-acc" id="mk-setpick-ok" onclick="mkSetPickConfirm()" disabled>선택 완료</button>
     </div>
@@ -2440,7 +2440,7 @@ img{max-width:100%;height:auto;}
       <div style="font-size:12px;color:var(--sub);margin-bottom:12px;line-height:1.6;">주문마다 송장번호를 각각 입력하세요. 번호를 넣으면 배송상태가 자동으로 <b>배송중</b>으로 바뀝니다. 빈칸으로 두면 변경되지 않습니다.</div>
       <div id="mk-tracking-rows"></div>
     </div>
-    <div class="modal-footer">
+    <div class="modal-footer-lg">
       <button class="btn btn-out" onclick="closeModal('mk-tracking-modal')">취소</button>
       <button class="btn btn-acc" onclick="saveMkBulkTracking()">저장</button>
     </div>
@@ -2506,7 +2506,7 @@ img{max-width:100%;height:auto;}
         </table>
       </div>
     </div>
-    <div class="modal-footer">
+    <div class="modal-footer-lg">
       <button class="btn btn-out" onclick="closeModal('mk-import-modal')">취소</button>
       <button class="btn btn-acc" id="mk-import-confirm-btn" onclick="confirmMilkitOrderImport()">일괄 등록</button>
     </div>
@@ -2552,7 +2552,7 @@ img{max-width:100%;height:auto;}
         <button class="btn btn-out btn-sm" id="mk-ocr-ai-btn" onclick="runMkOcr()" style="margin-top:10px;">🤖 AI로 정밀 인식</button>
       </details>
     </div>
-    <div class="modal-footer">
+    <div class="modal-footer-lg">
       <button class="btn btn-out" onclick="closeModal('mk-ocr-modal')">취소</button>
       <button class="btn btn-acc" id="mk-ocr-parse-btn" onclick="runMkFreeParse()" disabled>✨ 자동 인식 (무료)</button>
     </div>
@@ -2590,7 +2590,7 @@ img{max-width:100%;height:auto;}
         </button>
       </div>
     </div>
-    <div class="modal-footer">
+    <div class="modal-footer-lg">
       <button class="btn btn-out" onclick="mkDupCancel()">취소 (등록하지 않음)</button>
     </div>
   </div>
@@ -2614,7 +2614,7 @@ img{max-width:100%;height:auto;}
       </div>
       <div style="font-size:11.5px;color:var(--sub2);margin-top:10px;line-height:1.6;">⚠️ 자동 인식 결과는 <b>저장 전에 반드시 확인</b>하세요. 등록 후 주문 내역에서 각 건을 눌러 수정할 수 있습니다.</div>
     </div>
-    <div class="modal-footer">
+    <div class="modal-footer-lg">
       <button class="btn btn-out" onclick="closeModal('mk-bulkparse-modal')">취소</button>
       <button class="btn btn-acc" id="mk-bulkparse-save-btn" onclick="saveMkBulkParsed()">선택한 주문 등록</button>
     </div>
@@ -2637,7 +2637,7 @@ img{max-width:100%;height:auto;}
         <b class="num" id="mk-recipe-cost-total" style="font-size:15px;">0원</b>
       </div>
     </div>
-    <div class="modal-footer">
+    <div class="modal-footer-lg">
       <button class="btn btn-out" onclick="closeModal('mk-recipe-modal')">취소</button>
       <button class="btn btn-acc" onclick="saveMkProductRecipe()">저장</button>
     </div>
