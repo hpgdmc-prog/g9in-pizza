@@ -2297,13 +2297,17 @@ img{max-width:100%;height:auto;}
       <div id="mk-sms-list" class="sms-list"></div>
       <div id="mk-sms-nophone" class="sms-note"></div>
 
-      <div class="sms-scope-label" style="margin-top:14px;">메시지 <span style="font-weight:400;color:var(--sub);">(문자 앱으로 보낼 때 사용)</span></div>
+      <div class="sms-scope-label" style="margin-top:14px;">메시지</div>
       <textarea id="mk-sms-body" class="sms-body" rows="4" placeholder="예) [지구인피자] 주문하신 밀키트가 오늘 발송됩니다. 감사합니다!" oninput="mkSmsCountBytes()"></textarea>
       <div id="mk-sms-bytes" class="sms-bytes"></div>
+      <div class="sms-note" style="margin-top:8px;line-height:1.6;">💡 <b>내 폰 요금제(문자 무제한)로 무료 발송</b>하는 방법:<br>
+        · <b>모바일</b> — 아래 <b>문자 앱 열기</b>로 한 명씩 발송<br>
+        · <b>PC(안드로이드)</b> — <b>구글 메시지 웹</b>(messages.google.com/web) 또는 윈도우 <b>휴대폰과 연결</b>에서 <b>번호·메시지 복사</b>해 붙여넣기<br>
+        · <b>PC(아이폰)</b> — 맥 <b>메시지 앱</b>(문자 전달) 사용</div>
     </div>
     <div class="modal-footer sms-footer">
       <button class="btn btn-out" onclick="mkSmsCopyNumbers()">📋 번호 복사</button>
-      <button class="btn btn-out" onclick="mkSmsCopyTable()">📇 이름+번호</button>
+      <button class="btn btn-out" onclick="mkSmsCopyMessage()">📝 메시지 복사</button>
       <button class="btn btn-acc" onclick="mkSmsOpenApp()">💬 문자 앱 열기</button>
     </div>
   </div>
@@ -6129,6 +6133,11 @@ function mkSmsCopyNumbers(){
 function mkSmsCopyTable(){
   const sel=mkSmsSelected(); if(!sel.length){ alert('선택된 수신자가 없습니다.'); return; }
   mkSmsCopy(sel.map(r=>`${r.name}\t${r.digits}`).join('\n'), `이름+번호 ${sel.length}건을 복사했습니다.\n엑셀·문자서비스에 붙여넣으세요.`);
+}
+function mkSmsCopyMessage(){
+  const body=(document.getElementById('mk-sms-body').value||'').trim();
+  if(!body){ alert('메시지 내용을 입력해 주세요.'); return; }
+  mkSmsCopy(body, '메시지를 복사했습니다.\nPC 문자앱(구글 메시지 웹·아이폰↔맥 메시지)에 붙여넣으세요.');
 }
 /* sms 링크 생성 — 안드로이드는 ?body, 그 외(아이폰 등)는 &body */
 function mkSmsLink(digits, body){
