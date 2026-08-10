@@ -202,6 +202,13 @@ tr:hover td{background:var(--bg2);}
 #mk-order-qty-rows.input-invalid{border-radius:9px;padding:6px;}
 .modal-error{margin:0 24px 4px;background:#FCEDED;border:1px solid #E8B4B4;color:#B23B3B;border-radius:9px;padding:11px 14px;font-size:13px;line-height:1.55;display:none;}
 .modal-error.show{display:block;}
+/* 폼 섹션 구분 (입력 항목 그룹핑) */
+.form-section{border:1px solid var(--border);border-radius:12px;padding:14px 14px 2px;margin-bottom:14px;}
+.form-section-hd{font-size:13px;font-weight:700;color:var(--txt);margin:-2px 0 12px;display:flex;align-items:center;gap:8px;}
+.form-section-hd .fs-num{display:inline-flex;align-items:center;justify-content:center;width:21px;height:21px;border-radius:50%;background:var(--acc);color:#fff;font-size:11px;font-weight:700;flex:0 0 auto;}
+.req{color:var(--red);font-weight:700;}
+.req-note{font-size:11px;color:var(--sub2);font-weight:400;}
+.form-legend{font-size:12px;color:var(--sub);background:var(--acc-pale);border-radius:9px;padding:10px 13px;margin-bottom:16px;line-height:1.6;}
 /* form */
 .form-row{margin-bottom:14px;}
 .form-row label{display:block;font-size:11px;font-weight:600;color:var(--sub);letter-spacing:.12em;text-transform:uppercase;margin-bottom:6px;}
@@ -2102,120 +2109,141 @@ img{max-width:100%;height:auto;}
       <button class="btn btn-icon btn-out" onclick="closeModal('mk-order-modal')">✕</button>
     </div>
     <div class="modal-body">
-      <div class="form-grid">
-        <div class="form-row">
-          <label>주문일자 *</label>
-          <input type="date" id="mk-order-date">
+      <div class="form-legend"><b class="req">*</b> 표시는 <b>꼭 입력</b>해야 하는 항목입니다. <b>연락처·배송주소</b>는 택배발송·직접배송일 때 필요해요.</div>
+
+      <!-- ① 기본 정보 -->
+      <div class="form-section">
+        <div class="form-section-hd"><span class="fs-num">1</span> 기본 정보</div>
+        <div class="form-grid">
+          <div class="form-row">
+            <label>주문일자 <span class="req">*</span></label>
+            <input type="date" id="mk-order-date">
+          </div>
+          <div class="form-row">
+            <label>주문시각</label>
+            <input type="time" id="mk-order-time">
+          </div>
+          <div class="form-row">
+            <label>주문자명 <span class="req">*</span></label>
+            <div class="ac-wrap">
+              <input type="text" id="mk-order-customer" placeholder="고객명" autocomplete="off"
+                oninput="mkCustomerInput();mkSyncRecipientPh();this.classList.remove('input-invalid')" onfocus="mkCustomerSuggest(false)" onblur="mkCustomerBlur()">
+              <button type="button" class="ac-all-btn" title="전체 고객 목록" onclick="mkCustomerSuggest(true)">📋</button>
+              <div class="ac-list" id="mk-customer-suggest"></div>
+            </div>
+          </div>
+          <div class="form-row">
+            <label>연락처 <span class="req-note">(배송 시 필수)</span></label>
+            <input type="tel" id="mk-order-phone" placeholder="010-0000-0000" oninput="this.value=formatPhone(this.value);mkSyncRecipientPh();this.classList.remove('input-invalid')">
+          </div>
         </div>
+      </div>
+
+      <!-- ② 상품 · 금액 -->
+      <div class="form-section">
+        <div class="form-section-hd"><span class="fs-num">2</span> 상품 · 금액</div>
         <div class="form-row">
-          <label>주문시각</label>
-          <input type="time" id="mk-order-time">
+          <label>상품별 수량 <span class="req">*</span></label>
+          <div class="recipe-items-list" id="mk-order-qty-rows"></div>
         </div>
+        <div style="font-size:11px;color:var(--sub2);margin:-4px 0 8px;">💡 피자 수량에 따라 세트 할인이 자동 적용됩니다 (2개↑ 2종세트 · 4개↑ 4종세트). 필요하면 아래에서 직접 바꿀 수 있어요.</div>
+        <div class="form-grid">
+          <div class="form-row">
+            <label>구성유형</label>
+            <select id="mk-order-settype" onchange="mkSetTypeChanged()"></select>
+          </div>
+          <div class="form-row">
+            <label>세트수량</label>
+            <input type="number" id="mk-order-setqty" value="1" min="1" oninput="mkUpdateOrderTotals()">
+          </div>
+        </div>
+        <div style="background:var(--bg2);border-radius:var(--r-md);padding:12px 16px;margin-bottom:6px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;font-size:13px;">
+          <span>정가합계 <b class="num" id="mk-order-listtotal">0원</b></span>
+          <span>할인금액 <b class="num" style="color:var(--red);" id="mk-order-discount">0원</b></span>
+          <span>결제금액 <b class="num" style="color:var(--acc-dark);font-size:15px;" id="mk-order-paytotal">0원</b></span>
+        </div>
+      </div>
+
+      <!-- ③ 받는 분 · 배송지 -->
+      <div class="form-section">
+        <div class="form-section-hd"><span class="fs-num">3</span> 받는 분 · 배송지</div>
+        <div class="form-grid" id="mk-order-recipient-box">
+          <div class="form-row">
+            <label>받는 분</label>
+            <input type="text" id="mk-order-recipient" placeholder="주문자와 동일">
+          </div>
+          <div class="form-row">
+            <label>받는 분 연락처</label>
+            <input type="tel" id="mk-order-recipient-phone" placeholder="주문자와 동일" oninput="this.value=formatPhone(this.value)">
+          </div>
+        </div>
+        <div style="font-size:11.5px;color:var(--sub);margin:-2px 0 10px;line-height:1.5;">💡 선물·대리주문 등 <b>받는 분이 다르면</b> 이름을 입력하세요. 비워두면 주문자와 동일하게 처리됩니다.</div>
         <div class="form-row">
-          <label>주문자명 *</label>
-          <div class="ac-wrap">
-            <input type="text" id="mk-order-customer" placeholder="고객명" autocomplete="off"
-              oninput="mkCustomerInput();mkSyncRecipientPh();this.classList.remove('input-invalid')" onfocus="mkCustomerSuggest(false)" onblur="mkCustomerBlur()">
-            <button type="button" class="ac-all-btn" title="전체 고객 목록" onclick="mkCustomerSuggest(true)">📋</button>
-            <div class="ac-list" id="mk-customer-suggest"></div>
+          <label>배송주소 (도로명) <span class="req-note">(배송 시 필수)</span></label>
+          <div style="display:flex;gap:6px;">
+            <input type="text" id="mk-order-address" placeholder="🔍 주소검색으로 도로명 주소 입력" style="flex:1;min-width:0;" oninput="this.classList.remove('input-invalid')">
+            <button type="button" class="btn btn-out btn-sm" style="flex:0 0 auto;" onclick="openAddressSearch('mk-order-address','mk-order-address-detail')">🔍 주소검색</button>
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="form-row">
+            <label>상세주소 <span class="req-note">(동·호수 등)</span></label>
+            <input type="text" id="mk-order-address-detail" placeholder="예: 103동 2601호">
+          </div>
+          <div class="form-row">
+            <label>희망수령일</label>
+            <input type="date" id="mk-order-desired" onchange="mkDeliveryHint()">
+          </div>
+        </div>
+        <div id="mk-order-deliv-hint" style="display:none;font-size:12px;color:var(--acc-dark);background:var(--acc-pale);border-radius:8px;padding:9px 12px;margin:2px 0 4px;line-height:1.6;"></div>
+      </div>
+
+      <!-- ④ 결제 · 배송상태 -->
+      <div class="form-section">
+        <div class="form-section-hd"><span class="fs-num">4</span> 결제 · 배송상태</div>
+        <div class="form-grid">
+          <div class="form-row">
+            <label>결제방법</label>
+            <select id="mk-order-paymethod" onchange="mkPayMethodChanged()">
+              <option value="">미납</option>
+              <option value="카드">카드</option>
+              <option value="계좌이체">계좌이체</option>
+              <option value="현금">현금</option>
+              <option value="기타">기타</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label>결제상태</label>
+            <select id="mk-order-paystatus" onchange="mkOrderPayStatusChanged()">
+              <option value="대기">대기(미납)</option>
+              <option value="완료">완료</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label>배송방법</label>
+            <select id="mk-order-delmethod" onchange="mkDeliveryHint()">
+              <option value="택배발송">택배발송</option>
+              <option value="직접배송">직접배송</option>
+              <option value="직접수령">직접수령</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label>배송상태</label>
+            <select id="mk-order-delstatus">
+              <option value="준비중">준비중</option>
+              <option value="배송중">배송중</option>
+              <option value="배송완료">배송완료</option>
+            </select>
           </div>
         </div>
         <div class="form-row">
-          <label>연락처</label>
-          <input type="tel" id="mk-order-phone" placeholder="010-0000-0000" oninput="this.value=formatPhone(this.value);mkSyncRecipientPh();this.classList.remove('input-invalid')">
-        </div>
-      </div>
-      <div class="form-grid" id="mk-order-recipient-box">
-        <div class="form-row">
-          <label>받는 분</label>
-          <input type="text" id="mk-order-recipient" placeholder="주문자와 동일">
+          <label>송장번호</label>
+          <input type="text" id="mk-order-tracking" placeholder="택배 송장번호">
         </div>
         <div class="form-row">
-          <label>받는 분 연락처</label>
-          <input type="tel" id="mk-order-recipient-phone" placeholder="주문자와 동일" oninput="this.value=formatPhone(this.value)">
+          <label>비고</label>
+          <textarea id="mk-order-note" placeholder="특이사항, 요청사항…"></textarea>
         </div>
-      </div>
-      <div style="font-size:11.5px;color:var(--sub);margin:-2px 0 10px;line-height:1.5;">💡 선물·대리주문 등 <b>받는 분이 다르면</b> 이름을 입력하세요. 비워두면 주문자와 동일하게 처리됩니다.</div>
-      <div class="form-row">
-        <label>배송주소 (도로명)</label>
-        <div style="display:flex;gap:6px;">
-          <input type="text" id="mk-order-address" placeholder="🔍 주소검색으로 도로명 주소 입력" style="flex:1;min-width:0;" oninput="this.classList.remove('input-invalid')">
-          <button type="button" class="btn btn-out btn-sm" style="flex:0 0 auto;" onclick="openAddressSearch('mk-order-address','mk-order-address-detail')">🔍 주소검색</button>
-        </div>
-      </div>
-      <div class="form-grid">
-        <div class="form-row">
-          <label>상세주소 <span style="font-weight:400;color:var(--sub2);">(동·호수 등)</span></label>
-          <input type="text" id="mk-order-address-detail" placeholder="예: 103동 2601호">
-        </div>
-        <div class="form-row">
-          <label>희망수령일</label>
-          <input type="date" id="mk-order-desired" onchange="mkDeliveryHint()">
-        </div>
-      </div>
-      <div id="mk-order-deliv-hint" style="display:none;font-size:12px;color:var(--acc-dark);background:var(--acc-pale);border-radius:8px;padding:9px 12px;margin:-4px 0 12px;line-height:1.6;"></div>
-      <div class="form-row">
-        <label>상품별 수량 *</label>
-        <div class="recipe-items-list" id="mk-order-qty-rows"></div>
-      </div>
-      <div style="font-size:11px;color:var(--sub2);margin:-4px 0 8px;">💡 피자 수량에 따라 세트 할인이 자동 적용됩니다 (2개↑ 2종세트 · 4개↑ 4종세트). 필요하면 아래에서 직접 바꿀 수 있어요.</div>
-      <div class="form-grid">
-        <div class="form-row">
-          <label>구성유형</label>
-          <select id="mk-order-settype" onchange="mkSetTypeChanged()"></select>
-        </div>
-        <div class="form-row">
-          <label>세트수량</label>
-          <input type="number" id="mk-order-setqty" value="1" min="1" oninput="mkUpdateOrderTotals()">
-        </div>
-      </div>
-      <div style="background:var(--bg2);border-radius:var(--r-md);padding:12px 16px;margin-bottom:14px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;font-size:13px;">
-        <span>정가합계 <b class="num" id="mk-order-listtotal">0원</b></span>
-        <span>할인금액 <b class="num" style="color:var(--red);" id="mk-order-discount">0원</b></span>
-        <span>결제금액 <b class="num" style="color:var(--acc-dark);font-size:15px;" id="mk-order-paytotal">0원</b></span>
-      </div>
-      <div class="form-grid">
-        <div class="form-row">
-          <label>결제방법</label>
-          <select id="mk-order-paymethod" onchange="mkPayMethodChanged()">
-            <option value="">미납</option>
-            <option value="카드">카드</option>
-            <option value="계좌이체">계좌이체</option>
-            <option value="현금">현금</option>
-            <option value="기타">기타</option>
-          </select>
-        </div>
-        <div class="form-row">
-          <label>결제상태</label>
-          <select id="mk-order-paystatus" onchange="mkOrderPayStatusChanged()">
-            <option value="대기">대기(미납)</option>
-            <option value="완료">완료</option>
-          </select>
-        </div>
-        <div class="form-row">
-          <label>배송방법</label>
-          <select id="mk-order-delmethod" onchange="mkDeliveryHint()">
-            <option value="택배발송">택배발송</option>
-            <option value="직접배송">직접배송</option>
-            <option value="직접수령">직접수령</option>
-          </select>
-        </div>
-        <div class="form-row">
-          <label>배송상태</label>
-          <select id="mk-order-delstatus">
-            <option value="준비중">준비중</option>
-            <option value="배송중">배송중</option>
-            <option value="배송완료">배송완료</option>
-          </select>
-        </div>
-      </div>
-      <div class="form-row">
-        <label>송장번호</label>
-        <input type="text" id="mk-order-tracking" placeholder="택배 송장번호">
-      </div>
-      <div class="form-row">
-        <label>비고</label>
-        <textarea id="mk-order-note" placeholder="특이사항, 요청사항…"></textarea>
       </div>
     </div>
     <div class="modal-error" id="mk-order-error"></div>
