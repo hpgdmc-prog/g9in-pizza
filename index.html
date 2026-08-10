@@ -1253,6 +1253,7 @@ img{max-width:100%;height:auto;}
             <button class="btn btn-out btn-sm" onclick="mkToggleMenu(this)">📦 배송·출력 ▾</button>
             <div class="mk-menu-list">
               <button onclick="closeMkMenus();openMkLogenModal()">📦 로젠 대량등록</button>
+              <button onclick="closeMkMenus();document.getElementById('mk-trk-import-file').click()">📥 송장번호 가져오기</button>
               <button onclick="closeMkMenus();previewMilkitOrderPrint()">🖨️ 주문서 인쇄</button>
               <button onclick="closeMkMenus();exportMilkitOrders()">📥 엑셀 내보내기</button>
             </div>
@@ -2358,6 +2359,26 @@ img{max-width:100%;height:auto;}
   </div>
 </div>
 
+<!-- 로젠 송장번호 가져오기(매칭 확인) -->
+<div class="modal-bg" id="mk-trkimport-modal">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-hdr">
+      <h4>📥 송장번호 가져오기</h4>
+      <button class="btn btn-icon btn-out" onclick="closeModal('mk-trkimport-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="mk-trkimport-summary" class="sms-note" style="margin-bottom:10px;font-size:13px;"></div>
+      <div class="sms-recip-bar"><span class="sms-count" id="mk-trkimport-count"></span></div>
+      <div id="mk-trkimport-list" class="sms-list"></div>
+      <div class="sms-note" style="margin-top:8px;">체크한 주문에 송장번호를 넣고 <b>배송중</b>으로 바꾼 뒤, 이어서 <b>발송 안내 문자</b> 창을 엽니다. 매칭 실패 건은 이름·주소를 확인하거나 개별로 입력해 주세요.</div>
+    </div>
+    <div class="modal-footer sms-footer">
+      <button class="btn btn-out" onclick="closeModal('mk-trkimport-modal')">닫기</button>
+      <button class="btn btn-acc" id="mk-trkimport-ok" onclick="applyMkTrackingImport()">✅ 적용 + 문자</button>
+    </div>
+  </div>
+</div>
+
 <!-- 발송 안내 문자 (배송중 전환 시 반자동) -->
 <div class="modal-bg" id="mk-shipsms-modal">
   <div class="modal" style="max-width:540px;">
@@ -2464,6 +2485,7 @@ img{max-width:100%;height:auto;}
 
 <!-- ===MILKIT 엑셀 업로드 일괄 등록=== -->
 <input type="file" id="mk-order-import-file" accept=".xlsx,.xls,.csv" style="display:none;" onchange="handleMilkitOrderImport(this)">
+<input type="file" id="mk-trk-import-file" accept=".xlsx,.xls,.csv" style="display:none;" onchange="handleMkTrackingImport(this)">
 <div class="modal-bg" id="mk-import-modal">
   <div class="modal" style="max-width:720px;">
     <div class="modal-hdr">
@@ -6779,6 +6801,122 @@ function processMilkitImportFile(file){
     }
   };
   reader.readAsArrayBuffer(file);
+}
+
+/* ===== 로젠 송장번호 가져오기 =====
+   로젠에서 '운송장 출력' 후 목록을 엑셀저장한 파일을 올려, 수하인 정보로 우리 주문에 매칭한다. */
+let _mkTrkImport=[];
+function handleMkTrackingImport(input){
+  const file=input.files && input.files[0]; input.value='';
+  if(!file) return;
+  if(!/\.(xlsx|xls|csv)$/i.test(file.name)){ alert('엑셀(.xlsx, .xls) 또는 CSV 파일만 올릴 수 있습니다.'); return; }
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const wb=XLSX.read(e.target.result, {type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const aoa=XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+      parseMkTrackingRows(aoa);
+    }catch(err){ alert('엑셀을 읽는 중 오류가 발생했습니다: '+err.message); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+function _digits(s){ return String(s==null?'':s).replace(/\D/g,''); }
+function _norm(s){ return String(s==null?'':s).replace(/\s/g,'').toLowerCase(); }
+function parseMkTrackingRows(aoa){
+  // 헤더 행 찾기 (운송장번호 셀이 있는 행)
+  let hIdx=-1, H={};
+  for(let i=0;i<Math.min(aoa.length,15);i++){
+    const row=aoa[i].map(c=>mkNormalizeHeader(c));
+    if(row.some(c=>/운송장번호/.test(c))){ hIdx=i; row.forEach((c,ci)=>{ if(c) H[c]=ci; }); break; }
+  }
+  if(hIdx<0){ alert('운송장번호 열을 찾지 못했습니다.\n로젠에서 「운송장 출력」 후 목록을 엑셀저장한 파일인지 확인해 주세요.'); return; }
+  const col=(...names)=>{ for(const n of names){ for(const k in H){ if(k===n) return H[k]; } } for(const n of names){ for(const k in H){ if(k.indexOf(n)>=0) return H[k]; } } return -1; };
+  const cTrk=col('운송장번호'), cName=col('수하인명','수하인','받는분','받는분성명'),
+        cTel=col('수하인전화','수하인전화번호'), cMob=col('수하인휴대폰','수하인핸드폰번호','수하인핸드폰'),
+        cAddr=col('수하인주소','받는분주소','주소');
+  const parsed=[];
+  for(let i=hIdx+1;i<aoa.length;i++){
+    const r=aoa[i]; if(!r||!r.length) continue;
+    const trk=String(cTrk>=0?r[cTrk]:'').trim();
+    if(!/\d{6,}/.test(_digits(trk))) continue;   // 운송장번호(숫자) 있는 행만
+    parsed.push({
+      tracking:trk.replace(/\s/g,''),
+      name:String(cName>=0?r[cName]:'').trim(),
+      phone:_digits(cTel>=0?r[cTel]:''),
+      mobile:_digits(cMob>=0?r[cMob]:''),
+      addr:String(cAddr>=0?r[cAddr]:'').trim()
+    });
+  }
+  if(!parsed.length){ alert('운송장번호가 있는 행을 찾지 못했습니다.\n운송장 출력을 마친 뒤 저장한 목록인지 확인해 주세요.'); return; }
+  matchMkTracking(parsed);
+}
+function matchMkTracking(parsed){
+  const used=new Set();
+  const cand=milkitOrders.filter(o=>o.deliveryMethod==='택배발송' && (o.deliveryStatus||'준비중')!=='배송완료');
+  _mkTrkImport=parsed.map(p=>{
+    const recName=o=>_norm((o.recipient && o.recipient!==o.customer)?o.recipient:o.customer);
+    const recPhone=o=>_digits((o.recipient && o.recipientPhone)?o.recipientPhone:o.phone);
+    let hit=null;
+    // 1) 전화/휴대폰 전체 일치 (마스킹(*) 없을 때)
+    const pd=(p.mobile&&p.mobile.length>=10)?p.mobile:(p.phone&&p.phone.length>=10?p.phone:'');
+    if(pd) hit=cand.find(o=>!used.has(o.id) && recPhone(o)===pd);
+    // 2) 이름 + 주소 일부 일치
+    if(!hit && p.name){
+      const nm=_norm(p.name);
+      const sameName=cand.filter(o=>!used.has(o.id) && recName(o)===nm);
+      if(sameName.length===1) hit=sameName[0];
+      else if(sameName.length>1 && p.addr){
+        const ad=_norm(p.addr).slice(0,10);
+        hit=sameName.find(o=>_norm(mkFullAddr(o)).indexOf(ad)>=0) || null;
+      }
+    }
+    if(hit) used.add(hit.id);
+    return {...p, orderId:hit?hit.id:null, orderNo:hit?hit.no:null, orderName:hit?(hit.customer||''):''};
+  });
+  renderMkTrackingImport();
+  openModal('mk-trkimport-modal');
+}
+function renderMkTrackingImport(){
+  const matched=_mkTrkImport.filter(x=>x.orderId);
+  document.getElementById('mk-trkimport-summary').innerHTML =
+    `로젠 목록 <b>${_mkTrkImport.length}건</b> 중 <b style="color:var(--acc-dark);">${matched.length}건</b>이 주문과 매칭됐습니다.`;
+  document.getElementById('mk-trkimport-list').innerHTML=_mkTrkImport.map((x,i)=>{
+    if(!x.orderId){
+      return `<div class="ship-row"><div class="shr-info">
+        <div class="shr-name">${x.name||'(이름없음)'} <span style="color:var(--orange);font-weight:600;">⚠️ 매칭 실패</span></div>
+        <div class="shr-sub">송장 ${x.tracking}</div></div></div>`;
+    }
+    return `<label class="sms-recip" style="align-items:flex-start;">
+      <input type="checkbox" checked data-i="${i}" onchange="mkTrkImportCount()" style="margin-top:2px;">
+      <div style="flex:1;min-width:0;">
+        <div class="sr-name">No.${x.orderNo} ${x.orderName} <span style="font-weight:400;color:var(--sub);">← ${x.name}</span></div>
+        <div class="shr-sub" style="color:var(--acc-dark);">📮 송장 ${x.tracking}</div>
+      </div></label>`;
+  }).join('');
+  mkTrkImportCount();
+}
+function mkTrkImportCount(){
+  const n=document.querySelectorAll('#mk-trkimport-list input[type=checkbox]:checked').length;
+  document.getElementById('mk-trkimport-count').textContent=`${n}건 적용 예정`;
+  const ok=document.getElementById('mk-trkimport-ok'); if(ok) ok.disabled=n===0;
+}
+function applyMkTrackingImport(){
+  const idxs=[...document.querySelectorAll('#mk-trkimport-list input[type=checkbox]:checked')].map(c=>Number(c.dataset.i));
+  const changed=[];
+  idxs.forEach(i=>{
+    const x=_mkTrkImport[i]; if(!x||!x.orderId) return;
+    const o=milkitOrders.find(od=>od.id===x.orderId); if(!o) return;
+    o.tracking=x.tracking;
+    if((o.deliveryStatus||'준비중')==='준비중') o.deliveryStatus='배송중';
+    changed.push(o.id);
+  });
+  if(!changed.length){ alert('적용할 주문이 없습니다.'); return; }
+  DB.save('milkitOrders', milkitOrders);
+  renderMilkitStats(); renderMilkitOrders();
+  closeModal('mk-trkimport-modal');
+  alert(`${changed.length}건에 송장번호를 넣고 배송중으로 바꿨습니다.\n이어서 발송 안내 문자를 보내세요.`);
+  openMkShipSmsModal(changed);   // 발송 안내 문자
 }
 
 let mkDragCounter=0;
