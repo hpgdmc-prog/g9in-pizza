@@ -1218,6 +1218,7 @@ img{max-width:100%;height:auto;}
           <button class="btn btn-out btn-sm" onclick="openMkOcrModal()">📷 사진/텍스트로 등록</button>
           <button class="btn btn-out btn-sm" onclick="openMkSmsModal()">📨 단체 문자</button>
           <button class="btn btn-out btn-sm" onclick="openMkShipSmsModal()">🚚 발송문자</button>
+          <button class="btn btn-out btn-sm" onclick="openMkLogenModal()">📦 로젠 대량등록</button>
           <button class="btn btn-acc btn-sm" onclick="openMilkitOrderModal()">+ 주문 등록</button>
         </div>
       </div>
@@ -2257,6 +2258,37 @@ img{max-width:100%;height:auto;}
   </div>
 </div>
 
+<!-- 로젠택배 대량등록 엑셀 -->
+<div class="modal-bg" id="mk-logen-modal">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-hdr">
+      <h4>🚚 로젠 대량등록 엑셀</h4>
+      <button class="btn btn-icon btn-out" onclick="closeModal('mk-logen-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="mk-logen-count" class="sms-note" style="margin-bottom:12px;font-size:13px;"></div>
+
+      <div class="sms-scope-label">물품명</div>
+      <input type="text" id="mk-logen-item" class="sms-body" style="margin-bottom:14px;" placeholder="냉동피자">
+
+      <div class="sms-scope-label">보내는 분(송하인) 정보 <span style="font-weight:400;color:var(--sub);">— 이 기기에 저장, 다음부터 자동</span></div>
+      <div class="form-grid" style="margin-top:8px;">
+        <div class="form-row"><label>상호·이름</label><input type="text" id="mk-logen-sname" placeholder="지구인피자"></div>
+        <div class="form-row"><label>전화번호</label><input type="tel" id="mk-logen-sphone" placeholder="010-0000-0000" oninput="this.value=formatPhone(this.value)"></div>
+        <div class="form-row"><label>우편번호</label><input type="text" id="mk-logen-szip" inputmode="numeric" placeholder="00000"></div>
+        <div class="form-row"><label>주소</label><input type="text" id="mk-logen-saddr" placeholder="도로명/지번 주소"></div>
+        <div class="form-row" style="grid-column:1/-1;"><label>상세주소</label><input type="text" id="mk-logen-sdetail" placeholder="동·호수 등"></div>
+      </div>
+
+      <div class="sms-note" style="margin-top:14px;">엑셀을 받은 뒤 로젠에서 <b>예약관리 → 주문등록/출력(복수건)</b> → <b>엑셀 업로드</b>로 올리면 여러 건이 한 번에 등록됩니다. 우편번호는 로젠이 주소로 자동 변환합니다. <span style="color:var(--sub2);">(받는 분·주소는 주문 내역에서 자동으로 채워집니다)</span></div>
+    </div>
+    <div class="modal-footer sms-footer">
+      <button class="btn btn-out" onclick="closeModal('mk-logen-modal')">닫기</button>
+      <button class="btn btn-acc" onclick="exportMilkitLogen()">📥 엑셀 다운로드</button>
+    </div>
+  </div>
+</div>
+
 <!-- 발송 안내 문자 (배송중 전환 시 반자동) -->
 <div class="modal-bg" id="mk-shipsms-modal">
   <div class="modal" style="max-width:540px;">
@@ -2553,6 +2585,8 @@ let mkShipSmsTpl = DB.load('mkShipSmsTpl', MK_SHIPSMS_DEFAULT);
 let mkShipSmsAuto = DB.load('mkShipSmsAuto', true);
 // 세트 할인 시뮬레이션: {ruleId:{extra:추가할인원, qty:예상수량}}
 let mkSetSim = DB.load('mkSetSim', {});
+// 로젠 대량등록 설정 (보내는 분 정보는 이 기기에만 저장 — 공개 소스/동기화에 넣지 않음)
+let mkLogenCfg = DB.load('mkLogenCfg', {senderName:'', senderPhone:'', senderZip:'', senderAddr:'', senderAddrDetail:'', itemName:'냉동피자'});
 // 재고 입출고 기록: {id, date, productId, type:'생산'|'폐기'|'조정', qty, note}
 let milkitProduction = DB.load('milkitProduction', []);
 let mkEditId = null;
@@ -6438,6 +6472,71 @@ function exportMilkitOrders(){
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,'밀키트주문');
   XLSX.writeFile(wb,'지구인피자_밀키트_주문내역.xlsx');
+}
+
+/* ===== 로젠택배 대량등록 엑셀 =====
+   택배발송 + 미발송(준비중) 주문을 로젠 '주문등록/출력(복수건)' 업로드용 엑셀로 내보낸다.
+   받는 분(수하인) 정보는 주문에서, 보내는 분(송하인)은 저장된 설정에서 채운다. */
+function mkLogenTargets(){
+  return milkitOrders.filter(o=>o.deliveryMethod==='택배발송' && (o.deliveryStatus||'준비중')==='준비중');
+}
+function openMkLogenModal(){
+  const c=mkLogenCfg||{};
+  document.getElementById('mk-logen-item').value=c.itemName||'냉동피자';
+  document.getElementById('mk-logen-sname').value=c.senderName||'';
+  document.getElementById('mk-logen-sphone').value=c.senderPhone||'';
+  document.getElementById('mk-logen-szip').value=c.senderZip||'';
+  document.getElementById('mk-logen-saddr').value=c.senderAddr||'';
+  document.getElementById('mk-logen-sdetail').value=c.senderAddrDetail||'';
+  const list=mkLogenTargets();
+  const noAddr=list.filter(o=>!(o.address||'').trim()).length;
+  const noPhone=list.filter(o=>!((o.recipient&&o.recipientPhone)?o.recipientPhone:o.phone)).length;
+  document.getElementById('mk-logen-count').innerHTML = list.length
+    ? `택배발송 · 미발송(준비중) 주문 <b>${list.length}건</b>을 내보냅니다.`
+       + (noAddr?`<br><span style="color:var(--orange);">⚠️ 주소 없는 주문 ${noAddr}건</span>`:'')
+       + (noPhone?`<span style="color:var(--orange);">${noAddr?' · ':'<br>'}연락처 없는 주문 ${noPhone}건</span>`:'')
+    : `<span style="color:var(--orange);">내보낼 미발송(준비중) 택배 주문이 없습니다.</span>`;
+  openModal('mk-logen-modal');
+}
+function exportMilkitLogen(){
+  const list=mkLogenTargets();
+  if(!list.length){ alert('내보낼 미발송(준비중) 택배 주문이 없습니다.'); return; }
+  const snd={
+    senderName:document.getElementById('mk-logen-sname').value.trim(),
+    senderPhone:document.getElementById('mk-logen-sphone').value.trim(),
+    senderZip:document.getElementById('mk-logen-szip').value.trim(),
+    senderAddr:document.getElementById('mk-logen-saddr').value.trim(),
+    senderAddrDetail:document.getElementById('mk-logen-sdetail').value.trim(),
+    itemName:(document.getElementById('mk-logen-item').value||'냉동피자').trim()
+  };
+  mkLogenCfg=snd; DB.save('mkLogenCfg', mkLogenCfg);
+  const rows=list.map(o=>{
+    const recip=(o.recipient && o.recipient!==o.customer) ? o.recipient : o.customer;
+    const rphone=(o.recipient && o.recipientPhone) ? o.recipientPhone : o.phone;
+    return {
+      '수하인':recip||'',
+      '수하인전화':formatPhone(rphone||''),
+      '수하인휴대폰':formatPhone(rphone||''),
+      '수하인주소':o.address||'',
+      '상세주소':'',
+      '물품명':snd.itemName||'냉동피자',
+      '수량':1,
+      '운임구분':'선불',
+      '배송메시지':o.note||'',
+      '송하인':snd.senderName||'',
+      '송하인전화':snd.senderPhone||'',
+      '송하인우편번호':snd.senderZip||'',
+      '송하인주소':snd.senderAddr||'',
+      '송하인상세주소':snd.senderAddrDetail||'',
+      '주문번호':o.no||''
+    };
+  });
+  const ws=XLSX.utils.json_to_sheet(rows);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'로젠대량등록');
+  XLSX.writeFile(wb,'로젠_대량등록_'+todayStr()+'.xlsx');
+  closeModal('mk-logen-modal');
+  alert(`${list.length}건을 내보냈습니다.\n로젠 '주문등록/출력(복수건)' 화면에서 이 엑셀을 업로드하세요.`);
 }
 
 /* --- 엑셀 업로드 일괄 등록 --- */
