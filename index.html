@@ -2266,7 +2266,13 @@ img{max-width:100%;height:auto;}
       <button class="btn btn-icon btn-out" onclick="closeModal('mk-logen-modal')">✕</button>
     </div>
     <div class="modal-body">
-      <div id="mk-logen-count" class="sms-note" style="margin-bottom:12px;font-size:13px;"></div>
+      <div id="mk-logen-count" class="sms-note" style="margin-bottom:8px;font-size:13px;"></div>
+
+      <div class="sms-recip-bar">
+        <label class="sms-selall"><input type="checkbox" id="mk-logen-selall" onchange="mkLogenToggleAll(this)"> 전체선택</label>
+        <span id="mk-logen-selcount" class="sms-count"></span>
+      </div>
+      <div id="mk-logen-list" class="sms-list" style="margin-bottom:16px;"></div>
 
       <div class="sms-scope-label">물품명</div>
       <input type="text" id="mk-logen-item" class="sms-body" style="margin-bottom:14px;" placeholder="냉동피자">
@@ -2284,7 +2290,7 @@ img{max-width:100%;height:auto;}
     </div>
     <div class="modal-footer sms-footer">
       <button class="btn btn-out" onclick="closeModal('mk-logen-modal')">닫기</button>
-      <button class="btn btn-acc" onclick="exportMilkitLogen()">📥 엑셀 다운로드</button>
+      <button class="btn btn-acc" id="mk-logen-ok" onclick="exportMilkitLogen()">📥 엑셀 다운로드</button>
     </div>
   </div>
 </div>
@@ -6480,6 +6486,15 @@ function exportMilkitOrders(){
 function mkLogenTargets(){
   return milkitOrders.filter(o=>o.deliveryMethod==='택배발송' && (o.deliveryStatus||'준비중')==='준비중');
 }
+/* 희망배송일 기준 '오늘 발송할' 주문인지 — 희망일 없거나 발송 권장일(희망일 하루 전)이 오늘/지남이면 true */
+function mkLogenShipToday(o){
+  if(!o.desiredDate) return true;
+  const recv=new Date(o.desiredDate+'T00:00:00'); if(isNaN(recv)) return true;
+  const ship=new Date(recv); ship.setDate(ship.getDate()-1);
+  const today=new Date(); today.setHours(0,0,0,0);
+  return ship<=today;
+}
+let _mkLogenSel=new Set();
 function openMkLogenModal(){
   const c=mkLogenCfg||{};
   document.getElementById('mk-logen-item').value=c.itemName||'냉동피자';
@@ -6489,18 +6504,55 @@ function openMkLogenModal(){
   document.getElementById('mk-logen-saddr').value=c.senderAddr||'';
   document.getElementById('mk-logen-sdetail').value=c.senderAddrDetail||'';
   const list=mkLogenTargets();
-  const noAddr=list.filter(o=>!(o.address||'').trim()).length;
-  const noPhone=list.filter(o=>!((o.recipient&&o.recipientPhone)?o.recipientPhone:o.phone)).length;
+  // 기본 선택: 오늘 발송할 주문만 체크 (희망일이 미래인 건은 자동 해제)
+  _mkLogenSel=new Set(list.filter(mkLogenShipToday).map(o=>o.id));
+  const holdN=list.length-_mkLogenSel.size;
   document.getElementById('mk-logen-count').innerHTML = list.length
-    ? `택배발송 · 미발송(준비중) 주문 <b>${list.length}건</b>을 내보냅니다.`
-       + (noAddr?`<br><span style="color:var(--orange);">⚠️ 주소 없는 주문 ${noAddr}건</span>`:'')
-       + (noPhone?`<span style="color:var(--orange);">${noAddr?' · ':'<br>'}연락처 없는 주문 ${noPhone}건</span>`:'')
+    ? `택배발송 · 미발송(준비중) 주문 <b>${list.length}건</b>` + (holdN?` · <span style="color:var(--acc-dark);">희망일이 남은 ${holdN}건은 기본 제외</span>`:'') + `<br><span style="color:var(--sub2);">체크한 주문만 엑셀로 내보냅니다.</span>`
     : `<span style="color:var(--orange);">내보낼 미발송(준비중) 택배 주문이 없습니다.</span>`;
+  renderMkLogenList();
   openModal('mk-logen-modal');
 }
-function exportMilkitLogen(){
+function renderMkLogenList(){
   const list=mkLogenTargets();
-  if(!list.length){ alert('내보낼 미발송(준비중) 택배 주문이 없습니다.'); return; }
+  const wd=['일','월','화','수','목','금','토'];
+  const fmt=d=>{ const dt=new Date(d+'T00:00:00'); return isNaN(dt)?d:`${dt.getMonth()+1}/${dt.getDate()}(${wd[dt.getDay()]})`; };
+  document.getElementById('mk-logen-list').innerHTML = list.map(o=>{
+    const on=_mkLogenSel.has(o.id);
+    const recip=(o.recipient && o.recipient!==o.customer) ? o.recipient : (o.customer||'(이름없음)');
+    const noAddr=!(o.address||'').trim();
+    let dline='<span style="color:var(--sub2);">희망일 없음 · 즉시 발송</span>';
+    if(o.desiredDate){
+      const recv=new Date(o.desiredDate+'T00:00:00');
+      const ship=new Date(recv); ship.setDate(ship.getDate()-1);
+      const today=new Date(); today.setHours(0,0,0,0);
+      dline = ship>today
+        ? `<span style="color:var(--acc-dark);">🚚 발송권장 ${fmt(ship.toISOString().slice(0,10))} · ⏸ 오늘 보류</span>`
+        : `<span style="color:#9E2828;">🚚 발송권장 ${fmt(ship.toISOString().slice(0,10))} · 오늘 발송</span>`;
+    }
+    return `<label class="sms-recip" style="align-items:flex-start;">
+      <input type="checkbox" ${on?'checked':''} onchange="mkLogenToggle('${o.id}',this.checked)" style="margin-top:2px;">
+      <div style="flex:1;min-width:0;">
+        <div class="sr-name">No.${o.no||'-'} ${recip}${noAddr?' <span style="color:var(--orange);font-weight:600;">⚠️주소없음</span>':''}</div>
+        <div style="font-size:11.5px;color:var(--sub);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${o.address||''}</div>
+        <div style="font-size:11px;margin-top:1px;">${dline}</div>
+      </div>
+    </label>`;
+  }).join('');
+  mkLogenUpdateCount(list.length);
+}
+function mkLogenUpdateCount(total){
+  const el=document.getElementById('mk-logen-selcount');
+  if(el) el.textContent=`${_mkLogenSel.size}건 선택 / 미발송 ${total}건`;
+  const sa=document.getElementById('mk-logen-selall');
+  if(sa) sa.checked = total>0 && _mkLogenSel.size===total;
+  const ok=document.getElementById('mk-logen-ok'); if(ok) ok.disabled=_mkLogenSel.size===0;
+}
+function mkLogenToggle(id,on){ if(on) _mkLogenSel.add(id); else _mkLogenSel.delete(id); mkLogenUpdateCount(mkLogenTargets().length); }
+function mkLogenToggleAll(cb){ const list=mkLogenTargets(); _mkLogenSel = cb.checked ? new Set(list.map(o=>o.id)) : new Set(); renderMkLogenList(); }
+function exportMilkitLogen(){
+  const list=mkLogenTargets().filter(o=>_mkLogenSel.has(o.id));
+  if(!list.length){ alert('선택된 주문이 없습니다. 내보낼 주문을 체크해주세요.'); return; }
   const snd={
     senderName:document.getElementById('mk-logen-sname').value.trim(),
     senderPhone:document.getElementById('mk-logen-sphone').value.trim(),
