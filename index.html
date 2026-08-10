@@ -2157,11 +2157,14 @@ img{max-width:100%;height:auto;}
             <input type="number" id="mk-order-setqty" value="1" min="1" oninput="mkUpdateOrderTotals()">
           </div>
         </div>
-        <div style="background:var(--bg2);border-radius:var(--r-md);padding:12px 16px;margin-bottom:6px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;font-size:13px;">
+        <div style="background:var(--bg2);border-radius:var(--r-md);padding:12px 16px;margin-bottom:8px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;font-size:13px;">
           <span>정가합계 <b class="num" id="mk-order-listtotal">0원</b></span>
           <span>할인금액 <b class="num" style="color:var(--red);" id="mk-order-discount">0원</b></span>
           <span>결제금액 <b class="num" style="color:var(--acc-dark);font-size:15px;" id="mk-order-paytotal">0원</b></span>
         </div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--txt);cursor:pointer;padding:8px 2px;">
+          <input type="checkbox" id="mk-order-promo" style="width:17px;height:17px;flex:0 0 auto;"> 🎁 홍보용 무료 발송 — <b>매출·수익에서 제외</b> <span class="req-note">(출고·택배는 그대로)</span>
+        </label>
       </div>
 
       <!-- ③ 받는 분 · 배송지 -->
@@ -3180,25 +3183,28 @@ function calcMkOrderProfit(o){
   const cost=material+packaging+shipping+cardFee+vat+localTax+loss+fixedPerOrder;
   return {revenue, cost, profit:revenue-cost, material, packaging, packItems, box, shipping, cardFee, vat, localTax, loss, fixedPerOrder};
 }
+/* 홍보용 무료 발송은 매출·수익 집계에서 제외 */
+function mkIsSale(o){ return !(o&&o.promo); }
 function mkTotalNetProfit(list){
-  return (list||milkitOrders).reduce((s,o)=>s+calcMkOrderProfit(o).profit, 0);
+  return (list||milkitOrders).filter(mkIsSale).reduce((s,o)=>s+calcMkOrderProfit(o).profit, 0);
 }
 
 function computeMilkitStats(){
   const now=new Date();
   const ym = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
   const total = milkitOrders.length;
-  const totalRevenue = milkitOrders.reduce((s,o)=>s+(Number(o.payTotal)||0),0);
+  const totalRevenue = milkitOrders.filter(mkIsSale).reduce((s,o)=>s+(Number(o.payTotal)||0),0);
   const monthOrders = milkitOrders.filter(o=>(o.orderDate||'').startsWith(ym));
-  const monthRevenue = monthOrders.reduce((s,o)=>s+(Number(o.payTotal)||0),0);
-  const payWaiting = milkitOrders.filter(o=>o.payStatus!=='완료').length;
+  const monthRevenue = monthOrders.filter(mkIsSale).reduce((s,o)=>s+(Number(o.payTotal)||0),0);
+  const payWaiting = milkitOrders.filter(o=>mkIsSale(o) && o.payStatus!=='완료').length;   // 홍보용은 미납 아님
   const trackingMissing = milkitOrders.filter(o=>o.deliveryMethod==='택배발송' && !o.tracking).length;
+  const promoCount = milkitOrders.filter(o=>o.promo).length;
   const totalProfit = mkTotalNetProfit(milkitOrders);
   const monthProfit = mkTotalNetProfit(monthOrders);
-  return {total, totalRevenue, monthOrders, monthRevenue, payWaiting, trackingMissing, totalProfit, monthProfit};
+  return {total, totalRevenue, monthOrders, monthRevenue, payWaiting, trackingMissing, promoCount, totalProfit, monthProfit};
 }
 function milkitStatsCardsHtml(){
-  const {total, totalRevenue, monthOrders, monthRevenue, payWaiting, trackingMissing, totalProfit, monthProfit} = computeMilkitStats();
+  const {total, totalRevenue, monthOrders, monthRevenue, payWaiting, trackingMissing, promoCount, totalProfit, monthProfit} = computeMilkitStats();
   const pcol=v=>v>=0?'var(--green)':'var(--red)';
   const totalRate=totalRevenue>0?totalProfit/totalRevenue:0;
   const monthRate=monthRevenue>0?monthProfit/monthRevenue:0;
@@ -3211,7 +3217,7 @@ function milkitStatsCardsHtml(){
     <div class="stat-card acc-border">
       <div class="s-label">전체 매출 합계 (누적)</div>
       <div class="s-val num">${comma(totalRevenue)}</div>
-      <div class="s-sub">결제금액 기준</div>
+      <div class="s-sub">결제금액 기준${promoCount?` · <span style="color:var(--acc-dark);">🎁 홍보 ${promoCount}건 제외</span>`:''}</div>
     </div>
     <div class="stat-card acc-border">
       <div class="s-label">전체 순수익 (누적)</div>
@@ -5201,7 +5207,7 @@ function renderMilkitOrders(){
   const sum=document.getElementById('mk-order-filter-summary');
   if(sum){
     const label=mkOrderFilterLabel();
-    const total=list.reduce((s,o)=>s+(Number(o.payTotal)||0),0);
+    const total=list.filter(mkIsSale).reduce((s,o)=>s+(Number(o.payTotal)||0),0);
     sum.innerHTML = label
       ? `<b>${list.length}건</b> · 합계 <b>${comma(total)}원</b> <span style="color:var(--acc-dark);">— ${label}</span>`
       : `전체 <b>${list.length}건</b> · 합계 <b>${comma(total)}원</b>`;
@@ -5236,10 +5242,12 @@ function renderMilkitOrders(){
       <div class="mrow-inner mko-inner" onclick="mkOrderRowClick(this,'${o.id}')">
         <div class="mko-top">
           <div class="mko-id">${handle}<span class="mko-no">No.${o.no||'-'}</span><span class="mko-name">${o.customer||'(이름 없음)'}</span></div>
-          <span class="mko-amt num">${comma(o.payTotal)}원</span>
+          <span class="mko-amt num"${o.promo?' style="text-decoration:line-through;color:var(--sub2);"':''}>${comma(o.payTotal)}원</span>
         </div>
         <div class="mko-badges">
-          <span class="badge ${payBadge[o.payStatus]||'badge-orange'}">${payBadgeTxt[o.payStatus]||payBadgeTxt['대기']}</span>
+          ${o.promo
+            ? `<span class="badge" style="background:#F3E8D0;color:#8A5A1E;">🎁 홍보(무료)</span>`
+            : `<span class="badge ${payBadge[o.payStatus]||'badge-orange'}">${payBadgeTxt[o.payStatus]||payBadgeTxt['대기']}</span>`}
           <span class="badge ${delBadge[o.deliveryStatus]||'badge-orange'}">${delBadgeTxt[o.deliveryStatus]||delBadgeTxt['준비중']}</span>
         </div>
         ${shipLine}
@@ -5402,10 +5410,11 @@ function mkCustomerPrintHtml(list){
 
 function mkStatsPrintHtml(){
   const scoped = getStatsScopedOrders();
+  const salesScoped = scoped.filter(mkIsSale);   // 홍보용 제외
   const range = mkStatsPeriodRange();
   const scopeLabel = range ? range.label : '전체';
   const rows = milkitProducts.map(p=>{
-    const qty = scoped.reduce((s,o)=>s+(Number(o.qty?.[p.id])||0),0);
+    const qty = salesScoped.reduce((s,o)=>s+(Number(o.qty?.[p.id])||0),0);
     const amount = qty*(Number(p.price)||0);
     return {name:p.name, category:p.category, price:p.price, qty, amount};
   });
@@ -5417,13 +5426,13 @@ function mkStatsPrintHtml(){
   `).join('');
 
   const total=scoped.length;
-  const totalRevenue=scoped.reduce((s,o)=>s+(Number(o.payTotal)||0),0);
+  const totalRevenue=salesScoped.reduce((s,o)=>s+(Number(o.payTotal)||0),0);
   const now=new Date(); const ym=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
   const monthOrders=milkitOrders.filter(o=>(o.orderDate||'').startsWith(ym));
-  const monthRevenue=monthOrders.reduce((s,o)=>s+(Number(o.payTotal)||0),0);
+  const monthRevenue=monthOrders.filter(mkIsSale).reduce((s,o)=>s+(Number(o.payTotal)||0),0);
   const cnt=(field,val)=>scoped.filter(o=>(o[field]||'')===val).length;
   const scopedProfit=mkTotalNetProfit(scoped);
-  const scopedCost=scoped.reduce((s,o)=>s+calcMkOrderProfit(o).cost,0);
+  const scopedCost=salesScoped.reduce((s,o)=>s+calcMkOrderProfit(o).cost,0);
   const summary=[
     [scopeLabel+' 주문 건수', total+'건'], [scopeLabel+' 매출 합계', comma(totalRevenue)+'원'],
     [scopeLabel+' 총원가·수수료', comma(Math.round(scopedCost))+'원'], [scopeLabel+' 순수익', comma(Math.round(scopedProfit))+'원'],
@@ -6224,6 +6233,7 @@ function openMilkitOrderModal(id){
     document.getElementById('mk-order-desired').value=o.desiredDate||'';
     document.getElementById('mk-order-address').value=o.address||'';
     document.getElementById('mk-order-address-detail').value=o.addressDetail||'';
+    document.getElementById('mk-order-promo').checked=!!o.promo;
     document.getElementById('mk-order-recipient').value=(o.recipient && o.recipient!==o.customer) ? o.recipient : '';
     document.getElementById('mk-order-recipient-phone').value=(o.recipient && o.recipient!==o.customer) ? formatPhone(o.recipientPhone||'') : '';
     mkSyncRecipientPh();
@@ -6249,6 +6259,7 @@ function openMilkitOrderModal(id){
     document.getElementById('mk-order-paystatus').value='대기';
     document.getElementById('mk-order-delmethod').value='택배발송';
     document.getElementById('mk-order-delstatus').value='준비중';
+    document.getElementById('mk-order-promo').checked=false;
   }
   mkUpdateOrderTotals();
   mkDeliveryHint();
@@ -6469,6 +6480,7 @@ function saveMilkitOrder(){
     orderDate,
     orderTime:document.getElementById('mk-order-time').value||'',
     customer, phone, address, addressDetail, recipient, recipientPhone, qty,
+    promo:document.getElementById('mk-order-promo').checked,
     setType, setQty, listTotal, discount, payTotal,
     payMethod:document.getElementById('mk-order-paymethod').value,
     payStatus:document.getElementById('mk-order-paystatus').value,
@@ -8052,8 +8064,9 @@ function renderMilkitSalesStats(){
       ? `<b>${range.label}</b> (${range.from} ~ ${range.to}) · 주문 <b>${scoped.length}건</b>`
       : `전체 누적 · 주문 <b>${scoped.length}건</b>`;
   }
+  const salesScoped = scoped.filter(mkIsSale);   // 홍보용 제외
   const rows = milkitProducts.map(p=>{
-    const qty = scoped.reduce((s,o)=>s+(Number(o.qty?.[p.id])||0),0);
+    const qty = salesScoped.reduce((s,o)=>s+(Number(o.qty?.[p.id])||0),0);
     const amount = qty*(Number(p.price)||0);
     return {name:p.name, category:p.category, price:p.price, qty, amount};
   });
@@ -8068,9 +8081,9 @@ function renderMilkitSalesStats(){
 
   const scopeLabel = range ? range.label : '전체';
   const total=scoped.length;
-  const totalRevenue=scoped.reduce((s,o)=>s+(Number(o.payTotal)||0),0);
+  const totalRevenue=salesScoped.reduce((s,o)=>s+(Number(o.payTotal)||0),0);
   const scopedProfit=mkTotalNetProfit(scoped);
-  const scopedCost=scoped.reduce((s,o)=>s+calcMkOrderProfit(o).cost,0);
+  const scopedCost=salesScoped.reduce((s,o)=>s+calcMkOrderProfit(o).cost,0);
   const profitRate=totalRevenue>0?scopedProfit/totalRevenue:0;
   const pcol=scopedProfit>=0?'var(--green)':'var(--red)';
   const cnt=(field,val)=>scoped.filter(o=>(o[field]||'')===val).length;
