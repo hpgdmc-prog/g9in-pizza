@@ -2308,19 +2308,13 @@ img{max-width:100%;height:auto;}
       </div>
       <div id="mk-logen-list" class="sms-list" style="margin-bottom:16px;"></div>
 
-      <div class="sms-scope-label">물품명</div>
-      <input type="text" id="mk-logen-item" class="sms-body" style="margin-bottom:14px;" placeholder="냉동피자">
-
-      <div class="sms-scope-label">보내는 분(송하인) 정보 <span style="font-weight:400;color:var(--sub);">— 이 기기에 저장, 다음부터 자동</span></div>
-      <div class="form-grid" style="margin-top:8px;">
-        <div class="form-row"><label>상호·이름</label><input type="text" id="mk-logen-sname" placeholder="지구인피자"></div>
-        <div class="form-row"><label>전화번호</label><input type="tel" id="mk-logen-sphone" placeholder="010-0000-0000" oninput="this.value=formatPhone(this.value)"></div>
-        <div class="form-row"><label>우편번호</label><input type="text" id="mk-logen-szip" inputmode="numeric" placeholder="00000"></div>
-        <div class="form-row"><label>주소</label><input type="text" id="mk-logen-saddr" placeholder="도로명/지번 주소"></div>
-        <div class="form-row" style="grid-column:1/-1;"><label>상세주소</label><input type="text" id="mk-logen-sdetail" placeholder="동·호수 등"></div>
+      <div class="form-grid" style="margin-top:4px;">
+        <div class="form-row"><label>물품명(품목명)</label><input type="text" id="mk-logen-item" placeholder="냉동피자"></div>
+        <div class="form-row"><label>택배운임(원)</label><input type="text" id="mk-logen-freight" inputmode="numeric" placeholder="3000" oninput="this.value=commaFmt(this.value)"></div>
       </div>
+      <div style="font-size:11.5px;color:var(--sub2);margin:6px 0 4px;line-height:1.6;">운임구분은 <b>선불(코드 010)</b>로, 보내는 분은 로젠 계정에 등록된 정보로 자동 처리됩니다.</div>
 
-      <div class="sms-note" style="margin-top:14px;">엑셀을 받은 뒤 로젠에서 <b>예약관리 → 주문등록/출력(복수건)</b> → <b>엑셀 업로드</b>로 올리면 여러 건이 한 번에 등록됩니다. 우편번호는 로젠이 주소로 자동 변환합니다. <span style="color:var(--sub2);">(받는 분·주소는 주문 내역에서 자동으로 채워집니다)</span></div>
+      <div class="sms-note" style="margin-top:12px;">엑셀을 받은 뒤 로젠 <b>예약관리 → 주문등록/출력(복수건)</b> → <b>엑셀 업로드</b>로 올리면 여러 건이 한 번에 등록됩니다. 우편번호는 로젠이 주소로 자동 변환합니다.</div>
     </div>
     <div class="modal-footer sms-footer">
       <button class="btn btn-out" onclick="closeModal('mk-logen-modal')">닫기</button>
@@ -2630,7 +2624,7 @@ let mkShipSmsAuto = DB.load('mkShipSmsAuto', true);
 // 세트 할인 시뮬레이션: {ruleId:{extra:추가할인원, qty:예상수량}}
 let mkSetSim = DB.load('mkSetSim', {});
 // 로젠 대량등록 설정 (보내는 분 정보는 이 기기에만 저장 — 공개 소스/동기화에 넣지 않음)
-let mkLogenCfg = DB.load('mkLogenCfg', {senderName:'', senderPhone:'', senderZip:'', senderAddr:'', senderAddrDetail:'', itemName:'냉동피자'});
+let mkLogenCfg = DB.load('mkLogenCfg', {itemName:'냉동피자', freight:3000});
 // 재고 입출고 기록: {id, date, productId, type:'생산'|'폐기'|'조정', qty, note}
 let milkitProduction = DB.load('milkitProduction', []);
 let mkEditId = null;
@@ -6623,11 +6617,7 @@ let _mkLogenSel=new Set();
 function openMkLogenModal(){
   const c=mkLogenCfg||{};
   document.getElementById('mk-logen-item').value=c.itemName||'냉동피자';
-  document.getElementById('mk-logen-sname').value=c.senderName||'';
-  document.getElementById('mk-logen-sphone').value=c.senderPhone||'';
-  document.getElementById('mk-logen-szip').value=c.senderZip||'';
-  document.getElementById('mk-logen-saddr').value=c.senderAddr||'';
-  document.getElementById('mk-logen-sdetail').value=c.senderAddrDetail||'';
+  document.getElementById('mk-logen-freight').value=commaFmt(c.freight!=null?c.freight:3000);
   const list=mkLogenTargets();
   // 기본 선택: 오늘 발송할 주문만 체크 (희망일이 미래인 건은 자동 해제)
   _mkLogenSel=new Set(list.filter(mkLogenShipToday).map(o=>o.id));
@@ -6678,36 +6668,17 @@ function mkLogenToggleAll(cb){ const list=mkLogenTargets(); _mkLogenSel = cb.che
 function exportMilkitLogen(){
   const list=mkLogenTargets().filter(o=>_mkLogenSel.has(o.id));
   if(!list.length){ alert('선택된 주문이 없습니다. 내보낼 주문을 체크해주세요.'); return; }
-  const snd={
-    senderName:document.getElementById('mk-logen-sname').value.trim(),
-    senderPhone:document.getElementById('mk-logen-sphone').value.trim(),
-    senderZip:document.getElementById('mk-logen-szip').value.trim(),
-    senderAddr:document.getElementById('mk-logen-saddr').value.trim(),
-    senderAddrDetail:document.getElementById('mk-logen-sdetail').value.trim(),
-    itemName:(document.getElementById('mk-logen-item').value||'냉동피자').trim()
-  };
-  mkLogenCfg=snd; DB.save('mkLogenCfg', mkLogenCfg);
+  const itemName=(document.getElementById('mk-logen-item').value||'냉동피자').trim();
+  const freight=numVal('mk-logen-freight')||0;
+  mkLogenCfg={itemName, freight}; DB.save('mkLogenCfg', mkLogenCfg);
+  // 로젠 대량등록 양식(단일주소): 수하인명·(빈)·수하인주소·전화·핸드폰·수량·운임·운임구분·품목명·(빈)·배송메세지
+  const header=['수하인명','','수하인주소','수하인전화번호','수하인핸드폰번호','택배수량','택배운임','운임구분','품목명','','배송메세지'];
   const rows=list.map(o=>{
-    const recip=(o.recipient && o.recipient!==o.customer) ? o.recipient : o.customer;
-    const rphone=(o.recipient && o.recipientPhone) ? o.recipientPhone : o.phone;
-    return {
-      '수하인':recip||'',
-      '수하인전화':formatPhone(rphone||''),
-      '수하인휴대폰':formatPhone(rphone||''),
-      '수하인주소':o.address||'',
-      '상세주소':'',
-      '물품명':snd.itemName||'냉동피자',
-      '수량':1,
-      '운임구분':'선불',
-      '배송메시지':o.note||'',
-      '송하인':snd.senderName||'',
-      '송하인전화':snd.senderPhone||'',
-      '송하인우편번호':snd.senderZip||'',
-      '송하인주소':snd.senderAddr||'',
-      '송하인상세주소':snd.senderAddrDetail||''
-    };
+    const recip=(o.recipient && o.recipient!==o.customer) ? o.recipient : (o.customer||'');
+    const rphone=formatPhone((o.recipient && o.recipientPhone) ? o.recipientPhone : (o.phone||''));
+    return [recip, '', o.address||'', rphone, rphone, 1, freight, '010', itemName, '', o.note||''];
   });
-  const ws=XLSX.utils.json_to_sheet(rows);
+  const ws=XLSX.utils.aoa_to_sheet([header, ...rows]);
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,'로젠대량등록');
   XLSX.writeFile(wb,'로젠_대량등록_'+todayStr()+'.xlsx');
