@@ -6287,18 +6287,40 @@ function loadDaumPostcode(){
   });
   return _daumPostcodeP;
 }
-/* targetId 주소 입력칸을 도로명주소로 채우고, detailId(상세주소)가 있으면 포커스 */
+/* targetId 주소 입력칸을 도로명주소로 채운다. 닫기 버튼이 있는 오버레이(embed) 방식이라
+   주소 입력 없이도 언제든 닫고 원래 화면으로 돌아갈 수 있다. */
 function openAddressSearch(targetId, detailId){
   loadDaumPostcode().then(()=>{
+    const old=document.getElementById('__addr-layer'); if(old) old.remove();
+    const layer=document.createElement('div');
+    layer.id='__addr-layer';
+    layer.style.cssText='position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:12px;';
+    const panel=document.createElement('div');
+    panel.style.cssText='width:100%;max-width:480px;height:90vh;max-height:600px;background:#fff;border-radius:14px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,.3);';
+    const bar=document.createElement('div');
+    bar.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid #eee;flex:0 0 auto;';
+    bar.innerHTML='<b style="font-size:15px;">🔍 주소 검색</b>';
+    const closeBtn=document.createElement('button');
+    closeBtn.type='button'; closeBtn.textContent='✕ 닫기';
+    closeBtn.style.cssText='border:1px solid #ddd;background:#fff;border-radius:9px;padding:9px 16px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;';
+    closeBtn.onclick=()=>layer.remove();
+    bar.appendChild(closeBtn);
+    const box=document.createElement('div');
+    box.style.cssText='flex:1;min-height:0;';
+    panel.appendChild(bar); panel.appendChild(box); layer.appendChild(panel);
+    layer.addEventListener('click',e=>{ if(e.target===layer) layer.remove(); });   // 바깥 클릭 시 닫기
+    document.body.appendChild(layer);
     new daum.Postcode({
       oncomplete:function(data){
         const addr=data.roadAddress || data.jibunAddress || '';
         const el=document.getElementById(targetId);
         if(el){ el.value=addr; el.classList.remove('input-invalid'); }
+        layer.remove();
         const d=detailId && document.getElementById(detailId);
-        if(d){ d.focus(); } else if(el){ el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
-      }
-    }).open();
+        if(d){ d.focus(); } else if(el){ el.focus(); try{ el.setSelectionRange(el.value.length, el.value.length); }catch(_){} }
+      },
+      width:'100%', height:'100%'
+    }).embed(box);
   }).catch(e=>alert(e.message||'주소 검색을 열 수 없습니다.'));
 }
 
@@ -6682,8 +6704,7 @@ function exportMilkitLogen(){
       '송하인전화':snd.senderPhone||'',
       '송하인우편번호':snd.senderZip||'',
       '송하인주소':snd.senderAddr||'',
-      '송하인상세주소':snd.senderAddrDetail||'',
-      '주문번호':o.no||''
+      '송하인상세주소':snd.senderAddrDetail||''
     };
   });
   const ws=XLSX.utils.json_to_sheet(rows);
