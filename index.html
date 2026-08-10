@@ -2136,13 +2136,17 @@ img{max-width:100%;height:auto;}
         </div>
       </div>
       <div style="font-size:11.5px;color:var(--sub);margin:-2px 0 10px;line-height:1.5;">💡 선물·대리주문 등 <b>받는 분이 다르면</b> 이름을 입력하세요. 비워두면 주문자와 동일하게 처리됩니다.</div>
+      <div class="form-row">
+        <label>배송주소 (도로명)</label>
+        <div style="display:flex;gap:6px;">
+          <input type="text" id="mk-order-address" placeholder="🔍 주소검색으로 도로명 주소 입력" style="flex:1;min-width:0;" oninput="this.classList.remove('input-invalid')">
+          <button type="button" class="btn btn-out btn-sm" style="flex:0 0 auto;" onclick="openAddressSearch('mk-order-address','mk-order-address-detail')">🔍 주소검색</button>
+        </div>
+      </div>
       <div class="form-grid">
         <div class="form-row">
-          <label>배송주소</label>
-          <div style="display:flex;gap:6px;">
-            <input type="text" id="mk-order-address" placeholder="주소검색으로 도로명 입력 후 동·호수 추가" style="flex:1;min-width:0;" oninput="this.classList.remove('input-invalid')">
-            <button type="button" class="btn btn-out btn-sm" style="flex:0 0 auto;" onclick="openAddressSearch('mk-order-address')">🔍 주소검색</button>
-          </div>
+          <label>상세주소 <span style="font-weight:400;color:var(--sub2);">(동·호수 등)</span></label>
+          <input type="text" id="mk-order-address-detail" placeholder="예: 103동 2601호">
         </div>
         <div class="form-row">
           <label>희망수령일</label>
@@ -2404,11 +2408,15 @@ img{max-width:100%;height:auto;}
         <input type="tel" id="mk-cust-phone" placeholder="010-0000-0000" oninput="this.value=formatPhone(this.value)">
       </div>
       <div class="form-row">
-        <label>배송주소</label>
+        <label>배송주소 (도로명)</label>
         <div style="display:flex;gap:6px;">
-          <input type="text" id="mk-cust-address" placeholder="주소검색으로 도로명 입력 후 동·호수 추가" style="flex:1;min-width:0;">
-          <button type="button" class="btn btn-out btn-sm" style="flex:0 0 auto;" onclick="openAddressSearch('mk-cust-address')">🔍 주소검색</button>
+          <input type="text" id="mk-cust-address" placeholder="🔍 주소검색으로 도로명 주소 입력" style="flex:1;min-width:0;">
+          <button type="button" class="btn btn-out btn-sm" style="flex:0 0 auto;" onclick="openAddressSearch('mk-cust-address','mk-cust-address-detail')">🔍 주소검색</button>
         </div>
+      </div>
+      <div class="form-row">
+        <label>상세주소 <span style="font-weight:400;color:var(--sub2);">(동·호수 등)</span></label>
+        <input type="text" id="mk-cust-address-detail" placeholder="예: 103동 2601호">
       </div>
       <div class="form-row">
         <label>비고</label>
@@ -5208,7 +5216,7 @@ function renderMilkitOrders(){
         </div>
         ${shipLine}
         <div class="mko-line">📞 ${o.phone?formatPhone(o.phone):'연락처 없음'} <span class="mko-dim">· ${dt}</span></div>
-        ${o.address?`<div class="mko-line">📍 ${o.address}</div>`:''}
+        ${mkFullAddr(o)?`<div class="mko-line">📍 ${mkFullAddr(o)}</div>`:''}
         ${recip}
         <div class="mko-items">${items||'<span class="mko-dim">상품 없음</span>'}</div>
         <div class="mko-meta">${meta}${o.tracking?` · 📮 ${o.tracking}`:''}</div>
@@ -5327,7 +5335,7 @@ function mkOrderPrintHtml(list){
         <span class="mp-tags">${dt} · ${mkPrintPayHtml(o.payStatus)} · ${mkPrintDeliveryHtml(o.deliveryMethod)} · ${mkPrintDelivStatusHtml(o.deliveryStatus)}${o.tracking?' · 송장 '+o.tracking:''}</span>
         <span class="mp-amt">${comma(o.payTotal)}원</span>
       </div>
-      <div class="mp-row-mid">${o.phone?formatPhone(o.phone):'연락처 없음'}${o.address?' · '+o.address:''}${recip}</div>
+      <div class="mp-row-mid">${o.phone?formatPhone(o.phone):'연락처 없음'}${mkFullAddr(o)?' · '+mkFullAddr(o):''}${recip}</div>
       <div class="mp-row-items">${mkOrderItemsSummary(o)} · ${o.setType||'낱개'}×${o.setQty||1}${o.payMethod?' · '+o.payMethod:''}</div>
       ${o.note?`<div class="mp-row-note">📝 ${o.note}</div>`:''}
     </div>
@@ -5351,7 +5359,7 @@ function mkCustomerPrintHtml(list){
         <span class="mp-tags">${c.phone?formatPhone(c.phone):'연락처 없음'}</span>
         <span class="mp-amt">${st.count}건 · ${comma(st.amount)}원</span>
       </div>
-      <div class="mp-row-mid">${c.address||'주소 미등록'}${st.last?' · 최근주문 '+st.last:''}</div>
+      <div class="mp-row-mid">${mkFullAddr(c)||'주소 미등록'}${st.last?' · 최근주문 '+st.last:''}</div>
       ${c.notes?`<div class="mp-row-note">📝 ${c.notes}</div>`:''}
     </div>`;
   }).join('');
@@ -5607,6 +5615,7 @@ function mkAutofillCustomer(){
   if(c){
     document.getElementById('mk-order-phone').value=formatPhone(c.phone||'');
     document.getElementById('mk-order-address').value=c.address||'';
+    document.getElementById('mk-order-address-detail').value=c.addressDetail||'';
   }
 }
 
@@ -5653,7 +5662,7 @@ function mkCustomerSuggest(showAll){
     return;
   }
   box.innerHTML = list.map(c=>{
-    const sub=[c.phone?formatPhone(c.phone):'', c.address||''].filter(Boolean).join(' · ');
+    const sub=[c.phone?formatPhone(c.phone):'', mkFullAddr(c)].filter(Boolean).join(' · ');
     const nm=c.name.replace(/"/g,'&quot;').replace(/'/g,'&#39;');
     return `<div class="ac-item" onmousedown="event.preventDefault();mkPickCustomer('${nm}')">${c.name}${sub?`<span class="ac-sub">${sub}</span>`:''}</div>`;
   }).join('');
@@ -6186,6 +6195,7 @@ function openMilkitOrderModal(id){
     document.getElementById('mk-order-phone').value=formatPhone(o.phone||'');
     document.getElementById('mk-order-desired').value=o.desiredDate||'';
     document.getElementById('mk-order-address').value=o.address||'';
+    document.getElementById('mk-order-address-detail').value=o.addressDetail||'';
     document.getElementById('mk-order-recipient').value=(o.recipient && o.recipient!==o.customer) ? o.recipient : '';
     document.getElementById('mk-order-recipient-phone').value=(o.recipient && o.recipient!==o.customer) ? formatPhone(o.recipientPhone||'') : '';
     mkSyncRecipientPh();
@@ -6202,7 +6212,7 @@ function openMilkitOrderModal(id){
     const now=new Date();
     document.getElementById('mk-order-date').value=todayStr();
     document.getElementById('mk-order-time').value=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
-    ['mk-order-customer','mk-order-phone','mk-order-desired','mk-order-address','mk-order-tracking','mk-order-note','mk-order-recipient','mk-order-recipient-phone'].forEach(f=>document.getElementById(f).value='');
+    ['mk-order-customer','mk-order-phone','mk-order-desired','mk-order-address','mk-order-address-detail','mk-order-tracking','mk-order-note','mk-order-recipient','mk-order-recipient-phone'].forEach(f=>document.getElementById(f).value='');
     mkSyncRecipientPh();
     renderMilkitOrderQtyRows({});
     setSel.value='낱개';
@@ -6361,17 +6371,20 @@ const _mkNorm=v=>String(v==null?'':v).replace(/\s/g,'').toLowerCase();
 /* 중복 판정: 주문자명 · 배송주소 · 상품 구성이 모두 같을 때만 (오인식 최소화) */
 function findMilkitDuplicates(cand, excludeId){
   const sig=mkQtySignature(cand.qty);
-  const name=_mkNorm(cand.customer), addr=_mkNorm(cand.address);
+  const name=_mkNorm(cand.customer), addr=_mkNorm(mkFullAddr(cand));
   const out=[];
   milkitOrders.forEach(o=>{
     if(excludeId && o.id===excludeId) return;
     const sameName = !!name && _mkNorm(o.customer)===name;
-    const sameAddr = _mkNorm(o.address)===addr;         // 둘 다 비어 있어도 "같음"으로 봄
+    const sameAddr = _mkNorm(mkFullAddr(o))===addr;         // 둘 다 비어 있어도 "같음"으로 봄
     const sameItems = !!sig && mkQtySignature(o.qty)===sig;
     if(sameName && sameAddr && sameItems) out.push({order:o, sameProducts:true, sameAddr:true});
   });
   return out;
 }
+
+/* 도로명주소 + 상세주소를 합친 전체 주소 */
+function mkFullAddr(o){ return [o&&o.address, o&&o.addressDetail].filter(s=>String(s||'').trim()).join(' '); }
 
 function mkOrderItemsText(qty){
   const items=milkitProducts
@@ -6416,6 +6429,7 @@ function saveMilkitOrder(){
   const {listTotal,discount,payTotal}=mkCalcTotals(qty,setType,setQty);
   const phone=formatPhone(document.getElementById('mk-order-phone').value);
   const address=document.getElementById('mk-order-address').value.trim();
+  const addressDetail=document.getElementById('mk-order-address-detail').value.trim();
   // 받는 분: 비워두면 주문자와 동일(빈값 저장). 주문자와 같은 이름을 적어도 동일로 처리
   let recipient=document.getElementById('mk-order-recipient').value.trim();
   let recipientPhone=formatPhone(document.getElementById('mk-order-recipient-phone').value);
@@ -6426,7 +6440,7 @@ function saveMilkitOrder(){
     no: existing ? existing.no : mkNextOrderNo(),
     orderDate,
     orderTime:document.getElementById('mk-order-time').value||'',
-    customer, phone, address, recipient, recipientPhone, qty,
+    customer, phone, address, addressDetail, recipient, recipientPhone, qty,
     setType, setQty, listTotal, discount, payTotal,
     payMethod:document.getElementById('mk-order-paymethod').value,
     payStatus:document.getElementById('mk-order-paystatus').value,
@@ -6457,7 +6471,7 @@ function commitMilkitOrder(obj){
   DB.save('milkitOrders',milkitOrders);
   // 신규 고객이면 고객DB에 자동 등록
   if(obj.customer && !milkitCustomers.find(c=>c.name===obj.customer)){
-    milkitCustomers.push({id:uid(), name:obj.customer, phone:obj.phone, address:obj.address, notes:''});
+    milkitCustomers.push({id:uid(), name:obj.customer, phone:obj.phone, address:obj.address, addressDetail:obj.addressDetail||'', notes:''});
     DB.save('milkitCustomers',milkitCustomers);
   }
   closeModal('mk-order-modal');
@@ -6585,7 +6599,7 @@ function deleteMilkitOrder(id){
 
 function exportMilkitOrders(){
   const ws=XLSX.utils.json_to_sheet(milkitOrders.map(o=>{
-    const row={ 번호:o.no, 주문일자:o.orderDate, 주문자명:o.customer, 연락처:formatPhone(o.phone), 배송주소:o.address };
+    const row={ 번호:o.no, 주문일자:o.orderDate, 주문자명:o.customer, 연락처:formatPhone(o.phone), 배송주소:o.address, 상세주소:o.addressDetail||'' };
     milkitProducts.forEach(p=>{ row[p.name+' 수량']=o.qty?.[p.id]||0; });
     Object.assign(row,{
       구성유형:o.setType, 세트수량:o.setQty, 정가합계:o.listTotal, 할인금액:o.discount, 결제금액:o.payTotal,
@@ -6635,7 +6649,7 @@ function renderMkLogenList(){
   document.getElementById('mk-logen-list').innerHTML = list.map(o=>{
     const on=_mkLogenSel.has(o.id);
     const recip=(o.recipient && o.recipient!==o.customer) ? o.recipient : (o.customer||'(이름없음)');
-    const noAddr=!(o.address||'').trim();
+    const noAddr=!mkFullAddr(o).trim();
     let dline='<span style="color:var(--sub2);">희망일 없음 · 즉시 발송</span>';
     if(o.desiredDate){
       const recv=new Date(o.desiredDate+'T00:00:00');
@@ -6649,7 +6663,7 @@ function renderMkLogenList(){
       <input type="checkbox" ${on?'checked':''} onchange="mkLogenToggle('${o.id}',this.checked)" style="margin-top:2px;">
       <div style="flex:1;min-width:0;">
         <div class="sr-name">No.${o.no||'-'} ${recip}${noAddr?' <span style="color:var(--orange);font-weight:600;">⚠️주소없음</span>':''}</div>
-        <div style="font-size:11.5px;color:var(--sub);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${o.address||''}</div>
+        <div style="font-size:11.5px;color:var(--sub);line-height:1.4;word-break:break-all;">${mkFullAddr(o)||''}</div>
         <div style="font-size:11px;margin-top:1px;">${dline}</div>
       </div>
     </label>`;
@@ -6676,7 +6690,7 @@ function exportMilkitLogen(){
   const rows=list.map(o=>{
     const recip=(o.recipient && o.recipient!==o.customer) ? o.recipient : (o.customer||'');
     const rphone=formatPhone((o.recipient && o.recipientPhone) ? o.recipientPhone : (o.phone||''));
-    return [recip, '', o.address||'', rphone, rphone, 1, freight, '010', itemName, '', o.note||''];
+    return [recip, '', mkFullAddr(o), rphone, rphone, 1, freight, '010', itemName, '', o.note||''];
   });
   const ws=XLSX.utils.aoa_to_sheet([header, ...rows]);
   const wb=XLSX.utils.book_new();
@@ -6879,7 +6893,7 @@ function confirmMilkitOrderImport(){
     const obj=Object.assign({}, o, {id:uid(), no:nextNo});
     milkitOrders.push(obj);
     if(obj.customer && !milkitCustomers.find(c=>c.name===obj.customer)){
-      milkitCustomers.push({id:uid(), name:obj.customer, phone:obj.phone, address:obj.address, notes:''});
+      milkitCustomers.push({id:uid(), name:obj.customer, phone:obj.phone, address:obj.address, addressDetail:obj.addressDetail||'', notes:''});
     }
   });
   DB.save('milkitOrders', milkitOrders);
@@ -7488,7 +7502,7 @@ function renderMilkitCustomers(){
       <div class="mrow-inner ${mkcSelectMode?'cust-selmode':''}" onclick="mkCustomerRowClick(this,'${c.id}')">
         <div class="mrow-main">
           <div class="mrow-title">${c.name}</div>
-          <div class="mrow-meta">${c.phone?formatPhone(c.phone)+' · ':''}${c.address||'주소 미등록'}</div>
+          <div class="mrow-meta">${c.phone?formatPhone(c.phone)+' · ':''}${mkFullAddr(c)||'주소 미등록'}</div>
         </div>
       </div>
     </div>`;
@@ -7507,9 +7521,10 @@ function openMilkitCustomerModal(id){
     document.getElementById('mk-cust-name').value=c.name||'';
     document.getElementById('mk-cust-phone').value=formatPhone(c.phone||'');
     document.getElementById('mk-cust-address').value=c.address||'';
+    document.getElementById('mk-cust-address-detail').value=c.addressDetail||'';
     document.getElementById('mk-cust-notes').value=c.notes||'';
   } else {
-    ['mk-cust-name','mk-cust-phone','mk-cust-address','mk-cust-notes'].forEach(f=>document.getElementById(f).value='');
+    ['mk-cust-name','mk-cust-phone','mk-cust-address','mk-cust-address-detail','mk-cust-notes'].forEach(f=>document.getElementById(f).value='');
   }
   openModal('mk-cust-modal');
 }
@@ -7529,6 +7544,7 @@ function saveMilkitCustomer(){
     id:mkEditId||uid(), name,
     phone:formatPhone(document.getElementById('mk-cust-phone').value),
     address:document.getElementById('mk-cust-address').value.trim(),
+    addressDetail:document.getElementById('mk-cust-address-detail').value.trim(),
     notes:document.getElementById('mk-cust-notes').value.trim()
   };
   if(mkEditId){ const idx=milkitCustomers.findIndex(x=>x.id===mkEditId); milkitCustomers[idx]=obj; }
