@@ -319,6 +319,12 @@ tr:hover td{background:var(--bg2);}
 .mk-setpick-btn .sp-price{font-size:11px;font-weight:400;color:var(--sub2);}
 .mko-ship{margin-top:6px;font-size:12px;color:var(--acc-dark);background:var(--acc-pale);border-radius:6px;padding:5px 9px;line-height:1.4;}
 .mko-ship.urgent{color:#9E2828;background:#F7E4E4;font-weight:600;}
+/* 주문 액션 드롭다운 메뉴 */
+.mk-menu{position:relative;display:inline-block;}
+.mk-menu-list{position:absolute;top:calc(100% + 4px);right:0;left:auto;min-width:190px;background:#fff;border:1px solid var(--border);border-radius:11px;box-shadow:var(--shadow-md);padding:6px;z-index:60;display:none;}
+.mk-menu.open .mk-menu-list{display:block;}
+.mk-menu-list button{display:flex;align-items:center;gap:8px;width:100%;text-align:left;background:none;border:none;font-family:inherit;font-size:13px;color:var(--p);padding:10px 11px;border-radius:8px;cursor:pointer;white-space:nowrap;}
+.mk-menu-list button:hover{background:var(--acc-pale);}
 /* 세트 할인 시뮬레이션 표 */
 .sim-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--border);border-radius:10px;}
 .sim-table{width:100%;border-collapse:collapse;font-size:12.5px;min-width:660px;}
@@ -1221,14 +1227,29 @@ img{max-width:100%;height:auto;}
       <div class="page-hdr" style="border-bottom:none;margin-bottom:10px;padding-bottom:0;">
         <h3 style="font-size:14px;">주문 내역</h3>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <button class="btn btn-out btn-sm" onclick="previewMilkitOrderPrint()">🖨️ 인쇄</button>
-          <button class="btn btn-out btn-sm" onclick="document.getElementById('mk-order-import-file').click()" title="클릭하거나, 엑셀 파일을 이 화면에 끌어다 놓아도 업로드됩니다">📤 엑셀 업로드</button>
-          <button class="btn btn-out btn-sm" onclick="exportMilkitOrders()">📥 엑셀 내보내기</button>
-          <button class="btn btn-out btn-sm" onclick="openMkOcrModal()">📷 사진/텍스트로 등록</button>
-          <button class="btn btn-out btn-sm" onclick="openMkSmsModal()">📨 단체 문자</button>
-          <button class="btn btn-out btn-sm" onclick="openMkShipSmsModal()">🚚 발송문자</button>
-          <button class="btn btn-out btn-sm" onclick="openMkLogenModal()">📦 로젠 대량등록</button>
           <button class="btn btn-acc btn-sm" onclick="openMilkitOrderModal()">+ 주문 등록</button>
+          <div class="mk-menu">
+            <button class="btn btn-out btn-sm" onclick="mkToggleMenu(this)">➕ 간편등록 ▾</button>
+            <div class="mk-menu-list">
+              <button onclick="closeMkMenus();openMkOcrModal()">📷 사진/텍스트로 등록</button>
+              <button onclick="closeMkMenus();document.getElementById('mk-order-import-file').click()">📤 엑셀 업로드</button>
+            </div>
+          </div>
+          <div class="mk-menu">
+            <button class="btn btn-out btn-sm" onclick="mkToggleMenu(this)">📨 문자 ▾</button>
+            <div class="mk-menu-list">
+              <button onclick="closeMkMenus();openMkSmsModal()">📨 단체 문자</button>
+              <button onclick="closeMkMenus();openMkShipSmsModal()">🚚 발송 안내 문자</button>
+            </div>
+          </div>
+          <div class="mk-menu">
+            <button class="btn btn-out btn-sm" onclick="mkToggleMenu(this)">📦 배송·출력 ▾</button>
+            <div class="mk-menu-list">
+              <button onclick="closeMkMenus();openMkLogenModal()">📦 로젠 대량등록</button>
+              <button onclick="closeMkMenus();previewMilkitOrderPrint()">🖨️ 주문서 인쇄</button>
+              <button onclick="closeMkMenus();exportMilkitOrders()">📥 엑셀 내보내기</button>
+            </div>
+          </div>
         </div>
       </div>
       <div class="filter-bar">
@@ -2118,7 +2139,10 @@ img{max-width:100%;height:auto;}
       <div class="form-grid">
         <div class="form-row">
           <label>배송주소</label>
-          <input type="text" id="mk-order-address" placeholder="배송지 주소" oninput="this.classList.remove('input-invalid')">
+          <div style="display:flex;gap:6px;">
+            <input type="text" id="mk-order-address" placeholder="주소검색으로 도로명 입력 후 동·호수 추가" style="flex:1;min-width:0;" oninput="this.classList.remove('input-invalid')">
+            <button type="button" class="btn btn-out btn-sm" style="flex:0 0 auto;" onclick="openAddressSearch('mk-order-address')">🔍 주소검색</button>
+          </div>
         </div>
         <div class="form-row">
           <label>희망수령일</label>
@@ -2387,7 +2411,10 @@ img{max-width:100%;height:auto;}
       </div>
       <div class="form-row">
         <label>배송주소</label>
-        <input type="text" id="mk-cust-address" placeholder="배송지 주소">
+        <div style="display:flex;gap:6px;">
+          <input type="text" id="mk-cust-address" placeholder="주소검색으로 도로명 입력 후 동·호수 추가" style="flex:1;min-width:0;">
+          <button type="button" class="btn btn-out btn-sm" style="flex:0 0 auto;" onclick="openAddressSearch('mk-cust-address')">🔍 주소검색</button>
+        </div>
       </div>
       <div class="form-row">
         <label>비고</label>
@@ -6235,6 +6262,44 @@ function mkPayMethodPick(method){
   closeModal('mk-paymethod-modal');
   const cb=_mkPayMethodCb; _mkPayMethodCb=null;
   if(cb) cb(method);
+}
+
+/* 주문 액션 드롭다운 메뉴 토글 */
+function mkToggleMenu(btn){
+  const menu=btn.closest('.mk-menu');
+  const willOpen=!menu.classList.contains('open');
+  document.querySelectorAll('.mk-menu.open').forEach(m=>m.classList.remove('open'));
+  if(willOpen) menu.classList.add('open');
+}
+function closeMkMenus(){ document.querySelectorAll('.mk-menu.open').forEach(m=>m.classList.remove('open')); }
+document.addEventListener('click',function(e){ if(!e.target.closest('.mk-menu')) closeMkMenus(); });
+
+/* ===== 주소 자동검색 (카카오/다음 우편번호 서비스 — 무료·API키 불필요) ===== */
+let _daumPostcodeP=null;
+function loadDaumPostcode(){
+  if(window.daum && window.daum.Postcode) return Promise.resolve();
+  if(_daumPostcodeP) return _daumPostcodeP;
+  _daumPostcodeP=new Promise((resolve,reject)=>{
+    const s=document.createElement('script');
+    s.src='https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js';
+    s.onload=()=>resolve(); s.onerror=()=>{ _daumPostcodeP=null; reject(new Error('주소 검색 서비스를 불러오지 못했습니다. 인터넷 연결을 확인해 주세요.')); };
+    document.head.appendChild(s);
+  });
+  return _daumPostcodeP;
+}
+/* targetId 주소 입력칸을 도로명주소로 채우고, detailId(상세주소)가 있으면 포커스 */
+function openAddressSearch(targetId, detailId){
+  loadDaumPostcode().then(()=>{
+    new daum.Postcode({
+      oncomplete:function(data){
+        const addr=data.roadAddress || data.jibunAddress || '';
+        const el=document.getElementById(targetId);
+        if(el){ el.value=addr; el.classList.remove('input-invalid'); }
+        const d=detailId && document.getElementById(detailId);
+        if(d){ d.focus(); } else if(el){ el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+      }
+    }).open();
+  }).catch(e=>alert(e.message||'주소 검색을 열 수 없습니다.'));
 }
 
 /* 택배발송 + 희망수령일이 있으면 전날 발송 안내 */
