@@ -193,6 +193,15 @@ tr:hover td{background:var(--bg2);}
 .modal-hdr h4{font-family:var(--serif);font-size:17px;font-weight:700;color:var(--dark);}
 .modal-body{padding:20px 24px;}
 .modal-footer{padding:16px 24px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;}
+/* 크고 꽉 찬 하단 버튼 (데이터 입력 모달) */
+.modal-footer-lg{padding:14px 20px 18px;border-top:1px solid var(--border);display:flex;gap:10px;}
+.modal-footer-lg .btn{flex:1;padding:16px;font-size:15px;border-radius:11px;letter-spacing:0;}
+.modal-footer-lg .btn-acc{flex:1.7;box-shadow:var(--shadow-sm);}
+/* 필수입력 누락 강조 */
+.input-invalid{border:1.5px solid var(--red)!important;background:#FCEDED!important;}
+#mk-order-qty-rows.input-invalid{border-radius:9px;padding:6px;}
+.modal-error{margin:0 24px 4px;background:#FCEDED;border:1px solid #E8B4B4;color:#B23B3B;border-radius:9px;padding:11px 14px;font-size:13px;line-height:1.55;display:none;}
+.modal-error.show{display:block;}
 /* form */
 .form-row{margin-bottom:14px;}
 .form-row label{display:block;font-size:11px;font-weight:600;color:var(--sub);letter-spacing:.12em;text-transform:uppercase;margin-bottom:6px;}
@@ -2085,14 +2094,14 @@ img{max-width:100%;height:auto;}
           <label>주문자명 *</label>
           <div class="ac-wrap">
             <input type="text" id="mk-order-customer" placeholder="고객명" autocomplete="off"
-              oninput="mkCustomerInput();mkSyncRecipientPh()" onfocus="mkCustomerSuggest(false)" onblur="mkCustomerBlur()">
+              oninput="mkCustomerInput();mkSyncRecipientPh();this.classList.remove('input-invalid')" onfocus="mkCustomerSuggest(false)" onblur="mkCustomerBlur()">
             <button type="button" class="ac-all-btn" title="전체 고객 목록" onclick="mkCustomerSuggest(true)">📋</button>
             <div class="ac-list" id="mk-customer-suggest"></div>
           </div>
         </div>
         <div class="form-row">
           <label>연락처</label>
-          <input type="tel" id="mk-order-phone" placeholder="010-0000-0000" oninput="this.value=formatPhone(this.value);mkSyncRecipientPh()">
+          <input type="tel" id="mk-order-phone" placeholder="010-0000-0000" oninput="this.value=formatPhone(this.value);mkSyncRecipientPh();this.classList.remove('input-invalid')">
         </div>
       </div>
       <div class="form-grid" id="mk-order-recipient-box">
@@ -2109,7 +2118,7 @@ img{max-width:100%;height:auto;}
       <div class="form-grid">
         <div class="form-row">
           <label>배송주소</label>
-          <input type="text" id="mk-order-address" placeholder="배송지 주소">
+          <input type="text" id="mk-order-address" placeholder="배송지 주소" oninput="this.classList.remove('input-invalid')">
         </div>
         <div class="form-row">
           <label>희망수령일</label>
@@ -2118,7 +2127,7 @@ img{max-width:100%;height:auto;}
       </div>
       <div id="mk-order-deliv-hint" style="display:none;font-size:12px;color:var(--acc-dark);background:var(--acc-pale);border-radius:8px;padding:9px 12px;margin:-4px 0 12px;line-height:1.6;"></div>
       <div class="form-row">
-        <label>상품별 수량</label>
+        <label>상품별 수량 *</label>
         <div class="recipe-items-list" id="mk-order-qty-rows"></div>
       </div>
       <div style="font-size:11px;color:var(--sub2);margin:-4px 0 8px;">💡 피자 수량에 따라 세트 할인이 자동 적용됩니다 (2개↑ 2종세트 · 4개↑ 4종세트). 필요하면 아래에서 직접 바꿀 수 있어요.</div>
@@ -2181,9 +2190,10 @@ img{max-width:100%;height:auto;}
         <textarea id="mk-order-note" placeholder="특이사항, 요청사항…"></textarea>
       </div>
     </div>
-    <div class="modal-footer">
+    <div class="modal-error" id="mk-order-error"></div>
+    <div class="modal-footer-lg">
       <button class="btn btn-out" onclick="closeModal('mk-order-modal')">취소</button>
-      <button class="btn btn-acc" onclick="saveMilkitOrder()">저장</button>
+      <button class="btn btn-acc" onclick="saveMilkitOrder()">💾 저장</button>
     </div>
   </div>
 </div>
@@ -2369,7 +2379,7 @@ img{max-width:100%;height:auto;}
     <div class="modal-body">
       <div class="form-row">
         <label>고객명 *</label>
-        <input type="text" id="mk-cust-name" placeholder="홍길동">
+        <input type="text" id="mk-cust-name" placeholder="홍길동" oninput="this.classList.remove('input-invalid');var e=document.getElementById('mk-cust-error');if(e)e.classList.remove('show')">
       </div>
       <div class="form-row">
         <label>연락처</label>
@@ -2384,9 +2394,10 @@ img{max-width:100%;height:auto;}
         <textarea id="mk-cust-notes" placeholder="특이사항…"></textarea>
       </div>
     </div>
-    <div class="modal-footer">
+    <div class="modal-error" id="mk-cust-error"></div>
+    <div class="modal-footer-lg">
       <button class="btn btn-out" onclick="closeModal('mk-cust-modal')">취소</button>
-      <button class="btn btn-acc" onclick="saveMilkitCustomer()">저장</button>
+      <button class="btn btn-acc" onclick="saveMilkitCustomer()">💾 저장</button>
     </div>
   </div>
 </div>
@@ -5851,6 +5862,7 @@ function mkUpdateOrderTotals(){
   document.getElementById('mk-order-listtotal').textContent=comma(listTotal)+'원';
   document.getElementById('mk-order-discount').textContent=comma(discount)+'원';
   document.getElementById('mk-order-paytotal').textContent=comma(payTotal)+'원';
+  if(listTotal>0){ const qr=document.getElementById('mk-order-qty-rows'); if(qr) qr.classList.remove('input-invalid'); }
 }
 
 /* ===== 세트 구성유형 선택 → 메뉴 고르기 팝업 =====
@@ -6140,6 +6152,7 @@ function mkShipSmsResetTpl(){ mkShipSmsTpl=MK_SHIPSMS_DEFAULT; DB.save('mkShipSm
 function openMilkitOrderModal(id){
   mkEditId=id||null;
   document.getElementById('mk-order-modal-title').textContent=id?'주문 수정':'주문 등록';
+  mkClearOrderErrors();
   const _sg=document.getElementById('mk-customer-suggest'); if(_sg){ _sg.classList.remove('open'); _sg.innerHTML=''; }
   const setSel=document.getElementById('mk-order-settype');
   setSel.innerHTML = '<option value="낱개">낱개(할인 없음)</option>' + milkitSetRules.map(r=>`<option value="${r.name}">${r.name} (-${comma(r.discount)}원/세트)</option>`).join('');
@@ -6286,12 +6299,37 @@ function mkOrderItemsText(qty){
   return items.join(', ') || '(상품 없음)';
 }
 
+function mkClearOrderErrors(){
+  ['mk-order-customer','mk-order-phone','mk-order-address','mk-order-date','mk-order-qty-rows']
+    .forEach(id=>{ const el=document.getElementById(id); if(el) el.classList.remove('input-invalid'); });
+  const b=document.getElementById('mk-order-error'); if(b){ b.classList.remove('show'); b.innerHTML=''; }
+}
 function saveMilkitOrder(){
+  mkClearOrderErrors();
   const customer=document.getElementById('mk-order-customer').value.trim();
   const orderDate=document.getElementById('mk-order-date').value;
-  if(!customer||!orderDate){ alert('주문일자와 주문자명은 필수입니다.'); return; }
-  const qty={};
-  milkitProducts.forEach(p=>{ qty[p.id]=numVal('mk-qty-'+p.id); });
+  const phoneRaw=document.getElementById('mk-order-phone').value.trim();
+  const addressRaw=document.getElementById('mk-order-address').value.trim();
+  const delMethod=document.getElementById('mk-order-delmethod').value;
+  const qty={}; let itemCount=0;
+  milkitProducts.forEach(p=>{ const q=numVal('mk-qty-'+p.id); qty[p.id]=q; itemCount+=q; });
+  // ── 필수입력 검증 ──
+  const needDeliv = (delMethod==='택배발송' || delMethod==='직접배송');
+  const miss=[];
+  if(!orderDate) miss.push({id:'mk-order-date', label:'주문일자'});
+  if(!customer) miss.push({id:'mk-order-customer', label:'주문자명'});
+  if(itemCount<=0) miss.push({id:'mk-order-qty-rows', label:'상품 수량(최소 1개)'});
+  if(needDeliv && !phoneRaw) miss.push({id:'mk-order-phone', label:'연락처'});
+  if(needDeliv && !addressRaw) miss.push({id:'mk-order-address', label:'배송주소'});
+  if(miss.length){
+    miss.forEach(m=>{ const el=document.getElementById(m.id); if(el) el.classList.add('input-invalid'); });
+    const b=document.getElementById('mk-order-error');
+    b.innerHTML=`⚠️ <b>${miss.map(m=>m.label).join(' · ')}</b> 을(를) 입력해 주세요.`;
+    b.classList.add('show');
+    const first=document.getElementById(miss[0].id);
+    if(first){ first.scrollIntoView({block:'center',behavior:'smooth'}); setTimeout(()=>{ try{first.focus();}catch(e){} },160); }
+    return;
+  }
   const setType=document.getElementById('mk-order-settype').value;
   const setQty=Number(document.getElementById('mk-order-setqty').value)||1;
   const {listTotal,discount,payTotal}=mkCalcTotals(qty,setType,setQty);
@@ -7404,6 +7442,8 @@ function renderMilkitCustomers(){
 function openMilkitCustomerModal(id){
   mkEditId=id||null;
   document.getElementById('mk-cust-modal-title').textContent=id?'고객 수정':'고객 등록';
+  document.getElementById('mk-cust-name').classList.remove('input-invalid');
+  const _ce=document.getElementById('mk-cust-error'); if(_ce) _ce.classList.remove('show');
   if(id){
     const c=milkitCustomers.find(x=>x.id===id);
     if(!c) return;
@@ -7418,8 +7458,16 @@ function openMilkitCustomerModal(id){
 }
 
 function saveMilkitCustomer(){
-  const name=document.getElementById('mk-cust-name').value.trim();
-  if(!name){ alert('고객명은 필수입니다.'); return; }
+  const nameEl=document.getElementById('mk-cust-name');
+  const name=nameEl.value.trim();
+  const b=document.getElementById('mk-cust-error');
+  if(!name){
+    nameEl.classList.add('input-invalid');
+    if(b){ b.innerHTML='⚠️ <b>고객명</b>을 입력해 주세요.'; b.classList.add('show'); }
+    nameEl.scrollIntoView({block:'center',behavior:'smooth'}); setTimeout(()=>{try{nameEl.focus();}catch(e){}},160);
+    return;
+  }
+  nameEl.classList.remove('input-invalid'); if(b) b.classList.remove('show');
   const obj={
     id:mkEditId||uid(), name,
     phone:formatPhone(document.getElementById('mk-cust-phone').value),
