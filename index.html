@@ -1959,13 +1959,14 @@ img{max-width:100%;height:auto;}
         </div>
         <div class="form-row">
           <label>구분 *</label>
-          <select id="mk-prod-type">
+          <select id="mk-prod-type" onchange="mkProdTypeChanged()">
             <option value="생산">생산 (재고 증가)</option>
             <option value="폐기">폐기 · 손실 (재고 감소)</option>
-            <option value="조정">재고 수정 (실사 조정)</option>
+            <option value="조정">실사 맞춤 (센 수량으로 설정)</option>
           </select>
         </div>
       </div>
+      <div id="mk-prod-type-hint" style="display:none;font-size:11.5px;color:var(--acc-dark);background:var(--acc-pale);border-radius:8px;padding:9px 12px;margin:-4px 0 12px;line-height:1.6;"></div>
 
       <!-- 여러 상품 한 번에 입력 (신규 등록 시) -->
       <div id="mk-prod-multi">
@@ -2005,6 +2006,20 @@ img{max-width:100%;height:auto;}
     <div class="modal-footer-lg">
       <button class="btn btn-out" onclick="closeModal('mk-production-modal')">취소</button>
       <button class="btn btn-acc" id="mk-prod-save-btn" onclick="saveMkProduction()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 재고 상세 내역(감사) -->
+<div class="modal-bg" id="mk-invdetail-modal">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-hdr">
+      <h4 id="mk-invdetail-title">재고 상세 내역</h4>
+      <button class="btn btn-icon btn-out" onclick="closeModal('mk-invdetail-modal')">✕</button>
+    </div>
+    <div class="modal-body" id="mk-invdetail-body"></div>
+    <div class="modal-footer-lg">
+      <button class="btn btn-acc" onclick="closeModal('mk-invdetail-modal')">닫기</button>
     </div>
   </div>
 </div>
@@ -7834,6 +7849,50 @@ function computeMilkitInventory(){
   });
 }
 
+/* 상품 하나의 생산·출고 상세 내역(대조용) */
+function openMkInvDetail(productId){
+  const p=milkitProducts.find(x=>x.id===productId); if(!p) return;
+  const inv=computeMilkitInventory().find(r=>r.product.id===productId);
+  document.getElementById('mk-invdetail-title').textContent=`재고 상세 — ${p.name}`;
+  const wd=['일','월','화','수','목','금','토'];
+  const fmtD=d=>{ const m=String(d||'').match(/^(\d{4})-(\d{2})-(\d{2})$/); if(!m) return d||'-'; const dt=new Date(+m[1],+m[2]-1,+m[3]); return `${+m[2]}/${+m[3]}(${wd[dt.getDay()]})`; };
+  // 생산/폐기/조정 기록
+  const prods=milkitProduction.filter(r=>r.productId===productId)
+    .sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  const prodRows=prods.map(r=>{
+    const delta=mkProdDelta(r); const t=r.type==='폐기'?'🗑️ 폐기':(r.type==='조정'?'🔧 실사맞춤':'🏭 생산');
+    const extra=(r.type==='조정'&&r.counted!=null)?` <span style="color:var(--sub2);">(실사 ${comma(r.counted)}개)</span>`:'';
+    return `<tr><td>${fmtD(r.date)}</td><td>${t}${extra}</td><td style="text-align:right;color:${delta<0?'#b23':'inherit'};">${delta<0?'−':'+'}${comma(Math.abs(delta))}</td></tr>`;
+  }).join('') || `<tr><td colspan="3" style="text-align:center;color:var(--sub2);">생산 기록 없음</td></tr>`;
+  // 출고(배송중·배송완료) 주문
+  const shipOrders=milkitOrders.filter(o=>MK_SHIPPED_STATES.includes(o.deliveryStatus||'준비중') && Number(o.qty?.[productId])>0)
+    .sort((a,b)=>(a.no||0)-(b.no||0));
+  const shipRows=shipOrders.map(o=>`<tr><td>No.${o.no||'-'} ${o.customer||''}${o.promo?' 🎁':''}</td><td>${o.deliveryStatus}</td><td style="text-align:right;">−${comma(Number(o.qty[productId])||0)}</td></tr>`).join('')
+    || `<tr><td colspan="3" style="text-align:center;color:var(--sub2);">출고된 주문 없음</td></tr>`;
+  // 출고대기(준비중) 주문
+  const pendOrders=milkitOrders.filter(o=>!MK_SHIPPED_STATES.includes(o.deliveryStatus||'준비중') && Number(o.qty?.[productId])>0)
+    .sort((a,b)=>(a.no||0)-(b.no||0));
+  const pendRows=pendOrders.map(o=>`<tr><td>No.${o.no||'-'} ${o.customer||''}</td><td>${o.deliveryStatus||'준비중'}</td><td style="text-align:right;color:var(--sub2);">(${comma(Number(o.qty[productId])||0)})</td></tr>`).join('');
+  const tbl=(rows)=>`<table style="width:100%;border-collapse:collapse;font-size:12.5px;">${rows}</table>`;
+  document.getElementById('mk-invdetail-body').innerHTML=`
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+      <div class="stat-card" style="flex:1;min-width:90px;padding:10px;"><div class="s-label">생산 합계</div><div class="s-val num" style="font-size:20px;">${comma(inv.produced)}</div></div>
+      <div class="stat-card" style="flex:1;min-width:90px;padding:10px;"><div class="s-label">출고 합계</div><div class="s-val num" style="font-size:20px;">${comma(inv.shipped)}</div></div>
+      <div class="stat-card acc-border" style="flex:1;min-width:90px;padding:10px;"><div class="s-label">현재고</div><div class="s-val num" style="font-size:20px;">${comma(inv.stock)}</div></div>
+    </div>
+    <div style="font-size:12px;color:var(--sub);margin-bottom:14px;padding:9px 11px;background:var(--bg2);border-radius:8px;line-height:1.6;">
+      계산: 생산 <b>${comma(inv.produced)}</b> − 출고 <b>${comma(inv.shipped)}</b> = 현재고 <b>${comma(inv.stock)}</b>개<br>
+      <span style="color:var(--sub2);">실제 세어본 수량과 다르면, 아래 목록에서 빠졌거나 잘못된 기록을 찾아 수정하세요. 맞추려면 ‘실사 맞춤’으로 센 수량을 입력하면 됩니다.</span>
+    </div>
+    <div class="sms-scope-label">📦 생산·폐기·조정 기록</div>
+    ${tbl(prodRows)}
+    <div class="sms-scope-label" style="margin-top:14px;">🚚 출고된 주문 (배송중·배송완료)</div>
+    ${tbl(shipRows)}
+    ${pendOrders.length?`<div class="sms-scope-label" style="margin-top:14px;">⏳ 출고 대기 (준비중 · 아직 재고 차감 안 됨)</div>${tbl(pendRows)}`:''}
+  `;
+  openModal('mk-invdetail-modal');
+}
+
 /* 대시보드·밀키트 상단에 공통으로 쓰는 요약 위젯 (한 곳에서 계산해 값이 어긋나지 않도록) */
 function milkitInventorySummaryHtml(){
   const inv=computeMilkitInventory();
@@ -7907,8 +7966,8 @@ function renderMilkitInventory(){
     else if(r.stock<=0) badge=`<span class="badge badge-gray">재고 없음</span>`;
     else if(r.available===0) badge=`<span class="badge badge-orange">여유 없음</span>`;
     else badge=`<span class="badge badge-green">✅ 충분</span>`;
-    return `<tr>
-      <td>${r.product.name}</td>
+    return `<tr style="cursor:pointer;" onclick="openMkInvDetail('${r.product.id}')" title="클릭하면 생산·출고 상세 내역을 볼 수 있어요">
+      <td>${r.product.name} <span style="color:var(--sub2);font-size:11px;">🔍</span></td>
       <td style="text-align:right;">${comma(r.produced)}</td>
       <td style="text-align:right;">${comma(r.shipped)}</td>
       <td style="text-align:right;font-weight:700;">${comma(r.stock)}</td>
@@ -7939,13 +7998,15 @@ function renderMkProductionList(){
   const rowHtml=r=>{
     const p=milkitProducts.find(x=>x.id===r.productId);
     const typeBadge = r.type==='폐기' ? `<span class="badge badge-red">🗑️ 폐기</span>`
-      : (r.type==='조정' ? `<span class="badge badge-blue">🔧 재고 수정</span>` : `<span class="badge badge-green">🏭 생산</span>`);
+      : (r.type==='조정' ? `<span class="badge badge-blue">🔧 실사 맞춤</span>` : `<span class="badge badge-green">🏭 생산</span>`);
     const delta=mkProdDelta(r); const sign=delta<0?'−':'+';
+    const adjInfo = (r.type==='조정' && r.counted!=null) ? `<div class="mrow-meta">실사 ${comma(r.counted)}개로 맞춤</div>` : '';
     return `<div class="mrow">
       <button class="mrow-del" onclick="event.stopPropagation();deleteMkProduction('${r.id}')">삭제</button>
       <div class="mrow-inner" onclick="mrowClick(this,'openMkProductionModal','${r.id}')">
         <div class="mrow-main">
           <b>${p?p.name:'(삭제된 상품)'}</b> ${typeBadge}
+          ${adjInfo}
           ${r.note?`<div class="mrow-meta">${r.note}</div>`:''}
         </div>
         <div class="mrow-side"><b style="color:${delta<0?'#b23':'inherit'};">${sign}${comma(Math.abs(delta))}</b>개</div>
@@ -8071,6 +8132,20 @@ function saveMkStockEdit(){
   alert(`재고를 수정했습니다. (${entries.length}개 상품)`);
 }
 
+function mkProdTypeChanged(){
+  const t=document.getElementById('mk-prod-type').value;
+  const hint=document.getElementById('mk-prod-type-hint');
+  if(!hint) return;
+  if(t==='조정'){
+    hint.style.display='';
+    hint.innerHTML='🔧 <b>실제로 센 수량</b>을 입력하면 그 수량으로 <b>맞춰집니다</b>(더하는 게 아님). 현재고와 같으면 변화 없음. 입력 안 한 상품은 그대로 둡니다.';
+  } else if(t==='폐기'){
+    hint.style.display='';
+    hint.innerHTML='🗑️ 버리거나 손실난 수량만큼 <b>재고가 줄어듭니다</b>.';
+  } else { hint.style.display='none'; }
+  // 조정 시 각 칸 placeholder를 '센 수량'으로
+  document.querySelectorAll('#mk-prod-qty-rows input').forEach(el=>{ el.placeholder = t==='조정' ? '센 수량' : '0'; });
+}
 function openMkProductionModal(id){
   mkProdEditId = id||null;
   const rec = id ? milkitProduction.find(r=>r.id===id) : null;
@@ -8094,6 +8169,7 @@ function openMkProductionModal(id){
     single.style.display='none';
     renderMkProdQtyRows();
   }
+  mkProdTypeChanged();
   openModal('mk-production-modal');
 }
 
@@ -8119,12 +8195,23 @@ function saveMkProduction(){
   } else {
     // 여러 상품을 한 번에 등록 — 수량이 있는 상품만 기록 생성
     const entries=[];
+    const isAdjust = (type==='조정');
+    const stockMap={};
+    if(isAdjust) computeMilkitInventory().forEach(r=>stockMap[r.product.id]=r.stock);
     milkitProducts.forEach(p=>{
       const el=document.getElementById('mk-prodqty-'+p.id);
-      const qty=Number(el&&el.value)||0;
-      if(qty>0) entries.push({ id:uid(), date, productId:p.id, type, qty, note });
+      const raw=(el&&el.value!=null)?String(el.value).trim():'';
+      if(isAdjust){
+        if(raw==='') return;                       // 입력 안 한 상품은 그대로
+        const counted=Number(raw)||0;              // 실제로 센 수량
+        const delta=counted-(stockMap[p.id]||0);   // 그 수량이 되도록 증감
+        if(delta!==0) entries.push({ id:uid(), date, productId:p.id, type:'조정', qty:delta, counted, note });
+      } else {
+        const qty=Number(raw)||0;
+        if(qty>0) entries.push({ id:uid(), date, productId:p.id, type, qty, note });
+      }
     });
-    if(!entries.length){ alert('수량을 1개 이상 입력하세요.'); return; }
+    if(!entries.length){ alert(isAdjust?'조정할 상품의 센 수량을 입력하세요. (현재고와 같으면 변화 없음)':'수량을 1개 이상 입력하세요.'); return; }
     entries.forEach(e=>milkitProduction.push(e));
   }
   DB.save('milkitProduction',milkitProduction);
