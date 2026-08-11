@@ -1435,6 +1435,7 @@ img{max-width:100%;height:auto;}
         <h3 style="font-size:14px;">상품별 재고 현황</h3>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <button class="btn btn-out btn-sm" onclick="previewMilkitInventoryPrint()">🖨️ 인쇄</button>
+          <button class="btn btn-out btn-sm" onclick="exportMkInventoryLedger()">📥 대조용 엑셀</button>
           <button class="btn btn-out btn-sm" onclick="openMkStockEditModal()">📝 재고 수정</button>
           <button class="btn btn-acc btn-sm" onclick="openMkProductionModal()">+ 생산 등록</button>
         </div>
@@ -8237,6 +8238,72 @@ function mkInventoryPrintHtml(){
 }
 function previewMilkitInventoryPrint(){
   mkPreviewPrint('밀키트 재고 현황 인쇄 미리보기', '생산 − 출고 기준 현재 재고입니다 · 인쇄 시 흰 배경으로 출력됩니다', mkInventoryPrintHtml());
+}
+
+/* 재고 대조용 엑셀 — ①상품별 합계 ②일자별 입출고 원장(잔량) ③일자별 요약 */
+function exportMkInventoryLedger(){
+  if(!milkitProducts.length){ alert('등록된 상품이 없습니다.'); return; }
+  const inv=computeMilkitInventory();
+  const nameOf=id=>{ const p=milkitProducts.find(x=>x.id===id); return p?p.name:'(삭제된 상품)'; };
+
+  // ── ① 상품별 합계 ──
+  const sum=[['상품','생산','폐기','실사조정','출고(배송중·완료)','현재고','출고대기(준비중)']];
+  let t=[0,0,0,0,0,0];
+  milkitProducts.forEach(p=>{
+    let prod=0,disc=0,adj=0;
+    milkitProduction.forEach(r=>{ if(r.productId!==p.id) return; const q=Number(r.qty)||0;
+      if(r.type==='폐기') disc+=q; else if(r.type==='조정') adj+=q; else prod+=q; });
+    const iv=inv.find(x=>x.product.id===p.id)||{shipped:0,stock:0,pending:0};
+    sum.push([p.name, prod, disc, adj, iv.shipped, iv.stock, iv.pending]);
+    t[0]+=prod; t[1]+=disc; t[2]+=adj; t[3]+=iv.shipped; t[4]+=iv.stock; t[5]+=iv.pending;
+  });
+  sum.push(['합계', ...t]);
+
+  // ── ② 일자별 입출고 원장 (상품별 시간순 + 잔량) ──
+  const led=[['상품','날짜','구분','입고(+)','출고(−)','잔량','비고']];
+  milkitProducts.forEach(p=>{
+    const mv=[];
+    milkitProduction.filter(r=>r.productId===p.id).forEach(r=>{
+      const q=Number(r.qty)||0;
+      if(r.type==='폐기') mv.push({date:r.date||'', kind:'폐기', inn:0, out:q, memo:r.note||''});
+      else if(r.type==='조정') mv.push({date:r.date||'', kind:'실사조정', inn:q>0?q:0, out:q<0?-q:0, memo:(r.counted!=null?`실사 ${comma(r.counted)}개로 맞춤`:'')+(r.note?' · '+r.note:'')});
+      else mv.push({date:r.date||'', kind:'생산', inn:q, out:0, memo:r.note||''});
+    });
+    milkitOrders.forEach(o=>{
+      const q=Number(o.qty?.[p.id])||0; if(q<=0) return;
+      if(!MK_SHIPPED_STATES.includes(o.deliveryStatus||'준비중')) return;
+      mv.push({date:o.orderDate||'', kind:'출고', inn:0, out:q, memo:`No.${o.no||'-'} ${o.customer||''}${o.promo?' (홍보)':''} · ${o.deliveryStatus}`});
+    });
+    if(!mv.length) return;
+    mv.sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+    let bal=0;
+    mv.forEach(m=>{ bal += m.inn - m.out;
+      led.push([p.name, m.date||'-', m.kind, m.inn||'', m.out||'', bal, m.memo]); });
+    led.push([p.name+' 잔량', '', '', '', '', bal, '← 현재고']);
+    led.push(['','','','','','','']);
+  });
+
+  // ── ③ 일자별 요약 (날짜 × 상품: 생산/출고) ──
+  const dates=new Set();
+  milkitProduction.forEach(r=>{ if(r.date) dates.add(r.date); });
+  milkitOrders.forEach(o=>{ if(o.orderDate && MK_SHIPPED_STATES.includes(o.deliveryStatus||'준비중')) dates.add(o.orderDate); });
+  const dlist=[...dates].sort();
+  const daily=[['날짜','상품','생산','출고']];
+  dlist.forEach(d=>{
+    milkitProducts.forEach(p=>{
+      let prod=0, ship=0;
+      milkitProduction.forEach(r=>{ if(r.productId===p.id && r.date===d && r.type==='생산') prod+=Number(r.qty)||0; });
+      milkitOrders.forEach(o=>{ if(o.orderDate===d && MK_SHIPPED_STATES.includes(o.deliveryStatus||'준비중')) ship+=Number(o.qty?.[p.id])||0; });
+      if(prod||ship) daily.push([d, p.name, prod||'', ship||'']);
+    });
+  });
+
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sum),   '상품별 합계');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(led),   '입출고 원장');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(daily), '일자별 요약');
+  XLSX.writeFile(wb, '지구인피자_재고대조_'+todayStr()+'.xlsx');
+  alert('재고 대조용 엑셀을 내보냈습니다.\n· 상품별 합계 · 입출고 원장(잔량) · 일자별 요약 3개 시트');
 }
 
 /* --- 판매 현황 --- */
