@@ -643,6 +643,13 @@ tr:hover td{background:var(--bg2);}
 .mrow-side{text-align:right;flex-shrink:0;}
 .mrow-side-val{font-weight:700;font-size:13.5px;color:var(--dark);font-variant-numeric:tabular-nums;white-space:nowrap;}
 .mrow-side-sub{font-size:11px;font-weight:600;color:var(--sub);white-space:nowrap;margin-top:3px;}
+/* 🧂 원부자재 C안 — 재료명 바로 아래 구입가·단가(왼쪽), 오른쪽엔 카테고리·유통기한·재고 */
+.ing-price-line{display:flex;align-items:baseline;gap:8px;margin-top:4px;flex-wrap:wrap;}
+.ing-price-line .mrow-side-val{font-size:15px;}
+.ing-price-line .mrow-side-sub{margin-top:0;}
+.ing-side-right{display:flex;flex-direction:column;align-items:flex-end;gap:4px;text-align:right;flex-shrink:0;}
+.ing-side-right .ing-tags{display:flex;align-items:center;gap:5px;flex-wrap:wrap;justify-content:flex-end;}
+.ing-side-right .mrow-meta{margin-top:0;}
 /* === recipe book: chip-flow card (M/L together) === */
 .rb-cat-divider{font-size:11px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--acc);margin:24px 0 10px;}
 .rb-sheet{background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:16px 18px;margin-bottom:14px;box-shadow:var(--shadow-sm);break-inside:avoid;page-break-inside:avoid;}
@@ -3336,11 +3343,13 @@ function renderIngredients(){
       <div class="mrow-inner" onclick="mrowClick(this,'openIngModal','${i.id}')">
         <div class="mrow-main">
           <div class="mrow-title">${i.name}${lowStock?'<span class="badge badge-red">재고부족</span>':''}</div>
-          <div class="mrow-meta"><span class="badge badge-gray">${i.category||'기타'}</span> 재고 <b class="${lowStock?'color-red':''}">${comma(i.stock)||0}</b>${i.minStock?` / 최소 ${comma(i.minStock)}`:''} · ${expiryBadge(i.expiry)}${i.supplierId?' · '+supName(i.supplierId):''}</div>
+          <div class="ing-price-line">
+            <span class="mrow-side-val">${pp}</span>${(pq||up)?`<span class="mrow-side-sub">${pq}${up?' · '+up:''}</span>`:''}
+          </div>
         </div>
-        <div class="mrow-side">
-          <div class="mrow-side-val">${pp}</div>
-          <div class="mrow-side-sub">${pq}${up?' · '+up:''}</div>
+        <div class="ing-side-right">
+          <div class="ing-tags"><span class="badge badge-gray">${i.category||'기타'}</span>${expiryBadge(i.expiry)}</div>
+          <div class="mrow-meta">재고 <b class="${lowStock?'color-red':''}">${comma(i.stock)||0}</b>${i.minStock?` / 최소 ${comma(i.minStock)}`:''}${i.supplierId?' · '+supName(i.supplierId):''}</div>
         </div>
       </div>
     </div>`;
