@@ -2170,7 +2170,7 @@ img{max-width:100%;height:auto;}
           <label>상품별 수량 <span class="req">*</span></label>
           <div class="recipe-items-list" id="mk-order-qty-rows"></div>
         </div>
-        <div style="font-size:11px;color:var(--sub2);margin:-4px 0 8px;">💡 피자 수량에 따라 세트 할인이 자동 적용됩니다 (2개↑ 2종세트 · 4개↑ 4종세트). 필요하면 아래에서 직접 바꿀 수 있어요.</div>
+        <div style="font-size:11px;color:var(--sub2);margin:-4px 0 8px;">💡 피자 수량에 따라 세트 유형이 자동 선택됩니다 (2종↑ 2종세트 · 4종↑ 4종세트). <b>여러 세트를 구입하면 아래 「세트수량」을 늘리세요</b> — 정가·할인이 세트 수만큼 곱해집니다.</div>
         <div class="form-grid">
           <div class="form-row">
             <label>구성유형</label>
@@ -4926,11 +4926,19 @@ function mkProductName(id){ const p=milkitProducts.find(x=>x.id===id); return p?
 function mkProductPrice(id){ const p=milkitProducts.find(x=>x.id===id); return p?Number(p.price)||0:0; }
 
 function mkCalcTotals(qtyMap, setType, setQty){
-  let listTotal=0;
-  milkitProducts.forEach(p=>{ listTotal += (Number(qtyMap[p.id])||0) * (Number(p.price)||0); });
   const rule = milkitSetRules.find(r=>r.name===setType);
-  const discount = rule ? (Number(rule.discount)||0) * (Number(setQty)||1) : 0;
-  const payTotal = Math.max(listTotal-discount, 0);
+  const isSet = !!rule && mkSetRuleSize(rule) >= 2;   // 2종/4종 등 실제 세트만
+  const n = Math.max(1, Number(setQty)||1);           // 세트 수 (몇 세트 구입)
+  // 피자와 추가품목(소스팩 등)을 나눠 합산 — 세트 구성(피자)만 세트수량만큼 곱함
+  let pizzaBase=0, extraBase=0;
+  milkitProducts.forEach(p=>{
+    const amt = (Number(qtyMap[p.id])||0) * (Number(p.price)||0);
+    if(p.category==='피자') pizzaBase += amt; else extraBase += amt;
+  });
+  // 세트: 피자 정가 × 세트수량 (+ 추가품목은 입력 수량 그대로), 할인 = 세트할인 × 세트수량
+  const listTotal = isSet ? (pizzaBase * n + extraBase) : (pizzaBase + extraBase);
+  const discount  = isSet ? ((Number(rule.discount)||0) * n) : 0;
+  const payTotal  = Math.max(listTotal - discount, 0);
   return {listTotal, discount, payTotal};
 }
 
@@ -5964,7 +5972,8 @@ function mkAutoApplySet(){
   const applicable=sized.filter(r=>r.size<=cnt).sort((a,b)=>b.size-a.size)[0];
   if(applicable && [...sel.options].some(o=>o.value===applicable.name)){
     sel.value=applicable.name;
-    qtyEl.value=Math.max(1, Math.floor(cnt/applicable.size));
+    // 세트수량(몇 세트 구입)은 사용자가 정하는 값 → 자동으로 덮어쓰지 않음(최소 1 보장)
+    if(!(Number(qtyEl.value)>=1)) qtyEl.value=1;
   } else {
     sel.value='낱개';
     qtyEl.value=1;
