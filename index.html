@@ -313,8 +313,11 @@ tr:hover td{background:var(--bg2);}
 .mko-badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px;}
 .mko-line{margin-top:5px;font-size:12.5px;color:var(--sub);line-height:1.5;}
 .mko-dim{color:var(--sub2);}
-.mko-items{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;}
-.mko-meta{margin-top:7px;font-size:11px;color:var(--sub2);}
+.mko-items{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
+.mko-item-chip{font-size:12.5px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:3px 10px;white-space:nowrap;color:var(--txt);}
+.mko-item-chip b{color:var(--acc-dark);font-weight:800;}
+.mko-set-chip{font-size:12.5px;font-weight:800;background:var(--acc-pale);border:1px solid var(--acc);color:var(--acc-dark);border-radius:8px;padding:3px 11px;white-space:nowrap;}
+.mko-meta{margin-top:7px;font-size:11.5px;color:var(--sub2);}
 /* 세트 메뉴 선택 버튼 */
 .mk-setpick-btn{display:flex;flex-direction:column;align-items:flex-start;gap:2px;position:relative;
   padding:12px 12px 10px;border:1.5px solid var(--border);border-radius:var(--r-md);background:#fff;
@@ -5253,7 +5256,31 @@ function mkOrderShipLine(o){
   return `<div class="${cls}">🚚 발송 권장 <b>${fmt(ship)}</b> <span class="mko-dim">(수령 ${fmt(recv)})</span>${tag}</div>`;
 }
 
+// 🔧 기존 주문 금액 일괄 보정 — 세트 팝업으로 만든 '한 세트' 주문(피자수=세트크기)인데
+//    세트수량>1 이면 예전엔 정가가 안 곱해져 1세트 금액으로 저장됨 → 세트수량만큼 재계산.
+//    (총수량을 직접 입력한 주문 pizzaCount>size 은 이미 정가 반영돼 있어 건드리지 않음) · 멱등
+function mkFixSetTotals(){
+  if(!Array.isArray(milkitOrders)) return 0;
+  const pizzas=milkitProducts.filter(p=>p.category==='피자');
+  let changed=0;
+  milkitOrders.forEach(o=>{
+    const rule=milkitSetRules.find(r=>r.name===o.setType);
+    if(!rule) return;
+    const size=mkSetRuleSize(rule);
+    const n=Math.max(1,Number(o.setQty)||1);
+    if(size<2 || n<=1) return;
+    const pizzaCount=pizzas.reduce((s,p)=>s+(Number(o.qty&&o.qty[p.id])||0),0);
+    if(pizzaCount>size) return; // 총수량 직접입력분 → 이미 정가 반영, 건드리지 않음
+    const t=mkCalcTotals(o.qty||{}, o.setType, n);
+    if(Number(o.listTotal)!==t.listTotal || Number(o.discount)!==t.discount || Number(o.payTotal)!==t.payTotal){
+      o.listTotal=t.listTotal; o.discount=t.discount; o.payTotal=t.payTotal; changed++;
+    }
+  });
+  if(changed>0){ try{ DB.save('milkitOrders', milkitOrders); }catch(_){} }
+  return changed;
+}
 function renderMilkitOrders(){
+  try{ mkFixSetTotals(); }catch(_){}
   renderMkOrderProductFilter();
   syncMkOrderFilterUi();
   const list=getFilteredMilkitOrders();
@@ -5285,12 +5312,19 @@ function renderMilkitOrders(){
   el.className='mlist'+(mkSelectMode?' select-mode':'');
   el.innerHTML=list.map((o)=>{
     const items = milkitProducts.filter(p=>Number(o.qty?.[p.id])>0)
-      .map(p=>`<span style="font-size:11px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:2px 8px;white-space:nowrap;">${p.name} <b>×${o.qty[p.id]}</b></span>`).join('');
+      .map(p=>`<span class="mko-item-chip">${p.name} <b>×${o.qty[p.id]}</b></span>`).join('');
+    // 세트 유형·수량을 눈에 띄는 칩으로 앞에 표시
+    const _setRule=milkitSetRules.find(r=>r.name===o.setType);
+    const _isSet=!!_setRule && mkSetRuleSize(_setRule)>=2;
+    const _setQtyN=Number(o.setQty)||1;
+    const setChip = _isSet
+      ? `<span class="mko-set-chip">${o.setType} ×${_setQtyN}</span>`
+      : `<span class="mko-item-chip" style="font-weight:700;">낱개</span>`;
     const dt = (o.orderDate||'') + (o.orderTime?' '+o.orderTime:'');
     const recip = (o.recipient && o.recipient!==o.customer)
       ? `<div class="mko-line" style="color:var(--acc-dark);">🎁 받는 분 ${o.recipient}${o.recipientPhone?' · '+formatPhone(o.recipientPhone):''}</div>` : '';
     const handle = reorderable ? `<span class="mko-drag" title="꾹 눌러 끌면 순서 변경">⠿</span>` : '';
-    const meta=[`${o.setType||'낱개'}×${o.setQty||1}`, o.payMethod||'', o.deliveryMethod||''].filter(Boolean).join(' · ');
+    const meta=[o.payMethod||'', o.deliveryMethod||''].filter(Boolean).join(' · ');
     const sel=mkSelectedOrderIds.has(o.id);
     // 택배발송 + 희망수령일이 있고 아직 발송 전이면 "발송 권장일" 안내
     const shipLine = mkOrderShipLine(o);
@@ -5313,7 +5347,7 @@ function renderMilkitOrders(){
         <div class="mko-line">📞 ${o.phone?formatPhone(o.phone):'연락처 없음'} <span class="mko-dim">· ${dt}</span></div>
         ${mkFullAddr(o)?`<div class="mko-line">📍 ${mkFullAddr(o)}</div>`:''}
         ${recip}
-        <div class="mko-items">${items||'<span class="mko-dim">상품 없음</span>'}</div>
+        <div class="mko-items">${setChip}${items||'<span class="mko-dim">상품 없음</span>'}</div>
         <div class="mko-meta">${meta}${o.tracking?` · 📮 ${o.tracking}`:''}</div>
         ${o.note?`<div class="mko-line mko-dim">📝 ${o.note}</div>`:''}
       </div>
@@ -9293,6 +9327,7 @@ function initSyncOnBoot(){
    ============================ */
 document.getElementById('topbar-date').textContent=new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric',weekday:'short'});
 applyAppTheme(appTheme);
+try{ mkFixSetTotals(); }catch(_){}
 renderDashboard();
 registerServiceWorker();
 initSyncOnBoot();
