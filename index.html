@@ -185,6 +185,14 @@ tr:hover td{background:var(--bg2);}
 .badge-blue{background:#E5ECF5;color:#1E3C6A;}
 .badge-gray{background:#EFECE6;color:#5A5248;}
 .badge-acc{background:var(--acc-pale);color:var(--acc-dark);}
+.dot-rate{display:flex;gap:6px;}
+.dot-opt{width:30px;height:30px;border-radius:50%;border:1.5px solid var(--border-strong);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--sub2);cursor:pointer;transition:all .12s;user-select:none;}
+.dot-opt:hover{border-color:var(--acc);color:var(--acc);}
+.dot-opt.on{background:var(--acc);border-color:var(--acc);color:#fff;}
+.chip-group{display:flex;flex-wrap:wrap;gap:8px;}
+.chip-opt{border:1.5px solid var(--border-strong);border-radius:20px;padding:6px 14px;font-size:12.5px;font-weight:600;color:var(--sub);cursor:pointer;transition:all .12s;user-select:none;}
+.chip-opt:hover{border-color:var(--acc);color:var(--acc);}
+.chip-opt.on{background:var(--acc);border-color:var(--acc);color:#fff;}
 /* form modal */
 .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;align-items:center;justify-content:center;padding:20px;}
 .modal-bg.open{display:flex;}
@@ -843,6 +851,10 @@ img{max-width:100%;height:auto;}
     <div class="nav-item" onclick="navigate('stores')">
       <span class="nav-icon">🏪</span>가맹점 관리
     </div>
+    <div class="nav-label">시장 조사</div>
+    <div class="nav-item" onclick="navigate('scout')">
+      <span class="nav-icon">🔍</span>매장 조사
+    </div>
     <div class="nav-label">밀키트 판매</div>
     <div class="nav-item" onclick="navigate('milkit')">
       <span class="nav-icon">🛒</span>밀키트 판매관리
@@ -1209,6 +1221,25 @@ img{max-width:100%;height:auto;}
     </div>
     <div class="list-hint"><span class="hover-only">💡 행을 클릭하면 수정 · 마우스를 올리면 삭제가 나타납니다</span><span class="swipe-only">💡 행을 누르면 수정 · 왼쪽으로 밀면 삭제가 나타납니다</span></div>
     <div class="mlist" id="store-list"></div>
+  </div>
+
+  <!-- ===SCOUT (매장 조사 · 경쟁사 벤치마킹)=== -->
+  <div class="section" id="sec-scout">
+    <div class="page-hdr">
+      <h3>매장 조사 <span id="scout-count-badge" class="badge badge-acc" style="margin-left:6px;">0건</span></h3>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-out btn-sm" onclick="exportScoutList()">📥 엑셀</button>
+        <button class="btn btn-acc" onclick="openScoutModal()">+ 새 조사 등록</button>
+      </div>
+    </div>
+    <div style="margin-bottom:16px;padding:14px 18px;background:var(--acc-pale);border-radius:var(--r-md);font-size:13px;color:var(--acc-dark);">
+      🔍 타 브랜드 피자 매장을 현장 조사해 벤치마킹 포인트를 기록합니다. 브랜드 · 첫인상 · 시그니처 · 도우 · 가격 등 12개 항목을 매장마다 동일한 포맷으로 남기세요.
+    </div>
+    <div class="toolbar">
+      <input type="text" id="scout-search" placeholder="매장명 또는 지역 검색…" oninput="renderScout()" style="width:220px;">
+    </div>
+    <div class="list-hint"><span class="hover-only">💡 행을 클릭하면 수정 · 마우스를 올리면 삭제가 나타납니다</span><span class="swipe-only">💡 행을 누르면 수정 · 왼쪽으로 밀면 삭제가 나타납니다</span></div>
+    <div class="mlist" id="scout-list"></div>
   </div>
 
   <!-- ===LABELS (백라벨)=== -->
@@ -2128,6 +2159,145 @@ img{max-width:100%;height:auto;}
   </div>
 </div>
 
+<!-- ===SCOUT MODAL (매장 조사 입력)=== -->
+<div class="modal-bg" id="scout-modal">
+  <div class="modal" style="max-width:720px;">
+    <div class="modal-hdr">
+      <h4 id="scout-modal-title">새 조사 등록</h4>
+      <button class="btn btn-icon btn-out" onclick="closeModal('scout-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <div class="form-grid">
+        <div class="form-row">
+          <label>매장명 <span class="req">*</span></label>
+          <input type="text" id="scout-name" placeholder="예: OO피자 강남점">
+        </div>
+        <div class="form-row">
+          <label>지역</label>
+          <input type="text" id="scout-region" placeholder="예: 서울 강남">
+        </div>
+        <div class="form-row">
+          <label>방문일</label>
+          <input type="date" id="scout-date">
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-hd"><span class="fs-num">1</span> 브랜드 — 이름 · 로고 · 간판</div>
+        <div class="form-row"><label>로고 / 간판</label><input type="text" id="scout-logo"></div>
+        <div class="form-row"><label>한 문장 소개</label><input type="text" id="scout-oneliner"></div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-hd"><span class="fs-num">2</span> 첫인상 — 외관만 봐도 피자집?</div>
+        <div class="form-row"><label>즉각성 (약함 → 강함)</label><div class="dot-rate" data-rate="firstimpression"></div></div>
+        <div class="form-row"><label>근거</label><input type="text" id="scout-fi-reason"></div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-hd"><span class="fs-num">3</span> 시그니처 — "여기 가면 이것"</div>
+        <div class="form-row"><label>메뉴명</label><input type="text" id="scout-sig-name"></div>
+        <div class="form-row"><label>특징</label><textarea id="scout-sig-desc"></textarea></div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-hd"><span class="fs-num">4</span> 도우 — 두께 · 숙성 · 식감</div>
+        <div class="form-grid">
+          <div class="form-row"><label>두께</label><input type="text" id="scout-dough-thick"></div>
+          <div class="form-row"><label>엣지</label><input type="text" id="scout-dough-edge"></div>
+        </div>
+        <div class="form-grid">
+          <div class="form-row"><label>식감</label><input type="text" id="scout-dough-texture"></div>
+          <div class="form-row"><label>굽기</label><input type="text" id="scout-dough-bake"></div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-hd"><span class="fs-num">5</span> 치즈 · 토핑 — 양 vs 품질 vs 비주얼</div>
+        <div class="form-row"><label>유형 (복수 선택)</label><div class="chip-group" data-chips="cheese">
+          <div class="chip-opt" data-v="양">양</div><div class="chip-opt" data-v="품질">품질</div>
+          <div class="chip-opt" data-v="비주얼">비주얼</div><div class="chip-opt" data-v="균형">균형</div>
+        </div></div>
+        <div class="form-row"><label>비고</label><input type="text" id="scout-cheese-note"></div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-hd"><span class="fs-num">6</span> 가격 — 대표피자 · 사이드 · 음료 · 주류 · 객단가</div>
+        <div class="form-grid">
+          <div class="form-row"><label>대표피자</label><input type="text" id="scout-price-pizza"></div>
+          <div class="form-row"><label>사이드</label><input type="text" id="scout-price-side"></div>
+        </div>
+        <div class="form-grid">
+          <div class="form-row"><label>음료</label><input type="text" id="scout-price-drink"></div>
+          <div class="form-row"><label>주류</label><input type="text" id="scout-price-alcohol"></div>
+        </div>
+        <div class="form-grid">
+          <div class="form-row"><label>객단가(추정)</label><input type="text" id="scout-price-avg"></div>
+          <div class="form-row"><label>가성비 체감</label><input type="text" id="scout-price-value"></div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-hd"><span class="fs-num">7</span> 메뉴판 — 메뉴 수 · 선택 난이도</div>
+        <div class="form-row"><label>메뉴 수</label><input type="text" id="scout-menu-count"></div>
+        <div class="form-row"><label>선택 난이도 (쉬움 → 어려움)</label><div class="dot-rate" data-rate="menudifficulty"></div></div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-hd"><span class="fs-num">8</span> 사진성 — 무엇을 찍게 만드는가</div>
+        <div class="form-row"><label>유형 (복수 선택)</label><div class="chip-group" data-chips="photo">
+          <div class="chip-opt" data-v="피자">피자</div><div class="chip-opt" data-v="포장">포장</div>
+          <div class="chip-opt" data-v="공간">공간</div><div class="chip-opt" data-v="기타">기타</div>
+        </div></div>
+        <div class="form-row"><label>포인트</label><input type="text" id="scout-photo-point"></div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-hd"><span class="fs-num">9</span> 홀 운영 — 좌석 · 회전 · 인력</div>
+        <div class="form-grid">
+          <div class="form-row"><label>좌석 수</label><input type="text" id="scout-seats"></div>
+          <div class="form-row"><label>직원 수</label><input type="text" id="scout-staff"></div>
+        </div>
+        <div class="form-grid">
+          <div class="form-row"><label>회전율</label><input type="text" id="scout-turnover"></div>
+          <div class="form-row"><label>피크타임</label><input type="text" id="scout-peak"></div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-hd"><span class="fs-num">10</span> 배달 · 포장 — 포장재 · 박스 · 배달앱</div>
+        <div class="form-row"><label>박스 / 포장재</label><input type="text" id="scout-packaging"></div>
+        <div class="form-row"><label>스티커 / 디테일</label><input type="text" id="scout-sticker"></div>
+        <div class="form-row"><label>배달앱 구성</label><input type="text" id="scout-delivery-apps"></div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-hd"><span class="fs-num">11</span> 주류 · 사이드 — 피자 외 매출 구조</div>
+        <div class="form-row"><label>핵심 아이템</label><input type="text" id="scout-other-item"></div>
+        <div class="form-row"><label>비고</label><input type="text" id="scout-other-note"></div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-hd"><span class="fs-num">12</span> 확장성 — 10개 복제할 수 있는가</div>
+        <div class="form-row"><label>복제 가능성 (낮음 → 높음)</label><div class="dot-rate" data-rate="scalability"></div></div>
+        <div class="form-row"><label>이유</label><input type="text" id="scout-scale-reason"></div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-hd"><span class="fs-num">★</span> 종합 총평</div>
+        <div class="form-row"><label>종합 평점</label><div class="dot-rate" data-rate="overall"></div></div>
+        <div class="form-row"><label>한줄평 / 벤치마킹 포인트</label><textarea id="scout-summary"></textarea></div>
+      </div>
+
+    </div>
+    <div class="modal-footer-lg">
+      <button class="btn btn-out" onclick="closeModal('scout-modal')">취소</button>
+      <button class="btn btn-acc" onclick="saveScout()">저장</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===MILKIT ORDER MODAL=== -->
 <div class="modal-bg" id="mk-order-modal">
   <div class="modal" style="max-width:640px;">
@@ -2682,6 +2852,7 @@ let ingredients = DB.load('ingredients',[]);
 let suppliers   = DB.load('suppliers',[]);
 let recipes     = DB.load('recipes',[]);
 let stores      = DB.load('stores',[]);
+let scoutEntries = DB.load('scoutEntries',[]);  // 매장 조사(경쟁사 벤치마킹) 기록
 let fees        = DB.load('fees',{
   deliveryFee:3.5, platformFee:12.0, cardFee:1.5,
   vat:10, localTax:0.5,
@@ -2932,7 +3103,7 @@ function calcTotalCostPerItem(recipe){
 const SECTIONS = {
   dashboard:'대시보드', ingredients:'원부자재 관리', suppliers:'구입처 관리', orders:'발주 · 입고 관리',
   recipes:'레시피 관리', recipebook:'레시피북 출력', labels:'표시사항 (백라벨)',
-  costs:'원가 분석', fees:'수수료 · 세금 설정', stores:'가맹점 관리', milkit:'밀키트 판매관리', settings:'설정'
+  costs:'원가 분석', fees:'수수료 · 세금 설정', stores:'가맹점 관리', scout:'매장 조사', milkit:'밀키트 판매관리', settings:'설정'
 };
 function navigate(name, fromHistory){
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
@@ -2952,6 +3123,7 @@ function navigate(name, fromHistory){
   if(name==='costs') renderCosts();
   if(name==='fees') renderFees();
   if(name==='stores') renderStores();
+  if(name==='scout') renderScout();
   if(name==='orders') renderOrders();
   if(name==='milkit') renderMilkit();
   if(name==='settings') renderSettings();
@@ -4920,6 +5092,164 @@ function exportStores(){
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,'가맹점');
   XLSX.writeFile(wb,'지구인피자_가맹점.xlsx');
+}
+
+/* ============================
+   매장 조사 (경쟁사 벤치마킹)
+   ============================ */
+const SCOUT_RATE_FIELDS = ['firstimpression','menudifficulty','scalability','overall'];
+const SCOUT_CHIP_GROUPS = ['cheese','photo'];
+let scoutRatings = {};
+let scoutChips = {cheese:new Set(), photo:new Set()};
+
+function scoutBuildDots(){
+  document.querySelectorAll('#scout-modal .dot-rate').forEach(wrap=>{
+    if(wrap.children.length) return; // 이미 생성됨
+    const key = wrap.dataset.rate;
+    for(let i=1;i<=5;i++){
+      const d=document.createElement('div');
+      d.className='dot-opt'; d.textContent=i; d.dataset.v=i;
+      d.onclick=()=>{ scoutRatings[key] = (scoutRatings[key]===i)?0:i; scoutRenderDots(key); };
+      wrap.appendChild(d);
+    }
+  });
+}
+function scoutRenderDots(key){
+  const wrap=document.querySelector(`#scout-modal .dot-rate[data-rate="${key}"]`);
+  if(!wrap) return;
+  [...wrap.children].forEach((d,i)=> d.classList.toggle('on', i < (scoutRatings[key]||0)));
+}
+function scoutBuildChips(){
+  document.querySelectorAll('#scout-modal .chip-group').forEach(g=>{
+    const group=g.dataset.chips;
+    g.querySelectorAll('.chip-opt').forEach(ch=>{
+      ch.onclick=()=>{
+        const v=ch.dataset.v;
+        if(scoutChips[group].has(v)){ scoutChips[group].delete(v); ch.classList.remove('on'); }
+        else{ scoutChips[group].add(v); ch.classList.add('on'); }
+      };
+    });
+  });
+}
+scoutBuildDots(); scoutBuildChips();
+
+function renderScout(){
+  const q=(document.getElementById('scout-search')?.value||'').toLowerCase();
+  let list=[...scoutEntries];
+  if(q) list=list.filter(s=>(s.name||'').toLowerCase().includes(q)||(s.region||'').toLowerCase().includes(q));
+  document.getElementById('scout-count-badge').textContent = scoutEntries.length+'건';
+  const el=document.getElementById('scout-list');
+  if(!list.length){
+    el.innerHTML=`<div class="empty-state"><div class="empty-icon">🔍</div><p>등록된 조사 기록이 없습니다</p></div>`;
+    return;
+  }
+  list=list.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  el.innerHTML=list.map(s=>`
+    <div class="mrow">
+      <button class="mrow-del" onclick="event.stopPropagation();deleteScout('${s.id}')">삭제</button>
+      <div class="mrow-inner" onclick="mrowClick(this,'openScoutModal','${s.id}')">
+        <div class="mrow-main">
+          <div class="mrow-title">${s.name||'(이름없음)'}<span class="badge badge-acc">★ ${(s.ratings&&s.ratings.overall)||0}</span></div>
+          <div class="mrow-meta">${s.region?s.region+' · ':''}${s.date||''}${s.sigName?' · 시그니처: '+s.sigName:''}</div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+  attachSwipe('scout-list');
+}
+
+const SCOUT_FIELD_MAP={
+  'scout-name':'name','scout-region':'region','scout-logo':'logo','scout-oneliner':'oneliner',
+  'scout-fi-reason':'fiReason','scout-sig-name':'sigName','scout-sig-desc':'sigDesc',
+  'scout-dough-thick':'doughThick','scout-dough-edge':'doughEdge','scout-dough-texture':'doughTexture','scout-dough-bake':'doughBake',
+  'scout-cheese-note':'cheeseNote','scout-price-pizza':'pricePizza','scout-price-side':'priceSide',
+  'scout-price-drink':'priceDrink','scout-price-alcohol':'priceAlcohol','scout-price-avg':'priceAvg','scout-price-value':'priceValue',
+  'scout-menu-count':'menuCount','scout-photo-point':'photoPoint','scout-seats':'seats','scout-staff':'staff',
+  'scout-turnover':'turnover','scout-peak':'peak','scout-packaging':'packaging','scout-sticker':'sticker',
+  'scout-delivery-apps':'deliveryApps','scout-other-item':'otherItem','scout-other-note':'otherNote',
+  'scout-scale-reason':'scaleReason','scout-summary':'summary'
+};
+function openScoutModal(id){
+  editId=id||null;
+  document.getElementById('scout-modal-title').textContent = id?'조사 기록 수정':'새 조사 등록';
+  scoutBuildDots(); scoutBuildChips();
+  if(id){
+    const s=scoutEntries.find(x=>x.id===id);
+    if(!s) return;
+    Object.keys(SCOUT_FIELD_MAP).forEach(fid=>{ document.getElementById(fid).value = s[SCOUT_FIELD_MAP[fid]]||''; });
+    document.getElementById('scout-date').value = s.date||'';
+    scoutRatings = {...(s.ratings||{})};
+    scoutChips.cheese = new Set(s.cheese||[]);
+    scoutChips.photo = new Set(s.photo||[]);
+  } else {
+    Object.keys(SCOUT_FIELD_MAP).forEach(fid=>{ document.getElementById(fid).value=''; });
+    document.getElementById('scout-date').value = todayStr();
+    scoutRatings = {}; scoutChips.cheese=new Set(); scoutChips.photo=new Set();
+  }
+  SCOUT_RATE_FIELDS.forEach(k=>scoutRenderDots(k));
+  document.querySelectorAll('#scout-modal .chip-opt').forEach(ch=>{
+    const g=ch.closest('.chip-group').dataset.chips;
+    ch.classList.toggle('on', scoutChips[g].has(ch.dataset.v));
+  });
+  openModal('scout-modal');
+}
+
+function saveScout(){
+  const name=document.getElementById('scout-name').value.trim();
+  if(!name){ alert('매장명은 필수입니다.'); return; }
+  const g=fid=>document.getElementById(fid).value.trim();
+  const obj={
+    id:editId||uid(),
+    name, region:g('scout-region'), date:g('scout-date'),
+    logo:g('scout-logo'), oneliner:g('scout-oneliner'), fiReason:g('scout-fi-reason'),
+    sigName:g('scout-sig-name'), sigDesc:g('scout-sig-desc'),
+    doughThick:g('scout-dough-thick'), doughEdge:g('scout-dough-edge'), doughTexture:g('scout-dough-texture'), doughBake:g('scout-dough-bake'),
+    cheeseNote:g('scout-cheese-note'),
+    pricePizza:g('scout-price-pizza'), priceSide:g('scout-price-side'), priceDrink:g('scout-price-drink'),
+    priceAlcohol:g('scout-price-alcohol'), priceAvg:g('scout-price-avg'), priceValue:g('scout-price-value'),
+    menuCount:g('scout-menu-count'), photoPoint:g('scout-photo-point'),
+    seats:g('scout-seats'), staff:g('scout-staff'), turnover:g('scout-turnover'), peak:g('scout-peak'),
+    packaging:g('scout-packaging'), sticker:g('scout-sticker'), deliveryApps:g('scout-delivery-apps'),
+    otherItem:g('scout-other-item'), otherNote:g('scout-other-note'),
+    scaleReason:g('scout-scale-reason'), summary:g('scout-summary'),
+    ratings:{...scoutRatings}, cheese:[...scoutChips.cheese], photo:[...scoutChips.photo]
+  };
+  if(editId){ const idx=scoutEntries.findIndex(x=>x.id===editId); scoutEntries[idx]=obj; }
+  else { scoutEntries.push(obj); }
+  DB.save('scoutEntries',scoutEntries);
+  closeModal('scout-modal');
+  renderScout();
+}
+
+function deleteScout(id){
+  if(!confirm('이 조사 기록을 삭제하시겠습니까?')) return;
+  scoutEntries=scoutEntries.filter(x=>x.id!==id);
+  DB.save('scoutEntries',scoutEntries);
+  renderScout();
+}
+
+function exportScoutList(){
+  if(!scoutEntries.length){ alert('내보낼 조사 기록이 없습니다.'); return; }
+  const ws=XLSX.utils.json_to_sheet(scoutEntries.map(s=>({
+    매장명:s.name, 지역:s.region, 방문일:s.date,
+    로고간판:s.logo, 한문장:s.oneliner,
+    즉각성:(s.ratings&&s.ratings.firstimpression)||'', 첫인상근거:s.fiReason,
+    시그니처메뉴:s.sigName, 시그니처특징:s.sigDesc,
+    두께:s.doughThick, 엣지:s.doughEdge, 식감:s.doughTexture, 굽기:s.doughBake,
+    치즈토핑유형:(s.cheese||[]).join('/'), 치즈토핑비고:s.cheeseNote,
+    대표피자가격:s.pricePizza, 사이드가격:s.priceSide, 음료가격:s.priceDrink, 주류가격:s.priceAlcohol,
+    객단가:s.priceAvg, 가성비체감:s.priceValue,
+    메뉴수:s.menuCount, 선택난이도:(s.ratings&&s.ratings.menudifficulty)||'',
+    사진성유형:(s.photo||[]).join('/'), 사진성포인트:s.photoPoint,
+    좌석수:s.seats, 직원수:s.staff, 회전율:s.turnover, 피크타임:s.peak,
+    포장재:s.packaging, 스티커:s.sticker, 배달앱:s.deliveryApps,
+    기타핵심아이템:s.otherItem, 기타비고:s.otherNote,
+    복제가능성:(s.ratings&&s.ratings.scalability)||'', 확장성이유:s.scaleReason,
+    종합평점:(s.ratings&&s.ratings.overall)||'', 총평:s.summary
+  })));
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'매장조사');
+  XLSX.writeFile(wb,'지구인피자_매장조사.xlsx');
 }
 
 /* ============================
