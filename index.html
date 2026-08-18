@@ -3401,7 +3401,7 @@ function calcMkOrderProfit(o){
   const f=milkitFees||{};
   const revenue=Number(o.payTotal)||0;
   let material=0, itemCount=0;
-  milkitProducts.forEach(p=>{ const q=(Number(o.qty&&o.qty[p.id])||0); material += q*calcMkRecipeCost(p); itemCount+=q; });
+  milkitProducts.forEach(p=>{ const q=mkEffQty(o,p.id); material += q*calcMkRecipeCost(p); itemCount+=q; });
   const packItems=(Number(f.packagingCost)||0)*itemCount;   // 개별 포장비 × 개수
   const box=Number(f.boxCost)||0;                            // 포장 박스·부자재 (주문 1건당 1개)
   const packaging=packItems+box;
@@ -5443,6 +5443,22 @@ function mkCalcTotals(qtyMap, setType, setQty){
   const payTotal  = Math.max(listTotal - discount, 0);
   return {listTotal, discount, payTotal};
 }
+// 🔢 주문의 '제품별 실제 수량' — 세트수량 반영 (재고 출고·판매통계·원가 등 모든 합산의 기준)
+//    세트 주문이고 qty가 '한 세트' 구성(피자수 ≤ 세트크기)이면 피자 수량 × 세트수량,
+//    추가품목(소스팩)·낱개·총량직접입력분(피자수 > 세트크기)은 입력 수량 그대로 (가격 계산과 동일 규칙)
+function mkEffQty(o, pid){
+  const base = Number(o && o.qty && o.qty[pid]) || 0;
+  if(base<=0) return 0;
+  const rule = milkitSetRules.find(r=>r.name===o.setType);
+  const size = rule ? mkSetRuleSize(rule) : 0;
+  const n = Math.max(1, Number(o.setQty)||1);
+  if(!rule || size<2 || n<=1) return base;                 // 낱개·단일세트
+  const prod = milkitProducts.find(p=>p.id===pid);
+  if(prod && prod.category!=='피자') return base;          // 추가품목은 입력 수량 그대로
+  const pizzaCount = milkitProducts.filter(p=>p.category==='피자')
+    .reduce((s,p)=>s+(Number(o.qty&&o.qty[p.id])||0),0);
+  return (pizzaCount<=size) ? base*n : base;               // 한 세트 구성 → ×세트수량
+}
 
 const MK_TAB_GROUPS={sales:['orders','inventory','stats'], manage:['products','customers','costs']};
 let _mkGroupLast={sales:'orders', manage:'products'};
@@ -6006,7 +6022,7 @@ function mkStatsPrintHtml(){
   const range = mkStatsPeriodRange();
   const scopeLabel = range ? range.label : '전체';
   const rows = milkitProducts.map(p=>{
-    const qty = salesScoped.reduce((s,o)=>s+(Number(o.qty?.[p.id])||0),0);
+    const qty = salesScoped.reduce((s,o)=>s+mkEffQty(o,p.id),0);
     const amount = qty*(Number(p.price)||0);
     return {name:p.name, category:p.category, price:p.price, qty, amount};
   });
@@ -7238,7 +7254,7 @@ function deleteMilkitOrder(id){
 function exportMilkitOrders(){
   const ws=XLSX.utils.json_to_sheet(milkitOrders.map(o=>{
     const row={ 번호:o.no, 주문일자:o.orderDate, 주문자명:o.customer, 연락처:formatPhone(o.phone), 배송주소:o.address, 상세주소:o.addressDetail||'' };
-    milkitProducts.forEach(p=>{ row[p.name+' 수량']=o.qty?.[p.id]||0; });
+    milkitProducts.forEach(p=>{ row[p.name+' 수량']=mkEffQty(o,p.id); });
     Object.assign(row,{
       구성유형:o.setType, 세트수량:o.setQty, 정가합계:o.listTotal, 할인금액:o.discount, 결제금액:o.payTotal,
       결제방법:o.payMethod, 결제상태:o.payStatus, 희망배송일:o.desiredDate, 배송방법:o.deliveryMethod,
@@ -8389,12 +8405,12 @@ function computeMilkitInventory(){
       const q=Number(r.qty)||0;
       return s + (r.type==='폐기' ? -q : q);
     },0);
-    // 출고: 배송중·배송완료 주문 수량
+    // 출고: 배송중·배송완료 주문 수량 (세트수량 반영)
     const shipped = milkitOrders.reduce((s,o)=>
-      MK_SHIPPED_STATES.includes(o.deliveryStatus||'준비중') ? s+(Number(o.qty?.[p.id])||0) : s, 0);
-    // 출고대기: 아직 배송 안 나간 주문 수량
+      MK_SHIPPED_STATES.includes(o.deliveryStatus||'준비중') ? s+mkEffQty(o,p.id) : s, 0);
+    // 출고대기: 아직 배송 안 나간 주문 수량 (세트수량 반영)
     const pending = milkitOrders.reduce((s,o)=>
-      MK_SHIPPED_STATES.includes(o.deliveryStatus||'준비중') ? s : s+(Number(o.qty?.[p.id])||0), 0);
+      MK_SHIPPED_STATES.includes(o.deliveryStatus||'준비중') ? s : s+mkEffQty(o,p.id), 0);
     const stock = produced - shipped;      // 현재 남아있는 재고
     const available = stock - pending;      // 대기 주문까지 처리하고 남는 여유분
     return {product:p, produced, shipped, pending, stock, available};
@@ -8419,12 +8435,12 @@ function openMkInvDetail(productId){
   // 출고(배송중·배송완료) 주문
   const shipOrders=milkitOrders.filter(o=>MK_SHIPPED_STATES.includes(o.deliveryStatus||'준비중') && Number(o.qty?.[productId])>0)
     .sort((a,b)=>(a.no||0)-(b.no||0));
-  const shipRows=shipOrders.map(o=>`<tr><td>No.${o.no||'-'} ${o.customer||''}${o.promo?' 🎁':''}</td><td>${o.deliveryStatus}</td><td style="text-align:right;">−${comma(Number(o.qty[productId])||0)}</td></tr>`).join('')
+  const shipRows=shipOrders.map(o=>{ const q=mkEffQty(o,productId); const n=Number(o.setQty)||1; return `<tr><td>No.${o.no||'-'} ${o.customer||''}${o.promo?' 🎁':''}${n>1?` <span style="color:var(--sub2);">(${o.setType} ×${n})</span>`:''}</td><td>${o.deliveryStatus}</td><td style="text-align:right;">−${comma(q)}</td></tr>`; }).join('')
     || `<tr><td colspan="3" style="text-align:center;color:var(--sub2);">출고된 주문 없음</td></tr>`;
   // 출고대기(준비중) 주문
   const pendOrders=milkitOrders.filter(o=>!MK_SHIPPED_STATES.includes(o.deliveryStatus||'준비중') && Number(o.qty?.[productId])>0)
     .sort((a,b)=>(a.no||0)-(b.no||0));
-  const pendRows=pendOrders.map(o=>`<tr><td>No.${o.no||'-'} ${o.customer||''}</td><td>${o.deliveryStatus||'준비중'}</td><td style="text-align:right;color:var(--sub2);">(${comma(Number(o.qty[productId])||0)})</td></tr>`).join('');
+  const pendRows=pendOrders.map(o=>{ const q=mkEffQty(o,productId); const n=Number(o.setQty)||1; return `<tr><td>No.${o.no||'-'} ${o.customer||''}${n>1?` <span style="color:var(--sub2);">(${o.setType} ×${n})</span>`:''}</td><td>${o.deliveryStatus||'준비중'}</td><td style="text-align:right;color:var(--sub2);">(${comma(q)})</td></tr>`; }).join('');
   const tbl=(rows)=>`<table style="width:100%;border-collapse:collapse;font-size:12.5px;">${rows}</table>`;
   document.getElementById('mk-invdetail-body').innerHTML=`
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
@@ -8821,9 +8837,10 @@ function exportMkInventoryLedger(){
       else mv.push({date:r.date||'', kind:'생산', inn:q, out:0, memo:r.note||''});
     });
     milkitOrders.forEach(o=>{
-      const q=Number(o.qty?.[p.id])||0; if(q<=0) return;
+      const q=mkEffQty(o,p.id); if(q<=0) return;
       if(!MK_SHIPPED_STATES.includes(o.deliveryStatus||'준비중')) return;
-      mv.push({date:o.orderDate||'', kind:'출고', inn:0, out:q, memo:`No.${o.no||'-'} ${o.customer||''}${o.promo?' (홍보)':''} · ${o.deliveryStatus}`});
+      const n=Number(o.setQty)||1;
+      mv.push({date:o.orderDate||'', kind:'출고', inn:0, out:q, memo:`No.${o.no||'-'} ${o.customer||''}${n>1?` (${o.setType} ×${n})`:''}${o.promo?' (홍보)':''} · ${o.deliveryStatus}`});
     });
     if(!mv.length) return;
     mv.sort((a,b)=>String(a.date).localeCompare(String(b.date)));
@@ -8844,7 +8861,7 @@ function exportMkInventoryLedger(){
     milkitProducts.forEach(p=>{
       let prod=0, ship=0;
       milkitProduction.forEach(r=>{ if(r.productId===p.id && r.date===d && r.type==='생산') prod+=Number(r.qty)||0; });
-      milkitOrders.forEach(o=>{ if(o.orderDate===d && MK_SHIPPED_STATES.includes(o.deliveryStatus||'준비중')) ship+=Number(o.qty?.[p.id])||0; });
+      milkitOrders.forEach(o=>{ if(o.orderDate===d && MK_SHIPPED_STATES.includes(o.deliveryStatus||'준비중')) ship+=mkEffQty(o,p.id); });
       if(prod||ship) daily.push([d, p.name, prod||'', ship||'']);
     });
   });
@@ -8918,7 +8935,7 @@ function renderMilkitSalesStats(){
   }
   const salesScoped = scoped.filter(mkIsSale);   // 홍보용 제외
   const rows = milkitProducts.map(p=>{
-    const qty = salesScoped.reduce((s,o)=>s+(Number(o.qty?.[p.id])||0),0);
+    const qty = salesScoped.reduce((s,o)=>s+mkEffQty(o,p.id),0);
     const amount = qty*(Number(p.price)||0);
     return {name:p.name, category:p.category, price:p.price, qty, amount};
   });
