@@ -1238,7 +1238,7 @@ img{max-width:100%;height:auto;}
     <div class="toolbar">
       <input type="text" id="scout-search" placeholder="매장명 또는 지역 검색…" oninput="renderScout()" style="width:220px;">
     </div>
-    <div class="list-hint"><span class="hover-only">💡 행을 클릭하면 수정 · 마우스를 올리면 삭제가 나타납니다</span><span class="swipe-only">💡 행을 누르면 수정 · 왼쪽으로 밀면 삭제가 나타납니다</span></div>
+    <div class="list-hint"><span class="hover-only">💡 행을 클릭하면 조사 내용 확인(수정은 확인창에서) · 마우스를 올리면 삭제</span><span class="swipe-only">💡 행을 누르면 조사 내용 확인(수정은 확인창에서) · 왼쪽으로 밀면 삭제</span></div>
     <div class="mlist" id="scout-list"></div>
   </div>
 
@@ -5180,6 +5180,65 @@ function _scoutViewRender(){
 }
 function scoutViewStep(d){ _scoutViewIdx=(_scoutViewIdx+d+_scoutViewList.length)%_scoutViewList.length; _scoutViewRender(); }
 
+// ===== 📋 조사 기록 확인용(읽기 전용) 화면 — 앨범 + 항목별 정리 =====
+function _scoutEsc(v){ return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function openScoutDetail(id){
+  const s=scoutEntries.find(x=>x.id===id); if(!s) return;
+  const stars=v=>{ v=Number(v)||0; return `<span style="color:var(--acc);letter-spacing:1px;">${'★'.repeat(v)}<span style="color:var(--border);">${'☆'.repeat(5-v)}</span></span>`; };
+  const row=(label,val)=> (val||val===0) && String(val).trim()!=='' ? `<div style="display:flex;gap:12px;padding:7px 0;border-bottom:1px solid var(--border);font-size:13.5px;"><span style="color:var(--sub);flex:0 0 88px;">${label}</span><span style="color:var(--txt);font-weight:600;flex:1;word-break:break-word;">${_scoutEsc(val)}</span></div>` : '';
+  const card=(title,inner)=> inner.trim() ? `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 15px;margin-bottom:12px;"><div style="font-size:12px;font-weight:800;color:var(--acc-dark);margin-bottom:6px;letter-spacing:.02em;">${title}</div>${inner}</div>` : '';
+  const chipBadges=arr=> (Array.isArray(arr)&&arr.length) ? `<div style="display:flex;flex-wrap:wrap;gap:5px;padding:6px 0;">${arr.map(c=>`<span class="badge badge-gray">${_scoutEsc(c)}</span>`).join('')}</div>` : '';
+
+  const photos=Array.isArray(s.photos)?s.photos:[];
+  const album = photos.length
+    ? `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:8px;margin-bottom:14px;">${photos.map((src,i)=>`<img src="${src}" onclick="scoutViewPhoto(${i}, scoutEntries.find(x=>x.id==='${s.id}').photos)" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;border:1px solid var(--border);cursor:zoom-in;" alt="현장 사진 ${i+1}">`).join('')}</div>`
+    : `<div style="text-align:center;color:var(--sub2);font-size:12.5px;background:var(--bg2);border-radius:10px;padding:18px;margin-bottom:14px;">등록된 현장 사진이 없습니다</div>`;
+
+  const ratingCard = card('평점',
+    (s.ratings&&(s.ratings.firstimpression||s.ratings.menudifficulty||s.ratings.scalability||s.ratings.overall)) ? [
+      ['첫인상·즉각성', s.ratings.firstimpression],
+      ['선택 난이도', s.ratings.menudifficulty],
+      ['복제 가능성', s.ratings.scalability],
+      ['종합', s.ratings.overall]
+    ].filter(r=>Number(r[1])>0).map(r=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:13.5px;"><span style="color:var(--sub);">${r[0]}</span>${stars(r[1])}</div>`).join('') : '');
+
+  const body =
+    ratingCard +
+    card('브랜드', row('로고/간판',s.logo)+row('한 문장',s.oneliner)+row('첫인상 근거',s.fiReason)) +
+    card('시그니처', row('메뉴명',s.sigName)+row('특징',s.sigDesc)) +
+    card('도우', row('두께',s.doughThick)+row('엣지',s.doughEdge)+row('식감',s.doughTexture)+row('굽기',s.doughBake)) +
+    card('치즈·토핑', chipBadges(s.cheese)+row('비고',s.cheeseNote)) +
+    card('가격', row('대표피자',s.pricePizza)+row('사이드',s.priceSide)+row('음료',s.priceDrink)+row('주류',s.priceAlcohol)+row('객단가',s.priceAvg)+row('가성비',s.priceValue)) +
+    card('메뉴', row('메뉴 수',s.menuCount)) +
+    card('사진성', chipBadges(s.photo)+row('포인트',s.photoPoint)) +
+    card('홀 운영', row('좌석 수',s.seats)+row('직원 수',s.staff)+row('회전율',s.turnover)+row('피크타임',s.peak)) +
+    card('포장·브랜딩', row('박스/포장재',s.packaging)+row('스티커/디테일',s.sticker)+row('배달앱',s.deliveryApps)) +
+    card('기타', row('핵심 아이템',s.otherItem)+row('비고',s.otherNote)) +
+    card('확장성', row('이유',s.scaleReason)) +
+    (s.summary&&s.summary.trim() ? `<div style="background:var(--acc-pale);border:1px solid var(--acc);border-radius:12px;padding:13px 15px;margin-bottom:12px;"><div style="font-size:12px;font-weight:800;color:var(--acc-dark);margin-bottom:5px;">총평 · 벤치마킹 포인트</div><div style="font-size:14px;color:var(--txt);line-height:1.6;white-space:pre-wrap;word-break:break-word;">${_scoutEsc(s.summary)}</div></div>` : '');
+
+  let ov=document.getElementById('scout-detail'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='scout-detail';
+  ov.style.cssText='position:fixed;inset:0;z-index:6000;background:rgba(20,16,12,.5);display:flex;align-items:flex-start;justify-content:center;padding:18px;overflow-y:auto;';
+  ov.onclick=e=>{ if(e.target===ov) ov.remove(); };
+  ov.innerHTML=`
+    <div style="background:var(--bg);border-radius:16px;max-width:640px;width:100%;margin:auto;box-shadow:0 12px 40px rgba(0,0,0,.25);overflow:hidden;">
+      <div style="position:sticky;top:0;background:var(--card);border-bottom:1px solid var(--border);padding:14px 18px;display:flex;align-items:flex-start;gap:10px;z-index:2;">
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:19px;font-weight:800;color:var(--txt);line-height:1.3;">${_scoutEsc(s.name||'(이름없음)')}</div>
+          <div style="margin-top:4px;font-size:12.5px;color:var(--sub);">${[s.region,s.date].filter(Boolean).map(_scoutEsc).join(' · ')||'-'}${Number(s.ratings&&s.ratings.overall)>0?` · 종합 ${stars(s.ratings.overall)}`:''}</div>
+        </div>
+        <button type="button" onclick="document.getElementById('scout-detail').remove()" style="flex-shrink:0;border:none;background:var(--bg2);width:34px;height:34px;border-radius:50%;font-size:17px;cursor:pointer;color:var(--sub);">✕</button>
+      </div>
+      <div style="padding:16px 18px;">
+        ${album}
+        ${body || '<div style="text-align:center;color:var(--sub2);padding:20px;">입력된 조사 내용이 없습니다</div>'}
+        <button type="button" onclick="document.getElementById('scout-detail').remove();openScoutModal('${s.id}')" style="width:100%;margin-top:6px;padding:13px;border:none;border-radius:10px;background:var(--acc);color:#fff;font-size:15px;font-weight:700;cursor:pointer;">✏️ 이 기록 수정하기</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+}
+
 function scoutBuildDots(){
   document.querySelectorAll('#scout-modal .dot-rate').forEach(wrap=>{
     if(wrap.children.length) return; // 이미 생성됨
@@ -5231,7 +5290,7 @@ function renderScout(){
     return `
     <div class="mrow">
       <button class="mrow-del" onclick="event.stopPropagation();deleteScout('${s.id}')">삭제</button>
-      <div class="mrow-inner" onclick="mrowClick(this,'openScoutModal','${s.id}')">
+      <div class="mrow-inner" onclick="mrowClick(this,'openScoutDetail','${s.id}')">
         <div class="mrow-main">
           <div class="mrow-title">${s.name||'(이름없음)'}<span class="badge badge-acc">★ ${(s.ratings&&s.ratings.overall)||0}</span>${photoBadge}</div>
           <div class="mrow-meta">${s.region?s.region+' · ':''}${s.date||''}${s.sigName?' · 시그니처: '+s.sigName:''}</div>
