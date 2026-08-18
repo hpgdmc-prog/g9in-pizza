@@ -2184,6 +2184,14 @@ img{max-width:100%;height:auto;}
       </div>
 
       <div class="form-section">
+        <div class="form-section-hd">📷 현장 사진</div>
+        <div style="font-size:11.5px;color:var(--sub2);margin:-2px 0 8px;line-height:1.5;">매장 외관·메뉴·포장 등 사진을 올려 조사자료와 함께 보관하세요. (사진을 누르면 크게 보기)</div>
+        <div id="scout-photo-grid" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;"></div>
+        <input type="file" id="scout-photo-input" accept="image/*" multiple style="display:none" onchange="scoutHandlePhotoSelect(this.files); this.value='';">
+        <button type="button" class="btn btn-out btn-sm" onclick="document.getElementById('scout-photo-input').click()">＋ 사진 추가</button>
+      </div>
+
+      <div class="form-section">
         <div class="form-section-hd"><span class="fs-num">1</span> 브랜드 — 이름 · 로고 · 간판</div>
         <div class="form-row"><label>로고 / 간판</label><input type="text" id="scout-logo"></div>
         <div class="form-row"><label>한 문장 소개</label><input type="text" id="scout-oneliner"></div>
@@ -5101,6 +5109,76 @@ const SCOUT_RATE_FIELDS = ['firstimpression','menudifficulty','scalability','ove
 const SCOUT_CHIP_GROUPS = ['cheese','photo'];
 let scoutRatings = {};
 let scoutChips = {cheese:new Set(), photo:new Set()};
+let scoutPhotos = [];   // 📷 현장 사진 (압축 base64 dataURL 배열)
+
+// 이미지 압축 — 저장(로컬/클라우드) 용량 절약: 긴 변 최대 1280px, JPEG 품질 0.72
+function _scoutCompressImage(file){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const img=new Image();
+      img.onload=()=>{
+        const MAX=1280;
+        let {width:w,height:h}=img;
+        if(w>MAX||h>MAX){ if(w>=h){ h=Math.round(h*MAX/w); w=MAX; } else { w=Math.round(w*MAX/h); h=MAX; } }
+        const c=document.createElement('canvas'); c.width=w; c.height=h;
+        c.getContext('2d').drawImage(img,0,0,w,h);
+        try{ resolve(c.toDataURL('image/jpeg',0.72)); }catch(err){ resolve(e.target.result); }
+      };
+      img.onerror=()=>resolve(e.target.result);
+      img.src=e.target.result;
+    };
+    reader.onerror=reject;
+    reader.readAsDataURL(file);
+  });
+}
+async function scoutHandlePhotoSelect(files){
+  if(!files||!files.length) return;
+  for(const file of files){
+    if(!/^image\//.test(file.type)) continue;
+    try{ const d=await _scoutCompressImage(file); if(d) scoutPhotos.push(d); }
+    catch(e){ console.warn('사진 처리 실패', e); }
+  }
+  scoutRenderPhotoGrid();
+}
+function scoutRenderPhotoGrid(){
+  const el=document.getElementById('scout-photo-grid'); if(!el) return;
+  el.innerHTML = scoutPhotos.map((src,i)=>`
+    <div style="position:relative;width:76px;height:76px;flex-shrink:0;">
+      <img src="${src}" onclick="scoutViewPhoto(${i})" style="width:76px;height:76px;object-fit:cover;border-radius:8px;border:1px solid var(--border);cursor:zoom-in;display:block;" alt="현장 사진 ${i+1}">
+      <button type="button" onclick="event.stopPropagation();scoutRemovePhoto(${i})" title="삭제" style="position:absolute;top:-7px;right:-7px;width:22px;height:22px;border-radius:50%;background:#dc2626;color:#fff;border:2px solid #fff;font-size:12px;font-weight:700;line-height:1;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;">✕</button>
+    </div>`).join('');
+}
+function scoutRemovePhoto(i){ scoutPhotos.splice(i,1); scoutRenderPhotoGrid(); }
+// 📷 사진 크게 보기 — 여러 장이면 좌우로 넘겨보기
+let _scoutViewList=[], _scoutViewIdx=0;
+function scoutViewPhoto(i, list){
+  _scoutViewList = list || scoutPhotos;
+  if(!_scoutViewList || !_scoutViewList.length) return;
+  _scoutViewIdx = Math.max(0, Math.min(_scoutViewList.length-1, i||0));
+  let ov=document.getElementById('scout-photo-viewer');
+  if(!ov){
+    ov=document.createElement('div'); ov.id='scout-photo-viewer';
+    ov.style.cssText='position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.86);display:flex;align-items:center;justify-content:center;';
+    ov.onclick=e=>{ if(e.target===ov) ov.remove(); };
+    ov.innerHTML=`
+      <button type="button" onclick="document.getElementById('scout-photo-viewer').remove()" style="position:absolute;top:16px;right:16px;width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.18);color:#fff;border:none;font-size:22px;cursor:pointer;">✕</button>
+      <button type="button" onclick="scoutViewStep(-1)" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,.16);color:#fff;border:none;font-size:24px;cursor:pointer;" id="scout-view-prev">‹</button>
+      <img id="scout-view-img" style="max-width:92vw;max-height:88vh;object-fit:contain;border-radius:8px;" alt="">
+      <button type="button" onclick="scoutViewStep(1)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,.16);color:#fff;border:none;font-size:24px;cursor:pointer;" id="scout-view-next">›</button>
+      <div id="scout-view-cnt" style="position:absolute;bottom:18px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.5);color:#fff;font-size:13px;padding:5px 13px;border-radius:16px;"></div>`;
+    document.body.appendChild(ov);
+  }
+  _scoutViewRender();
+}
+function _scoutViewRender(){
+  const img=document.getElementById('scout-view-img'); if(!img) return;
+  img.src=_scoutViewList[_scoutViewIdx]||'';
+  const single=_scoutViewList.length<=1;
+  ['scout-view-prev','scout-view-next','scout-view-cnt'].forEach(id=>{ const e=document.getElementById(id); if(e) e.style.display=single?'none':''; });
+  const cnt=document.getElementById('scout-view-cnt'); if(cnt) cnt.textContent=`${_scoutViewIdx+1} / ${_scoutViewList.length}`;
+}
+function scoutViewStep(d){ _scoutViewIdx=(_scoutViewIdx+d+_scoutViewList.length)%_scoutViewList.length; _scoutViewRender(); }
 
 function scoutBuildDots(){
   document.querySelectorAll('#scout-modal .dot-rate').forEach(wrap=>{
@@ -5144,17 +5222,24 @@ function renderScout(){
     return;
   }
   list=list.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
-  el.innerHTML=list.map(s=>`
+  el.innerHTML=list.map(s=>{
+    const photos=Array.isArray(s.photos)?s.photos:[];
+    const thumbs = photos.length
+      ? `<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">${photos.slice(0,5).map((src,i)=>`<img src="${src}" onclick="event.stopPropagation();scoutViewPhoto(${i}, scoutEntries.find(x=>x.id==='${s.id}').photos)" style="width:52px;height:52px;object-fit:cover;border-radius:7px;border:1px solid var(--border);cursor:zoom-in;" alt="">`).join('')}${photos.length>5?`<div style="width:52px;height:52px;border-radius:7px;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--sub);">+${photos.length-5}</div>`:''}</div>`
+      : '';
+    const photoBadge = photos.length ? `<span class="badge badge-gray" style="margin-left:4px;">📷 ${photos.length}</span>` : '';
+    return `
     <div class="mrow">
       <button class="mrow-del" onclick="event.stopPropagation();deleteScout('${s.id}')">삭제</button>
       <div class="mrow-inner" onclick="mrowClick(this,'openScoutModal','${s.id}')">
         <div class="mrow-main">
-          <div class="mrow-title">${s.name||'(이름없음)'}<span class="badge badge-acc">★ ${(s.ratings&&s.ratings.overall)||0}</span></div>
+          <div class="mrow-title">${s.name||'(이름없음)'}<span class="badge badge-acc">★ ${(s.ratings&&s.ratings.overall)||0}</span>${photoBadge}</div>
           <div class="mrow-meta">${s.region?s.region+' · ':''}${s.date||''}${s.sigName?' · 시그니처: '+s.sigName:''}</div>
+          ${thumbs}
         </div>
       </div>
     </div>
-  `).join('');
+  `;}).join('');
   attachSwipe('scout-list');
 }
 
@@ -5181,11 +5266,14 @@ function openScoutModal(id){
     scoutRatings = {...(s.ratings||{})};
     scoutChips.cheese = new Set(s.cheese||[]);
     scoutChips.photo = new Set(s.photo||[]);
+    scoutPhotos = Array.isArray(s.photos) ? [...s.photos] : [];
   } else {
     Object.keys(SCOUT_FIELD_MAP).forEach(fid=>{ document.getElementById(fid).value=''; });
     document.getElementById('scout-date').value = todayStr();
     scoutRatings = {}; scoutChips.cheese=new Set(); scoutChips.photo=new Set();
+    scoutPhotos = [];
   }
+  scoutRenderPhotoGrid();
   SCOUT_RATE_FIELDS.forEach(k=>scoutRenderDots(k));
   document.querySelectorAll('#scout-modal .chip-opt').forEach(ch=>{
     const g=ch.closest('.chip-group').dataset.chips;
@@ -5212,7 +5300,8 @@ function saveScout(){
     packaging:g('scout-packaging'), sticker:g('scout-sticker'), deliveryApps:g('scout-delivery-apps'),
     otherItem:g('scout-other-item'), otherNote:g('scout-other-note'),
     scaleReason:g('scout-scale-reason'), summary:g('scout-summary'),
-    ratings:{...scoutRatings}, cheese:[...scoutChips.cheese], photo:[...scoutChips.photo]
+    ratings:{...scoutRatings}, cheese:[...scoutChips.cheese], photo:[...scoutChips.photo],
+    photos:[...scoutPhotos]
   };
   if(editId){ const idx=scoutEntries.findIndex(x=>x.id===editId); scoutEntries[idx]=obj; }
   else { scoutEntries.push(obj); }
