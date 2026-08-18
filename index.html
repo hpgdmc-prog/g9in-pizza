@@ -5150,6 +5150,19 @@ function scoutRenderPhotoGrid(){
     </div>`).join('');
 }
 function scoutRemovePhoto(i){ scoutPhotos.splice(i,1); scoutRenderPhotoGrid(); }
+// 📷 앨범 썸네일 크기(작게/크게) — 확인 화면에서 전환, 마지막 선택 기억
+let _scoutAlbumSize = (function(){ try{ return localStorage.getItem('jgp_scoutAlbumSize')||'sm'; }catch(_){ return 'sm'; } })();
+function _scoutAlbumCols(sz){ return sz==='lg' ? 'repeat(auto-fill,minmax(190px,1fr))' : 'repeat(auto-fill,minmax(76px,1fr))'; }
+function scoutSetAlbumSize(sz){
+  _scoutAlbumSize = (sz==='lg') ? 'lg' : 'sm';
+  try{ localStorage.setItem('jgp_scoutAlbumSize', _scoutAlbumSize); }catch(_){}
+  const g=document.getElementById('scout-album-grid'); if(g) g.style.gridTemplateColumns=_scoutAlbumCols(_scoutAlbumSize);
+  document.querySelectorAll('#scout-album-toggle [data-asz]').forEach(b=>{
+    const on=b.dataset.asz===_scoutAlbumSize;
+    b.style.background=on?'var(--acc)':'transparent';
+    b.style.color=on?'#fff':'var(--sub)';
+  });
+}
 // 📷 사진 크게 보기 — 여러 장이면 좌우로 넘겨보기
 let _scoutViewList=[], _scoutViewIdx=0;
 function scoutViewPhoto(i, list){
@@ -5191,7 +5204,14 @@ function openScoutDetail(id){
 
   const photos=Array.isArray(s.photos)?s.photos:[];
   const album = photos.length
-    ? `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:8px;margin-bottom:14px;">${photos.map((src,i)=>`<img src="${src}" onclick="scoutViewPhoto(${i}, scoutEntries.find(x=>x.id==='${s.id}').photos)" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;border:1px solid var(--border);cursor:zoom-in;" alt="현장 사진 ${i+1}">`).join('')}</div>`
+    ? `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;">
+         <span style="font-size:12px;font-weight:800;color:var(--acc-dark);">📷 현장 사진 ${photos.length}장 <span style="font-weight:400;color:var(--sub2);">· 사진을 누르면 전체화면</span></span>
+         <div id="scout-album-toggle" style="display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;flex-shrink:0;">
+           <button type="button" data-asz="sm" onclick="scoutSetAlbumSize('sm')" style="border:none;padding:5px 13px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:transparent;color:var(--sub);">작게</button>
+           <button type="button" data-asz="lg" onclick="scoutSetAlbumSize('lg')" style="border:none;padding:5px 13px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:transparent;color:var(--sub);border-left:1px solid var(--border);">크게</button>
+         </div>
+       </div>
+       <div id="scout-album-grid" style="display:grid;grid-template-columns:${_scoutAlbumCols(_scoutAlbumSize)};gap:8px;margin-bottom:14px;">${photos.map((src,i)=>`<img src="${src}" onclick="scoutViewPhoto(${i}, scoutEntries.find(x=>x.id==='${s.id}').photos)" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;border:1px solid var(--border);cursor:zoom-in;" alt="현장 사진 ${i+1}">`).join('')}</div>`
     : `<div style="text-align:center;color:var(--sub2);font-size:12.5px;background:var(--bg2);border-radius:10px;padding:18px;margin-bottom:14px;">등록된 현장 사진이 없습니다</div>`;
 
   const ratingCard = card('평점',
@@ -5237,6 +5257,7 @@ function openScoutDetail(id){
       </div>
     </div>`;
   document.body.appendChild(ov);
+  try{ scoutSetAlbumSize(_scoutAlbumSize); }catch(_){}
 }
 
 function scoutBuildDots(){
