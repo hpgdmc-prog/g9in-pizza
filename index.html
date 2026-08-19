@@ -9664,12 +9664,15 @@ function stlBuildBody(){
             const st = pl.loaded ? `<span style="color:var(--green);font-weight:600;">정산금 ${comma(pl.settlement||0)}원</span>`
                      : pl.file ? `<span style="color:var(--acc-dark);">📎 첨부됨(수기)</span>`
                      : `<span style="color:var(--sub2);">미첨부</span>`;
+            const badge = p.id==='coupang' ? ' <span style="color:var(--green);font-size:10.5px;">✓ 전용 자동</span>'
+                        : p.id==='baemin' ? ' <span style="color:var(--orange);font-size:10.5px;">🔒 암호제거 후 자동</span>'
+                        : ' <span style="color:var(--sub2);font-size:10.5px;">자동 시도</span>';
             return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 0;border-top:1px dashed var(--border);">
-              <span style="font-size:12px;">${p.name}${p.id==='baemin'?' <span style="color:var(--orange);font-size:10.5px;">🔒 암호화</span>':''}${p.id==='coupang'?' <span style="color:var(--green);font-size:10.5px;">✓ 자동</span>':''}</span>
+              <span style="font-size:12px;">${p.name}${badge}</span>
               <span style="display:flex;gap:7px;align-items:center;">${st} <label class="btn btn-out btn-sm" style="cursor:pointer;padding:3px 10px;">파일<input type="file" accept=".xlsx,.xls,.csv" style="display:none;" onchange="stlImportPlatform('${p.id}',this)"></label></span>
             </div>`;
           }).join('')}
-          <div style="font-size:10.5px;color:var(--sub2);margin-top:7px;line-height:1.5;">쿠팡이츠는 완전 자동 · 나머지는 정산금·수수료를 <b>최대한 자동 인식</b>하고, 인식 안 되면(또는 배민 암호화) 첨부만 하고 아래 표에 직접 입력하시면 됩니다.</div>
+          <div style="font-size:10.5px;color:var(--sub2);margin-top:7px;line-height:1.5;">모두 파일을 올리면 정산금·수수료를 자동 인식합니다. <b>쿠팡이츠·배민</b>은 전용 파서, 요기요·땡겨요·먹깨비는 범용 인식. <b>배민</b>만 암호화라 엑셀에서 암호를 지운 파일을 올려주세요(안 되면 첨부 후 수기 입력).</div>
         </div>
       </div>
     </div>
@@ -9973,6 +9976,7 @@ const STL_POS_PLATFORMS = ['baemin','yogiyo','coupang'];
 function stlImportPlatform(pid, input){
   const file=input.files&&input.files[0]; if(!file) return;
   if(pid==='coupang'){ stlImportCoupang(input); return; }
+  if(pid==='baemin'){ stlImportBaemin(input); return; }
   const rec=stlGetRecord(stlMonth);
   const pname=(STL_PLATFORMS.find(p=>p.id===pid)||{}).name||pid;
   const rd=new FileReader();
@@ -10024,6 +10028,39 @@ function _stlGenericSettle(wb){
     }
   }
   return {settle:0, sales:0};
+}
+
+/* 배민 정산명세서 — '요약' 시트 (H)입금금액 = 정산금. 암호화 파일은 못 여니 암호 제거본 필요 */
+function stlImportBaemin(input){
+  const file=input.files&&input.files[0]; if(!file) return;
+  const rec=stlGetRecord(stlMonth);
+  const rd=new FileReader();
+  rd.onload=e=>{
+    let wb;
+    try{ wb=XLSX.read(e.target.result,{type:'array'}); }
+    catch(err){
+      rec.platforms.baemin.file={name:file.name,at:todayStr()};
+      DB.save('settlements',settlements); stlBuildBody();
+      alert('🔒 배민 파일은 암호화되어 앱에서 바로 열 수 없습니다.\n\n① 엑셀에서 파일 열기(암호 입력) → ② [파일 > 정보 > 통합문서 보호 > 암호 설정]에서 암호를 지우고 저장 → ③ 그 파일을 올리면 자동 인식됩니다.\n\n또는 배민 입금금액(정산금)을 아래 표에 직접 입력하세요.');
+      return;
+    }
+    const ws=wb.Sheets['요약']||wb.Sheets[wb.SheetNames[0]];
+    const r=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+    let dep=0, hi=-1, hc=-1;
+    for(let i=0;i<r.length;i++){ const c=(r[i]||[]).findIndex(x=>String(x).includes('입금금액')); if(c>=0){ hi=i; hc=c; break; } }
+    if(hi>=0){ for(let i=hi+1;i<Math.min(r.length,hi+4);i++){ const v=stlNumV((r[i]||[])[hc]); if(v){ dep=v; break; } } }
+    rec.platforms.baemin.file={name:file.name,at:todayStr()};
+    if(dep>0){
+      const pl=rec.platforms.baemin;
+      pl.settlement=dep; pl.deposit=dep; pl.feeMid=0; pl.feePay=0; pl.feeEtc=Math.max(0,(pl.sales||0)-dep); pl.loaded=true;
+      DB.save('settlements',settlements); stlBuildBody();
+      alert('✅ 배민 정산 자동 인식\n입금금액(정산금) '+comma(dep)+'원'+(pl.sales?'\n(POS 배민매출 '+comma(pl.sales)+'원 기준 · 공제 '+comma(pl.feeEtc)+'원)':''));
+    } else {
+      DB.save('settlements',settlements); stlBuildBody();
+      alert('📎 첨부됨. 배민 ‘요약’의 입금금액을 자동으로 찾지 못했습니다.\n아래 표에 직접 입력하세요.');
+    }
+  };
+  rd.readAsArrayBuffer(file);
 }
 
 const APP_PALETTES = [
