@@ -207,6 +207,9 @@ tr:hover td{background:var(--bg2);}
 .modal-footer-lg .btn-acc{flex:1.7 1 auto;box-shadow:var(--shadow-sm);}
 /* 필수입력 누락 강조 */
 .input-invalid{border:1.5px solid var(--red)!important;background:#FCEDED!important;}
+.mk-ch-seg{display:flex;gap:8px;}
+.mk-ch-btn{flex:1;padding:13px 10px;border:1.5px solid var(--border);border-radius:11px;background:#fff;font-family:inherit;font-size:14px;font-weight:700;color:var(--sub);cursor:pointer;transition:background .15s,border-color .15s,color .15s;}
+.mk-ch-btn.is-active{border-color:var(--acc);background:var(--acc-pale);color:var(--acc-dark);}
 #mk-order-qty-rows.input-invalid{border-radius:9px;padding:6px;}
 .modal-error{margin:0 24px 4px;background:#FCEDED;border:1px solid #E8B4B4;color:#B23B3B;border-radius:9px;padding:11px 14px;font-size:13px;line-height:1.55;display:none;}
 .modal-error.show{display:block;}
@@ -2327,6 +2330,15 @@ img{max-width:100%;height:auto;}
     <div class="modal-body">
       <div class="form-legend"><b class="req">*</b> 표시는 <b>꼭 입력</b>해야 하는 항목입니다. <b>연락처·배송주소</b>는 택배발송·직접배송일 때 필요해요.</div>
 
+      <!-- 판매 유형 (온라인/택배 vs 매장/현장) -->
+      <div class="form-section" style="padding-bottom:6px;">
+        <div class="mk-ch-seg">
+          <button type="button" id="mk-ch-online" class="mk-ch-btn is-active" onclick="mkSetChannel('online')">🚚 온라인 · 택배</button>
+          <button type="button" id="mk-ch-store" class="mk-ch-btn" onclick="mkSetChannel('store')">🏪 매장 · 현장구매</button>
+        </div>
+        <div id="mk-ch-hint" style="font-size:11.5px;color:var(--sub2);margin-top:8px;line-height:1.5;"></div>
+      </div>
+
       <!-- ① 기본 정보 -->
       <div class="form-section">
         <div class="form-section-hd"><span class="fs-num">1</span> 기본 정보</div>
@@ -2340,7 +2352,7 @@ img{max-width:100%;height:auto;}
             <input type="time" id="mk-order-time">
           </div>
           <div class="form-row">
-            <label>주문자명 <span class="req">*</span></label>
+            <label>주문자명 <span class="req" id="mk-req-customer">*</span></label>
             <div class="ac-wrap">
               <input type="text" id="mk-order-customer" placeholder="고객명" autocomplete="off"
                 oninput="mkCustomerInput();mkSyncRecipientPh();this.classList.remove('input-invalid')" onfocus="mkCustomerSuggest(false)" onblur="mkCustomerBlur()">
@@ -2348,7 +2360,7 @@ img{max-width:100%;height:auto;}
               <div class="ac-list" id="mk-customer-suggest"></div>
             </div>
           </div>
-          <div class="form-row">
+          <div class="form-row" id="mk-row-phone">
             <label>연락처 <span class="req-note">(배송 시 필수)</span></label>
             <input type="tel" id="mk-order-phone" placeholder="010-0000-0000" oninput="this.value=formatPhone(this.value);mkSyncRecipientPh();this.classList.remove('input-invalid')">
           </div>
@@ -2384,7 +2396,7 @@ img{max-width:100%;height:auto;}
       </div>
 
       <!-- ③ 받는 분 · 배송지 -->
-      <div class="form-section">
+      <div class="form-section" id="mk-sec-recipient">
         <div class="form-section-hd"><span class="fs-num">3</span> 받는 분 · 배송지</div>
         <div class="form-grid" id="mk-order-recipient-box">
           <div class="form-row">
@@ -2438,7 +2450,7 @@ img{max-width:100%;height:auto;}
               <option value="완료">완료</option>
             </select>
           </div>
-          <div class="form-row">
+          <div class="form-row" id="mk-row-delmethod">
             <label>배송방법</label>
             <select id="mk-order-delmethod" onchange="mkDeliveryHint()">
               <option value="택배발송">택배발송</option>
@@ -2446,7 +2458,7 @@ img{max-width:100%;height:auto;}
               <option value="직접수령">직접수령</option>
             </select>
           </div>
-          <div class="form-row">
+          <div class="form-row" id="mk-row-delstatus">
             <label>배송상태</label>
             <select id="mk-order-delstatus">
               <option value="준비중">준비중</option>
@@ -2455,7 +2467,7 @@ img{max-width:100%;height:auto;}
             </select>
           </div>
         </div>
-        <div class="form-row">
+        <div class="form-row" id="mk-row-tracking">
           <label>송장번호</label>
           <input type="text" id="mk-order-tracking" placeholder="택배 송장번호">
         </div>
@@ -5772,6 +5784,7 @@ function mkStampShip(o){
 }
 // 📮 주문 카드용 발송일 표시 — 기록이 있으면 그 날짜, 없으면 주문일 기준 추정
 function mkShipDisplay(o){
+  if(o && o.channel==='store') return '';   // 매장 현장판매는 발송 없음
   const st = o && o.deliveryStatus;
   if(st!=='배송중' && st!=='배송완료') return '';
   if(o.shippedDate) return `<div class="mko-line" style="color:var(--acc-dark);font-weight:600;">📮 발송일 ${o.shippedDate}</div>`;
@@ -5878,13 +5891,16 @@ function renderMilkitOrders(){
           <span class="mko-amt num"${o.promo?' style="text-decoration:line-through;color:var(--sub2);"':''}>${comma(o.payTotal)}원</span>
         </div>
         <div class="mko-badges">
+          ${o.channel==='store'?`<span class="badge" style="background:#E7EFE9;color:#2E5C3A;">🏪 매장</span>`:''}
           ${o.promo
             ? `<span class="badge" style="background:#F3E8D0;color:#8A5A1E;">🎁 홍보(무료)</span>`
             : `<span class="badge ${payBadge[o.payStatus]||'badge-orange'}">${payBadgeTxt[o.payStatus]||payBadgeTxt['대기']}</span>`}
-          <span class="badge ${delBadge[o.deliveryStatus]||'badge-orange'}">${delBadgeTxt[o.deliveryStatus]||delBadgeTxt['준비중']}</span>
+          ${o.channel==='store'?'':`<span class="badge ${delBadge[o.deliveryStatus]||'badge-orange'}">${delBadgeTxt[o.deliveryStatus]||delBadgeTxt['준비중']}</span>`}
         </div>
         ${shipLine}
-        <div class="mko-line">📞 ${o.phone?formatPhone(o.phone):'연락처 없음'} <span class="mko-dim">· 주문 ${dt}</span></div>
+        ${o.channel==='store'
+          ? `<div class="mko-line">🏪 매장 현장판매 <span class="mko-dim">· 주문 ${dt}</span></div>`
+          : `<div class="mko-line">📞 ${o.phone?formatPhone(o.phone):'연락처 없음'} <span class="mko-dim">· 주문 ${dt}</span></div>`}
         ${mkShipDisplay(o)}
         ${mkFullAddr(o)?`<div class="mko-line">📍 ${mkFullAddr(o)}</div>`:''}
         ${recip}
@@ -6856,6 +6872,45 @@ function mkShipSmsToggleAuto(cb){ mkShipSmsAuto=cb.checked; DB.save('mkShipSmsAu
 function mkShipSmsSaveTpl(){ mkShipSmsTpl=document.getElementById('mk-shipsms-tpl').value; DB.save('mkShipSmsTpl', mkShipSmsTpl); renderMkShipSmsList(); }
 function mkShipSmsResetTpl(){ mkShipSmsTpl=MK_SHIPSMS_DEFAULT; DB.save('mkShipSmsTpl', mkShipSmsTpl); document.getElementById('mk-shipsms-tpl').value=mkShipSmsTpl; renderMkShipSmsList(); }
 
+/* 판매 유형(채널) 전환 — online(택배) / store(매장·현장)
+   autofill=true(사용자 클릭)면 배송·결제 값을 유형에 맞게 자동 세팅.
+   autofill=false(모달 초기화)면 화면 표시/숨김만 하고 로드된 값은 건드리지 않음. */
+let mkOrderChannel='online';
+function mkSetChannel(ch, autofill){
+  if(autofill===undefined) autofill=true;
+  mkOrderChannel = (ch==='store') ? 'store' : 'online';
+  const on = mkOrderChannel==='online';
+  document.getElementById('mk-ch-online').classList.toggle('is-active', on);
+  document.getElementById('mk-ch-store').classList.toggle('is-active', !on);
+  const disp=(id,hide)=>{const e=document.getElementById(id); if(e) e.style.display=hide?'none':'';};
+  // 매장(현장)이면 배송 관련 칸 숨김
+  disp('mk-row-phone', !on);
+  disp('mk-sec-recipient', !on);
+  disp('mk-row-delmethod', !on);
+  disp('mk-row-delstatus', !on);
+  disp('mk-row-tracking', !on);
+  // 주문자명 필수 표시 토글 + placeholder
+  const req=document.getElementById('mk-req-customer'); if(req) req.style.display=on?'':'none';
+  const cust=document.getElementById('mk-order-customer'); if(cust) cust.placeholder = on?'고객명':'비워두면 “매장 손님”';
+  if(autofill){
+    if(!on){   // 매장: 현장 판매로 자동 세팅
+      document.getElementById('mk-order-delmethod').value='직접수령';
+      document.getElementById('mk-order-delstatus').value='배송완료';
+      document.getElementById('mk-order-paystatus').value='완료';
+    } else {   // 온라인 복귀: 택배 기본값
+      document.getElementById('mk-order-delmethod').value='택배발송';
+      document.getElementById('mk-order-delstatus').value='준비중';
+    }
+    mkClearOrderErrors();
+  }
+  const hintEl=document.getElementById('mk-ch-hint');
+  if(hintEl) hintEl.textContent = on
+    ? '택배·배송 주문입니다. 연락처·배송주소를 입력하세요.'
+    : '현장에서 바로 판매. 상품 수량과 결제방법만 고르면 됩니다. (직접수령·배송완료·결제완료 자동)';
+  if(typeof mkDeliveryHint==='function') mkDeliveryHint();
+  if(typeof mkUpdateOrderTotals==='function') mkUpdateOrderTotals();
+}
+
 function openMilkitOrderModal(id){
   mkEditId=id||null;
   document.getElementById('mk-order-modal-title').textContent=id?'주문 수정':'주문 등록';
@@ -6901,6 +6956,9 @@ function openMilkitOrderModal(id){
     document.getElementById('mk-order-delstatus').value='준비중';
     document.getElementById('mk-order-promo').checked=false;
   }
+  // 판매 유형 초기화 (로드된 값은 유지 → autofill=false)
+  if(id){ const _o=milkitOrders.find(x=>x.id===id); mkSetChannel(_o && _o.channel==='store' ? 'store' : 'online', false); }
+  else { mkSetChannel('online', false); }
   mkUpdateOrderTotals();
   mkDeliveryHint();
   openModal('mk-order-modal');
@@ -7090,7 +7148,7 @@ function saveMilkitOrder(){
   const needDeliv = (delMethod==='택배발송' || delMethod==='직접배송');
   const miss=[];
   if(!orderDate) miss.push({id:'mk-order-date', label:'주문일자'});
-  if(!customer) miss.push({id:'mk-order-customer', label:'주문자명'});
+  if(mkOrderChannel!=='store' && !customer) miss.push({id:'mk-order-customer', label:'주문자명'});
   if(itemCount<=0) miss.push({id:'mk-order-qty-rows', label:'상품 수량(최소 1개)'});
   if(needDeliv && !phoneRaw) miss.push({id:'mk-order-phone', label:'연락처'});
   if(needDeliv && !addressRaw) miss.push({id:'mk-order-address', label:'배송주소'});
@@ -7113,13 +7171,15 @@ function saveMilkitOrder(){
   let recipient=document.getElementById('mk-order-recipient').value.trim();
   let recipientPhone=formatPhone(document.getElementById('mk-order-recipient-phone').value);
   if(!recipient || recipient===customer){ recipient=''; recipientPhone=''; }
+  const custName = customer || (mkOrderChannel==='store' ? '매장 손님' : '');
   const existing=mkEditId ? milkitOrders.find(x=>x.id===mkEditId) : null;
   const obj={
     id:mkEditId||uid(),
     no: existing ? existing.no : mkNextOrderNo(),
+    channel: mkOrderChannel,
     orderDate,
     orderTime:document.getElementById('mk-order-time').value||'',
-    customer, phone, address, addressDetail, recipient, recipientPhone, qty,
+    customer:custName, phone, address, addressDetail, recipient, recipientPhone, qty,
     promo:document.getElementById('mk-order-promo').checked,
     setType, setQty, listTotal, discount, payTotal,
     payMethod:document.getElementById('mk-order-paymethod').value,
@@ -7130,8 +7190,8 @@ function saveMilkitOrder(){
     tracking:document.getElementById('mk-order-tracking').value.trim(),
     note:document.getElementById('mk-order-note').value.trim()
   };
-  // 수정 중이 아닐 때만 중복 확인 (수정은 이미 있는 주문을 고치는 것이므로 제외)
-  if(!mkEditId){
+  // 수정 중이 아닐 때만 중복 확인 (매장 현장판매는 익명 다건이라 중복검사 제외)
+  if(!mkEditId && mkOrderChannel!=='store'){
     const dups=findMilkitDuplicates(obj, null);
     if(dups.length){ showMilkitDupModal(obj, dups); return; }
   }
@@ -7151,8 +7211,8 @@ function commitMilkitOrder(obj){
   }
   else { shipNow = obj.deliveryStatus==='배송중'; mkStampShip(obj); milkitOrders.push(obj); }
   DB.save('milkitOrders',milkitOrders);
-  // 신규 고객이면 고객DB에 자동 등록
-  if(obj.customer && !milkitCustomers.find(c=>c.name===obj.customer)){
+  // 신규 고객이면 고객DB에 자동 등록 (매장 익명 판매는 제외)
+  if(obj.channel!=='store' && obj.customer && !milkitCustomers.find(c=>c.name===obj.customer)){
     milkitCustomers.push({id:uid(), name:obj.customer, phone:obj.phone, address:obj.address, addressDetail:obj.addressDetail||'', notes:''});
     DB.save('milkitCustomers',milkitCustomers);
   }
