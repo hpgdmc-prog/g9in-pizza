@@ -9657,9 +9657,19 @@ function stlBuildBody(){
           <span style="font-size:12.5px;">🏦 <b>여신금융협회 카드 입금내역</b> <span style="color:var(--sub2);">— 실입금(통장 대조)</span></span>
           <span style="display:flex;gap:8px;align-items:center;">${impStatus(!!rec.card.depLoaded, rec.card.depLoaded?comma(rec.card.deposit)+'원':'')} ${impBtn('파일 선택','stlImportCardDeposit')}</span>
         </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:var(--bg2);border-radius:9px;padding:9px 13px;">
-          <span style="font-size:12.5px;">🛵 <b>쿠팡이츠 정산 파일</b> <span style="color:var(--sub2);">— 수수료·정산금</span></span>
-          <span style="display:flex;gap:8px;align-items:center;">${impStatus(!!(rec.platforms.coupang&&rec.platforms.coupang.loaded), '반영됨')} ${impBtn('파일 선택','stlImportCoupang')}</span>
+        <div style="background:var(--bg2);border-radius:9px;padding:10px 13px;">
+          <div style="font-size:12px;font-weight:700;margin-bottom:2px;">🛵 배달앱 정산 파일 <span style="color:var(--sub2);font-weight:400;">— 수수료·정산금 (매출은 위 POS 리포트에서 자동)</span></div>
+          ${STL_PLATFORMS.map(p=>{
+            const pl=rec.platforms[p.id]||{};
+            const st = pl.loaded ? `<span style="color:var(--green);font-weight:600;">정산금 ${comma(pl.settlement||0)}원</span>`
+                     : pl.file ? `<span style="color:var(--acc-dark);">📎 첨부됨(수기)</span>`
+                     : `<span style="color:var(--sub2);">미첨부</span>`;
+            return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 0;border-top:1px dashed var(--border);">
+              <span style="font-size:12px;">${p.name}${p.id==='baemin'?' <span style="color:var(--orange);font-size:10.5px;">🔒 암호화</span>':''}${p.id==='coupang'?' <span style="color:var(--green);font-size:10.5px;">✓ 자동</span>':''}</span>
+              <span style="display:flex;gap:7px;align-items:center;">${st} <label class="btn btn-out btn-sm" style="cursor:pointer;padding:3px 10px;">파일<input type="file" accept=".xlsx,.xls,.csv" style="display:none;" onchange="stlImportPlatform('${p.id}',this)"></label></span>
+            </div>`;
+          }).join('')}
+          <div style="font-size:10.5px;color:var(--sub2);margin-top:7px;line-height:1.5;">쿠팡이츠는 완전 자동 · 나머지는 정산금·수수료를 <b>최대한 자동 인식</b>하고, 인식 안 되면(또는 배민 암호화) 첨부만 하고 아래 표에 직접 입력하시면 됩니다.</div>
         </div>
       </div>
     </div>
@@ -9826,8 +9836,11 @@ function stlRefreshDerived(){
   const platGap = STL_PLATFORMS.reduce((s,p)=>{const v=rec.platforms[p.id]; const exp=(v.sales||0)-((v.feeMid||0)+(v.feePay||0)+(v.feeEtc||0)); return s+(v.deposit?exp-v.deposit:0);},0);
   const cardGap = (rec.card.buyLoaded||rec.card.depLoaded) ? 0 : (rec.card.deposit ? cardExp-rec.card.deposit : 0);
   const totalGap = Math.round(platGap+cardGap);
-  // POS 리포트가 있으면 배달앱이 POS총액에 이미 포함 → 중복합산 방지
-  const totalSales = pos.fromReport ? (pos.total + mk.total) : (pos.total + tSales + mk.total);
+  // POS 리포트가 있으면 배민·요기요·쿠팡은 POS총액에 포함 → 중복합산 방지.
+  // 단 땡겨요·먹깨비는 POS에 안 잡히므로 그 매출만 더한다.
+  const extraSales = STL_PLATFORMS.filter(p=>STL_POS_PLATFORMS.indexOf(p.id)<0)
+    .reduce((s,p)=>s+(rec.platforms[p.id].sales||0),0);
+  const totalSales = pos.fromReport ? (pos.total + mk.total + extraSales) : (pos.total + tSales + mk.total);
   set('stl-s-pos', comma(pos.total)+'원'); set('stl-s-plat', comma(tSales)+'원');
   set('stl-s-mk', comma(mk.total)+'원'); set('stl-s-total', comma(totalSales)+'원');
   const gapEl=document.getElementById('stl-s-gap');
@@ -9951,6 +9964,66 @@ function stlImportCoupang(input){
     DB.save('settlements',settlements); stlBuildBody();
     alert('✅ 쿠팡이츠 정산 반영\n결제금액 '+comma(pay)+'원 · 정산금 '+comma(settle)+'원 · 수수료 '+comma(Math.max(0,pay-settle))+'원'+warn);
   });
+}
+
+/* POS 매출리포트에 매입사로 잡히는 배달앱 (그 외는 매출도 각 파일에서 받아야 함) */
+const STL_POS_PLATFORMS = ['baemin','yogiyo','coupang'];
+
+/* 배달앱 정산 파일 업로드 — 쿠팡은 전용, 나머지는 범용 파서 */
+function stlImportPlatform(pid, input){
+  const file=input.files&&input.files[0]; if(!file) return;
+  if(pid==='coupang'){ stlImportCoupang(input); return; }
+  const rec=stlGetRecord(stlMonth);
+  const pname=(STL_PLATFORMS.find(p=>p.id===pid)||{}).name||pid;
+  const rd=new FileReader();
+  rd.onload=e=>{
+    let wb;
+    try{ wb=XLSX.read(e.target.result,{type:'array'}); }
+    catch(err){
+      rec.platforms[pid].file={name:file.name,at:todayStr()};
+      DB.save('settlements',settlements); stlBuildBody();
+      alert('⚠️ '+pname+' 파일을 자동으로 열 수 없습니다(암호화 등).\n파일명만 기록했습니다. 아래 배달앱 표에 매출·수수료·정산금을 직접 입력하세요.');
+      return;
+    }
+    const res=_stlGenericSettle(wb);
+    rec.platforms[pid].file={name:file.name,at:todayStr()};
+    if(res.settle>0){
+      const pl=rec.platforms[pid];
+      if(res.sales>0) pl.sales=res.sales;
+      pl.settlement=res.settle;
+      pl.feeMid=0; pl.feePay=0; pl.feeEtc=Math.max(0,(res.sales||pl.sales||res.settle)-res.settle);
+      pl.loaded=true;
+      DB.save('settlements',settlements); stlBuildBody();
+      alert('✅ '+pname+' 정산 자동 인식\n'+(res.sales>0?'매출 '+comma(res.sales)+'원 · ':'')+'정산금 '+comma(res.settle)+'원 · 수수료 '+comma(pl.feeEtc)+'원\n\n※ 숫자가 맞는지 아래 표에서 확인하세요. 다르면 직접 수정하시면 됩니다.');
+    } else {
+      DB.save('settlements',settlements); stlBuildBody();
+      alert('📎 '+file.name+' 첨부됨\n'+pname+' 파일에서 정산금 열을 자동으로 찾지 못했습니다.\n아래 배달앱 표에 매출·수수료·정산금을 직접 입력하세요.\n(정산 파일 양식을 공유해 주시면 자동 인식을 추가합니다.)');
+    }
+  };
+  rd.readAsArrayBuffer(file);
+}
+/* 범용 정산 파서 — '정산금액/지급액' 등 열을 찾아 합산 */
+function _stlGenericSettle(wb){
+  const saleKeys=['결제금액','주문금액','매출액','판매금액','총매출','매출금액','주문금액합계'];
+  const settleKeys=['정산금액','정산금','지급액','지급금액','정산예정','지급예정','입금액','정산 금액','정산합계'];
+  for(const sn of wb.SheetNames){
+    const r=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:''});
+    for(let hi=0;hi<Math.min(r.length,14);hi++){
+      const hdr=(r[hi]||[]).map(x=>String(x).trim());
+      const sc=hdr.findIndex(h=>settleKeys.some(k=>h===k||h.includes(k)));
+      if(sc<0) continue;
+      const pc=hdr.findIndex(h=>saleKeys.some(k=>h===k||h.includes(k)));
+      let settle=0,sales=0,cnt=0;
+      for(let i=hi+1;i<r.length;i++){
+        const row=r[i]; if(!row) continue;
+        const v=stlNumV(row[sc]);
+        if(!v && (pc<0 || !stlNumV(row[pc]))) continue;
+        settle+=v; if(pc>=0) sales+=stlNumV(row[pc]); cnt++;
+      }
+      if(cnt>0 && settle!==0) return {settle, sales, sheet:sn, col:hdr[sc]};
+    }
+  }
+  return {settle:0, sales:0};
 }
 
 const APP_PALETTES = [
