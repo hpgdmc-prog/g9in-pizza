@@ -9579,10 +9579,15 @@ function stlMilkitTotals(month){
   return {total,card,cash,transfer,count};
 }
 function stlPosTotals(rec){
+  if(rec.posReport){
+    const p=rec.posReport;
+    return {cash:p.cash||0, card:(p.card||0)+(p.qr||0), transfer:p.transfer||0, etc:p.etc||0, total:p.total||0, fromReport:true};
+  }
   let cash=0,card=0,transfer=0,etc=0;
   rec.posDaily.forEach(d=>{ cash+=Number(d.cash)||0; card+=Number(d.card)||0; transfer+=Number(d.transfer)||0; etc+=Number(d.etc)||0; });
-  return {cash,card,transfer,etc,total:cash+card+transfer+etc};
+  return {cash,card,transfer,etc,total:cash+card+transfer+etc,fromReport:false};
 }
+function stlNumV(v){ return Number(String(v).replace(/[^0-9.-]/g,''))||0; }
 
 function renderSettlement(){
   if(!stlMonth){
@@ -9630,11 +9635,47 @@ function stlBuildBody(){
          <button class="btn btn-out btn-sm" onclick="stlRemovePosExcel()">첨부 삭제</button></div>`
     : `<div class="stl-file">📎 Toss POS 월 매출 엑셀을 첨부하면 근거로 보관됩니다. <label class="btn btn-out btn-sm" style="cursor:pointer;">파일 선택<input type="file" accept=".xlsx,.xls,.csv" style="display:none;" onchange="stlPosExcel(this)"></label></div>`;
 
+  const impBtn=(label,fn,hint)=>`<label class="btn btn-out btn-sm" style="cursor:pointer;">${label}<input type="file" accept=".xlsx,.xls,.csv" style="display:none;" onchange="${fn}(this)"></label>`;
+  const pr=rec.posReport;
+  const impStatus = (ok,txt)=> ok?`<span style="color:var(--green);font-weight:600;">${txt}</span>`:`<span style="color:var(--sub2);">미첨부</span>`;
+
   body.innerHTML = `
+    <!-- 자동 불러오기 -->
+    <div class="stl-block" style="border:1.5px solid var(--acc);">
+      <div class="stl-block-hd"><h4>📥 정산 자료 자동 불러오기</h4></div>
+      <div class="stl-block-desc">각 정산 파일을 올리면 숫자가 자동으로 채워집니다. <b>배민 정산서는 암호화</b>되어 자동 파싱이 안 되니, 매출은 POS 리포트에서 자동으로 잡고 배민 수수료·정산금만 아래에서 직접 입력하세요.</div>
+      <div style="display:grid;grid-template-columns:1fr;gap:9px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:var(--bg2);border-radius:9px;padding:9px 13px;">
+          <span style="font-size:12.5px;">🧾 <b>Toss POS 매출리포트</b> <span style="color:var(--sub2);">— 매장·배달 매출 전체 자동</span></span>
+          <span style="display:flex;gap:8px;align-items:center;">${impStatus(!!pr, pr?comma(pr.total)+'원 반영':'')} ${impBtn('파일 선택','stlImportPosReport')}</span>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:var(--bg2);border-radius:9px;padding:9px 13px;">
+          <span style="font-size:12.5px;">💳 <b>여신금융협회 카드 매입내역</b> <span style="color:var(--sub2);">— 카드매출·수수료</span></span>
+          <span style="display:flex;gap:8px;align-items:center;">${impStatus(!!rec.card.buyLoaded, rec.card.buyLoaded?comma(rec.card.sales)+'원':'')} ${impBtn('파일 선택','stlImportCardBuy')}</span>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:var(--bg2);border-radius:9px;padding:9px 13px;">
+          <span style="font-size:12.5px;">🏦 <b>여신금융협회 카드 입금내역</b> <span style="color:var(--sub2);">— 실입금(통장 대조)</span></span>
+          <span style="display:flex;gap:8px;align-items:center;">${impStatus(!!rec.card.depLoaded, rec.card.depLoaded?comma(rec.card.deposit)+'원':'')} ${impBtn('파일 선택','stlImportCardDeposit')}</span>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:var(--bg2);border-radius:9px;padding:9px 13px;">
+          <span style="font-size:12.5px;">🛵 <b>쿠팡이츠 정산 파일</b> <span style="color:var(--sub2);">— 수수료·정산금</span></span>
+          <span style="display:flex;gap:8px;align-items:center;">${impStatus(!!(rec.platforms.coupang&&rec.platforms.coupang.loaded), '반영됨')} ${impBtn('파일 선택','stlImportCoupang')}</span>
+        </div>
+      </div>
+    </div>
+
     <!-- 매장·현장 (Toss POS) -->
     <div class="stl-block">
       <div class="stl-block-hd"><h4>🏪 매장·현장 매출 (Toss POS)</h4><button class="btn btn-out btn-sm" onclick="stlAddPosRow()">＋ 날짜 추가</button></div>
-      <div class="stl-block-desc">Toss POS의 일별 매출을 결제수단별로 입력하세요. 월 엑셀을 첨부해 근거로 남기고, 엑셀 기준 월 매출을 넣으면 일별 합계와 대조됩니다.</div>
+      <div class="stl-block-desc">${pr?'📥 <b>POS 매출리포트가 반영</b>되어 있습니다. 아래 값은 리포트 기준 자동 집계입니다. (일별 직접입력은 리포트가 없을 때 사용)':'Toss POS의 일별 매출을 결제수단별로 입력하거나, 위에서 <b>매출리포트를 올리면 자동</b>으로 채워집니다.'}</div>
+      ${pr?`<div class="stl-sum" style="margin-bottom:14px;">
+        <div class="box"><div class="k">현금</div><div class="v">${comma(pr.cash)}원</div></div>
+        <div class="box"><div class="k">카드+QR</div><div class="v">${comma((pr.card||0)+(pr.qr||0))}원</div></div>
+        <div class="box"><div class="k">계좌이체</div><div class="v">${comma(pr.transfer)}원</div></div>
+        <div class="box"><div class="k">배달·기타</div><div class="v">${comma(pr.etc)}원</div></div>
+        <div class="box accent"><div class="k">POS 총매출</div><div class="v">${comma(pr.total)}원</div></div>
+      </div>
+      <div class="stl-block-desc" style="margin:0 0 8px;">🛵 배달앱 매출(리포트 매입사 기준): 배민 <b>${comma(pr.acquirers.baemin)}</b> · 요기요 <b>${comma(pr.acquirers.yogiyo)}</b> · 쿠팡이츠 <b>${comma(pr.acquirers.coupang)}</b> → 아래 배달앱 표에 자동 반영됨</div>`:''}
       <div class="stl-scroll">
         <table class="stl-tbl" style="min-width:640px;">
           <thead><tr><th>날짜</th><th>현금</th><th>카드</th><th>계좌이체</th><th>기타</th><th>합계</th><th></th></tr></thead>
@@ -9687,8 +9728,8 @@ function stlBuildBody(){
     <div class="stl-block" style="background:var(--bg2);">
       <div class="stl-block-hd"><h4>📋 ${stlMonth} 정산 요약</h4><span id="stl-status"></span></div>
       <div class="stl-sum">
-        <div class="box"><div class="k">매장·현장 (POS)</div><div class="v" id="stl-s-pos">0원</div></div>
-        <div class="box"><div class="k">배달앱 매출</div><div class="v" id="stl-s-plat">0원</div></div>
+        <div class="box"><div class="k">${pr?'POS 총매출 (매장+배달)':'매장·현장 (POS)'}</div><div class="v" id="stl-s-pos">0원</div></div>
+        <div class="box"><div class="k">${pr?'└ 배달앱 분 (포함)':'배달앱 매출'}</div><div class="v" id="stl-s-plat">0원</div></div>
         <div class="box"><div class="k">밀키트 (자동)</div><div class="v" id="stl-s-mk">0원</div></div>
         <div class="box accent"><div class="k">총 매출</div><div class="v" id="stl-s-total">0원</div></div>
         <div class="box"><div class="k">정산 오차 합</div><div class="v" id="stl-s-gap">0원</div></div>
@@ -9763,20 +9804,30 @@ function stlRefreshDerived(){
   set('stl-p-texp', comma(Math.round(tExp))+'원'); set('stl-p-tdep', comma(tDep)+'원');
   setH('stl-p-tchip', stlGapChip(tExp, tDep));
 
-  // 카드 (POS카드 + 밀키트카드)
+  // 카드 — 여신 매입내역이 있으면 그 값, 없으면 POS카드+밀키트카드
   const mk=stlMilkitTotals(stlMonth);
-  const cardSales=pos.card + mk.card;
+  let cardSales, cardBreak;
+  if(rec.card.buyLoaded){ cardSales=rec.card.sales||0; cardBreak=`여신금융협회 매입내역 기준 카드매출 <b>${comma(cardSales)}원</b>`; }
+  else { cardSales=pos.card + mk.card; cardBreak=`POS 카드 ${comma(pos.card)}원 + 밀키트 카드 ${comma(mk.card)}원 = <b>${comma(cardSales)}원</b>`; }
   const cardExp=cardSales-(rec.card.fee||0);
+  const cardYeoshin = rec.card.buyLoaded || rec.card.depLoaded;
   set('stl-card-sales', comma(cardSales)+'원');
   set('stl-card-exp', comma(Math.round(cardExp))+'원');
-  setH('stl-card-chip', stlGapChip(cardExp, rec.card.deposit||0));
-  setH('stl-card-breakdown', `POS 카드 ${comma(pos.card)}원 + 밀키트 카드 ${comma(mk.card)}원 = <b>${comma(cardSales)}원</b>`);
+  if(cardYeoshin){
+    // 여신 매입·입금은 정산 시차로 예정≠실입금이 정상 → 오차로 보지 않고 실입금만 확인 표시
+    setH('stl-card-chip', rec.card.depLoaded?`<span class="stl-chip ok">✓ 실입금 ${comma(rec.card.deposit)}</span>`:'<span class="stl-chip" style="background:var(--bg3);color:var(--sub2);">입금내역 대기</span>');
+    setH('stl-card-breakdown', cardBreak + (rec.card.buyExpected?` · 지급예정 <b>${comma(rec.card.buyExpected)}원</b>`:'') + (rec.card.depLoaded?` · 실입금 <b>${comma(rec.card.deposit)}원</b>`:'') + `<br><span style="color:var(--sub2);">※ 매입(이 달 카드매출)과 입금(통장에 실제 들어온 돈)은 정산 시차로 금액이 다른 게 정상입니다. 통장 입금과 실입금이 맞는지 확인하세요.</span>`);
+  } else {
+    setH('stl-card-chip', stlGapChip(cardExp, rec.card.deposit||0));
+    setH('stl-card-breakdown', cardBreak);
+  }
 
   // 요약
   const platGap = STL_PLATFORMS.reduce((s,p)=>{const v=rec.platforms[p.id]; const exp=(v.sales||0)-((v.feeMid||0)+(v.feePay||0)+(v.feeEtc||0)); return s+(v.deposit?exp-v.deposit:0);},0);
-  const cardGap = rec.card.deposit ? cardExp-rec.card.deposit : 0;
+  const cardGap = (rec.card.buyLoaded||rec.card.depLoaded) ? 0 : (rec.card.deposit ? cardExp-rec.card.deposit : 0);
   const totalGap = Math.round(platGap+cardGap);
-  const totalSales = pos.total + tSales + mk.total;
+  // POS 리포트가 있으면 배달앱이 POS총액에 이미 포함 → 중복합산 방지
+  const totalSales = pos.fromReport ? (pos.total + mk.total) : (pos.total + tSales + mk.total);
   set('stl-s-pos', comma(pos.total)+'원'); set('stl-s-plat', comma(tSales)+'원');
   set('stl-s-mk', comma(mk.total)+'원'); set('stl-s-total', comma(totalSales)+'원');
   const gapEl=document.getElementById('stl-s-gap');
@@ -9820,6 +9871,86 @@ function stlRemovePosExcel(){
   const rec=stlGetRecord(stlMonth); rec.posExcel=null;
   try{ localStorage.removeItem('jgp_stlfile_'+stlMonth); }catch(_){}
   DB.save('settlements',settlements); stlBuildBody();
+}
+
+/* ── 정산 자료 자동 파싱 (검증된 컬럼 매칭) ── */
+function _stlReadWb(file, cb){
+  const rd=new FileReader();
+  rd.onload=e=>{ try{ cb(XLSX.read(e.target.result,{type:'array'})); }catch(err){ alert('파일을 읽지 못했습니다.\n암호가 걸린 파일(배민 등)은 자동 파싱이 안 됩니다.\n\n'+err.message); } };
+  rd.readAsArrayBuffer(file);
+}
+function _stlFindHeaderRow(r, key){ for(let i=0;i<Math.min(r.length,20);i++){ if((r[i]||[]).some(c=>String(c).includes(key))) return i; } return -1; }
+
+/* Toss POS 매출리포트 → 매장·배달 매출 전체 자동 */
+function stlImportPosReport(input){
+  const file=input.files&&input.files[0]; if(!file) return;
+  _stlReadWb(file, wb=>{
+    const ws=wb.Sheets['결제 합계'];
+    if(!ws){ alert('‘결제 합계’ 시트를 찾을 수 없습니다.\nToss POS 매출리포트 파일이 맞는지 확인하세요.'); return; }
+    const r=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+    const hdr=(r[1]||[]).map(x=>String(x).trim()); const val=r[2]||[];
+    const pick=n=>{const i=hdr.indexOf(n); return i>=0?stlNumV(val[i]):0;};
+    const rec=stlGetRecord(stlMonth);
+    rec.posReport={total:pick('결제금액'),cash:pick('현금'),card:pick('카드'),qr:pick('QR결제'),transfer:pick('계좌이체'),etc:pick('기타'),
+      acquirers:{baemin:pick('배달의민족'),yogiyo:pick('요기요'),coupang:pick('쿠팡이츠'),ttangyeo:pick('땡겨요'),mukkebi:pick('먹깨비')}};
+    STL_PLATFORMS.forEach(p=>{ const g=rec.posReport.acquirers[p.id]; if(g) rec.platforms[p.id].sales=g; });
+    DB.save('settlements',settlements); stlBuildBody();
+    alert('✅ POS 매출리포트 반영 완료\n총매출 '+comma(rec.posReport.total)+'원\n(배민 '+comma(rec.posReport.acquirers.baemin)+' · 요기요 '+comma(rec.posReport.acquirers.yogiyo)+' · 쿠팡 '+comma(rec.posReport.acquirers.coupang)+')');
+  });
+}
+/* 여신금융협회 기간별매입내역 → 카드매출·수수료·지급예정 */
+function stlImportCardBuy(input){
+  const file=input.files&&input.files[0]; if(!file) return;
+  _stlReadWb(file, wb=>{
+    const r=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:''});
+    const hi=_stlFindHeaderRow(r,'매입합계'); if(hi<0){ alert('카드 매입내역 형식이 아닙니다 (‘매입합계’ 열 없음).'); return; }
+    const hdr=r[hi].map(x=>String(x).trim());
+    const cA=hdr.findIndex(h=>h.includes('매입합계')), cB=hdr.findIndex(h=>h.replace(/\s/g,'').includes('수수료합계')), cP=hdr.findIndex(h=>h.includes('지급예정'));
+    let A=0,B=0,P=0;
+    for(let i=hi+1;i<r.length;i++){ const row=r[i]; if(!row||!/^\d{4}-\d{2}-\d{2}/.test(String(row[0]))) continue; A+=stlNumV(row[cA]); if(cB>=0)B+=stlNumV(row[cB]); if(cP>=0)P+=stlNumV(row[cP]); }
+    const rec=stlGetRecord(stlMonth); rec.card.sales=A; rec.card.fee=B; rec.card.buyExpected=P; rec.card.buyLoaded=true;
+    DB.save('settlements',settlements); stlBuildBody();
+    alert('✅ 카드 매입내역 반영\n카드매출 '+comma(A)+'원 · 수수료 '+comma(B)+'원 · 지급예정 '+comma(P)+'원');
+  });
+}
+/* 여신금융협회 기간별입금내역 → 실입금(통장 대조) */
+function stlImportCardDeposit(input){
+  const file=input.files&&input.files[0]; if(!file) return;
+  _stlReadWb(file, wb=>{
+    const r=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:''});
+    const hi=_stlFindHeaderRow(r,'실입금'); if(hi<0){ alert('카드 입금내역 형식이 아닙니다 (‘실입금’ 열 없음).'); return; }
+    const hdr=r[hi].map(x=>String(x).trim());
+    const cS=hdr.findIndex(h=>h.includes('매출금액')), cD=hdr.findIndex(h=>h.includes('실입금'));
+    let S=0,D=0;
+    for(let i=hi+1;i<r.length;i++){ const row=r[i]; if(!row||!/^\d+$/.test(String(row[0]).trim())) continue; if(cS>=0)S+=stlNumV(row[cS]); D+=stlNumV(row[cD]); }
+    const rec=stlGetRecord(stlMonth); rec.card.deposit=D; rec.card.depSales=S; rec.card.depLoaded=true;
+    DB.save('settlements',settlements); stlBuildBody();
+    alert('✅ 카드 입금내역 반영\n실입금 '+comma(D)+'원 (매출 '+comma(S)+'원 기준)');
+  });
+}
+/* 쿠팡이츠 정산 파일 → 결제금액·정산금·수수료 */
+function stlImportCoupang(input){
+  const file=input.files&&input.files[0]; if(!file) return;
+  _stlReadWb(file, wb=>{
+    const r=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:''});
+    const h0=(r[0]||[]).map(String), h1=(r[1]||[]).map(x=>String(x).trim());
+    let gi=h0.findIndex(x=>x.includes('정산금액')); let settleCol=-1;
+    if(gi>=0){ for(let c=gi;c<gi+6&&c<h1.length;c++){ if(h1[c]==='산정후'){ settleCol=c; break; } } if(settleCol<0) settleCol=gi; }
+    let payCol=h1.findIndex(x=>x==='결제금액');
+    if(settleCol<0){ alert('쿠팡이츠 정산 형식이 아닙니다 (‘정산금액’ 열 없음).'); return; }
+    let settle=0, pay=0;
+    for(let i=2;i<r.length;i++){ const row=r[i]; if(!row||!/^\d{4}-\d{2}-\d{2}/.test(String(row[0]))) continue; settle+=stlNumV(row[settleCol]); if(payCol>=0)pay+=stlNumV(row[payCol]); }
+    const rec=stlGetRecord(stlMonth); const cp=rec.platforms.coupang;
+    const posCp = rec.posReport ? (rec.posReport.acquirers.coupang||0) : 0;
+    let warn='';
+    if(posCp>0 && pay>0 && Math.abs(posCp-pay)/posCp>0.1){
+      warn='\n\n⚠️ 이 파일의 결제금액('+comma(pay)+')이 POS 리포트의 쿠팡 매출('+comma(posCp)+')과 다릅니다.\n다른 상호/계정(예: 뉴욕피자 석적점)의 쿠팡일 수 있으니, 같은 매장이 맞는지 확인하세요.';
+    }
+    if(pay>0){ cp.sales=pay; cp.feeMid=0; cp.feePay=0; cp.feeEtc=Math.max(0,pay-settle); }
+    cp.settlement=settle; cp.loaded=true;
+    DB.save('settlements',settlements); stlBuildBody();
+    alert('✅ 쿠팡이츠 정산 반영\n결제금액 '+comma(pay)+'원 · 정산금 '+comma(settle)+'원 · 수수료 '+comma(Math.max(0,pay-settle))+'원'+warn);
+  });
 }
 
 const APP_PALETTES = [
