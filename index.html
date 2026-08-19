@@ -210,6 +210,33 @@ tr:hover td{background:var(--bg2);}
 .mk-ch-seg{display:flex;gap:8px;}
 .mk-ch-btn{flex:1;padding:13px 10px;border:1.5px solid var(--border);border-radius:11px;background:#fff;font-family:inherit;font-size:14px;font-weight:700;color:var(--sub);cursor:pointer;transition:background .15s,border-color .15s,color .15s;}
 .mk-ch-btn.is-active{border-color:var(--acc);background:var(--acc-pale);color:var(--acc-dark);}
+/* 매출 정산 */
+.stl-block{background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:18px 20px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.04);}
+.stl-block-hd{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px;}
+.stl-block-hd h4{font-family:var(--serif);font-size:16px;font-weight:700;color:var(--acc-dark);margin:0;}
+.stl-block-desc{font-size:11.5px;color:var(--sub2);margin:2px 0 14px;line-height:1.55;}
+.stl-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.stl-tbl{width:100%;border-collapse:collapse;font-size:12.5px;min-width:560px;}
+.stl-tbl th,.stl-tbl td{padding:8px 9px;border-bottom:1px solid var(--border);text-align:right;white-space:nowrap;}
+.stl-tbl th{background:var(--bg);font-size:10.5px;color:var(--sub);font-weight:600;letter-spacing:.02em;}
+.stl-tbl th:first-child,.stl-tbl td:first-child{text-align:left;}
+.stl-tbl .num{font-variant-numeric:tabular-nums;font-family:var(--mono,'IBM Plex Mono',monospace);}
+.stl-tbl tfoot td{border-top:2px solid var(--border-strong);border-bottom:none;font-weight:700;background:var(--bg);}
+.stl-in{width:100%;min-width:78px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12.5px;text-align:right;font-family:inherit;background:#fff;color:var(--text);font-variant-numeric:tabular-nums;}
+.stl-in:focus{outline:none;border-color:var(--acc);}
+.stl-auto{font-variant-numeric:tabular-nums;font-weight:700;color:var(--text);}
+.stl-chip{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap;}
+.stl-chip.ok{background:#E7EFE9;color:var(--green);}
+.stl-chip.bad{background:var(--warn-soft,#F4EBD4);color:#946510;border:1px solid #C7A94E;}
+.stl-gap-pos{color:var(--green);} .stl-gap-neg{color:var(--red);}
+.stl-sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:4px;}
+.stl-sum .box{background:var(--bg2);border-radius:11px;padding:13px 15px;}
+.stl-sum .box .k{font-size:11px;color:var(--sub);font-weight:600;}
+.stl-sum .box .v{font-family:var(--serif);font-size:21px;font-weight:700;color:var(--dark);margin-top:3px;font-variant-numeric:tabular-nums;}
+.stl-sum .box.accent{background:var(--acc-pale);}
+.stl-sum .box.accent .v{color:var(--acc-dark);}
+.stl-daterow td{padding:5px 6px;}
+.stl-file{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--sub);margin-top:12px;background:var(--bg2);border-radius:9px;padding:10px 13px;}
 #mk-order-qty-rows.input-invalid{border-radius:9px;padding:6px;}
 .modal-error{margin:0 24px 4px;background:#FCEDED;border:1px solid #E8B4B4;color:#B23B3B;border-radius:9px;padding:11px 14px;font-size:13px;line-height:1.55;display:none;}
 .modal-error.show{display:block;}
@@ -851,6 +878,9 @@ img{max-width:100%;height:auto;}
     <div class="nav-item" onclick="navigate('fees')">
       <span class="nav-icon">🧾</span>수수료 · 세금 설정
     </div>
+    <div class="nav-item" onclick="navigate('settlement')">
+      <span class="nav-icon">📒</span>매출 정산
+    </div>
     <div class="nav-label">가맹점</div>
     <div class="nav-item" onclick="navigate('stores')">
       <span class="nav-icon">🏪</span>가맹점 관리
@@ -1031,6 +1061,21 @@ img{max-width:100%;height:auto;}
     <div style="font-size:13px;font-weight:600;color:var(--sub);margin-bottom:10px;letter-spacing:.1em;text-transform:uppercase;">고정비 (월 기준 → 메뉴 1개당 분할 적용)</div>
     <div class="fee-grid" id="fee-grid-fixed" style="margin-bottom:20px;"></div>
     <div id="fee-margin-preview"></div>
+  </div>
+
+  <!-- ===SETTLEMENT (매출 정산)=== -->
+  <div class="section" id="sec-settlement">
+    <div class="page-hdr">
+      <h3>매출 정산</h3>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <label style="font-size:12.5px;color:var(--sub);">정산 월</label>
+        <input type="month" id="stl-month" onchange="stlLoadMonth()" style="padding:8px 10px;border:1px solid var(--border);border-radius:var(--r-sm);font-family:inherit;font-size:13px;background:#fff;color:var(--text);">
+      </div>
+    </div>
+    <div style="margin-bottom:18px;padding:13px 17px;background:var(--acc-pale);border-radius:var(--r-md);font-size:12.5px;color:var(--acc-dark);line-height:1.6;">
+      💡 <b>판 매출 − 수수료 = 통장에 들어올 돈</b>이 실제 입금과 맞는지 대조합니다. 매장·현장 매출은 Toss POS 일별로 입력(또는 월 엑셀 첨부), 배달앱·카드는 정산서 숫자를 넣으면 <b>오차가 자동 계산</b>됩니다. 밀키트 매출은 자동 집계됩니다.
+    </div>
+    <div id="settlement-body"></div>
   </div>
 
 
@@ -3133,7 +3178,7 @@ function calcTotalCostPerItem(recipe){
 const SECTIONS = {
   dashboard:'대시보드', ingredients:'원부자재 관리', suppliers:'구입처 관리', orders:'발주 · 입고 관리',
   recipes:'레시피 관리', recipebook:'레시피북 출력', labels:'표시사항 (백라벨)',
-  costs:'원가 분석', fees:'수수료 · 세금 설정', stores:'가맹점 관리', scout:'매장 조사', milkit:'밀키트 판매관리', settings:'설정'
+  costs:'원가 분석', fees:'수수료 · 세금 설정', settlement:'매출 정산', stores:'가맹점 관리', scout:'매장 조사', milkit:'밀키트 판매관리', settings:'설정'
 };
 function navigate(name, fromHistory){
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
@@ -3152,6 +3197,7 @@ function navigate(name, fromHistory){
   if(name==='labels') renderLabels();
   if(name==='costs') renderCosts();
   if(name==='fees') renderFees();
+  if(name==='settlement') renderSettlement();
   if(name==='stores') renderStores();
   if(name==='scout') renderScout();
   if(name==='orders') renderOrders();
@@ -9488,6 +9534,294 @@ function renderMilkitCosts(){
 /* ============================
    설정 (외관 · 데이터)
    ============================ */
+/* ============================
+   매출 정산 (Settlement)
+   ============================ */
+const STL_PLATFORMS = [
+  {id:'baemin',  name:'배달의민족'},
+  {id:'coupang', name:'쿠팡이츠'},
+  {id:'yogiyo',  name:'요기요'},
+  {id:'ttangyeo',name:'땡겨요'},
+  {id:'mukkebi', name:'먹깨비'},
+];
+let settlements = DB.load('settlements', {});   // { 'YYYY-MM': record }
+let stlMonth = '';
+
+function stlBlankRecord(month){
+  const plat={};
+  STL_PLATFORMS.forEach(p=>plat[p.id]={sales:0,feeMid:0,feePay:0,feeEtc:0,deposit:0});
+  return { month, posDaily:[], posExcel:null, posExcelTotal:0, platforms:plat, card:{fee:0,deposit:0}, memo:'', locked:false };
+}
+function stlGetRecord(month){
+  if(!settlements[month]) settlements[month]=stlBlankRecord(month);
+  const r=settlements[month];
+  if(!r.platforms) r.platforms={};
+  STL_PLATFORMS.forEach(p=>{ if(!r.platforms[p.id]) r.platforms[p.id]={sales:0,feeMid:0,feePay:0,feeEtc:0,deposit:0}; });
+  if(!r.posDaily) r.posDaily=[];
+  if(!r.card) r.card={fee:0,deposit:0};
+  if(typeof r.posExcelTotal!=='number') r.posExcelTotal=0;
+  return r;
+}
+function stlNum(id){ const e=document.getElementById(id); if(!e) return 0; return Number(String(e.value).replace(/[^0-9.-]/g,''))||0; }
+function stlMonthNow(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+
+/* 밀키트 월 매출 자동 집계 (홍보 무료 제외) */
+function stlMilkitTotals(month){
+  let total=0,card=0,cash=0,transfer=0,count=0;
+  milkitOrders.forEach(o=>{
+    if(!o.orderDate || o.orderDate.slice(0,7)!==month) return;
+    if(o.promo) return;
+    const amt=Number(o.payTotal)||0; total+=amt; count++;
+    if(o.payMethod==='카드') card+=amt;
+    else if(o.payMethod==='현금') cash+=amt;
+    else if(o.payMethod==='계좌이체') transfer+=amt;
+  });
+  return {total,card,cash,transfer,count};
+}
+function stlPosTotals(rec){
+  let cash=0,card=0,transfer=0,etc=0;
+  rec.posDaily.forEach(d=>{ cash+=Number(d.cash)||0; card+=Number(d.card)||0; transfer+=Number(d.transfer)||0; etc+=Number(d.etc)||0; });
+  return {cash,card,transfer,etc,total:cash+card+transfer+etc};
+}
+
+function renderSettlement(){
+  if(!stlMonth){
+    const saved=Object.keys(settlements).sort().reverse()[0];
+    stlMonth = saved || stlMonthNow();
+  }
+  const mi=document.getElementById('stl-month'); if(mi) mi.value=stlMonth;
+  stlBuildBody();
+}
+function stlLoadMonth(){ stlMonth=document.getElementById('stl-month').value||stlMonthNow(); stlBuildBody(); }
+
+function stlBuildBody(){
+  const rec=stlGetRecord(stlMonth);
+  const body=document.getElementById('settlement-body');
+
+  // ── POS 일별 표 ──
+  const posRows = rec.posDaily.map((d,i)=>`
+    <tr class="stl-daterow">
+      <td><input type="date" class="stl-in" style="text-align:left;min-width:130px;" id="stl-pos-${i}-date" value="${d.date||''}" onchange="stlSync()"></td>
+      <td><input type="text" inputmode="numeric" class="stl-in" id="stl-pos-${i}-cash" value="${d.cash?comma(d.cash):''}" placeholder="0" onchange="stlSync()"></td>
+      <td><input type="text" inputmode="numeric" class="stl-in" id="stl-pos-${i}-card" value="${d.card?comma(d.card):''}" placeholder="0" onchange="stlSync()"></td>
+      <td><input type="text" inputmode="numeric" class="stl-in" id="stl-pos-${i}-transfer" value="${d.transfer?comma(d.transfer):''}" placeholder="0" onchange="stlSync()"></td>
+      <td><input type="text" inputmode="numeric" class="stl-in" id="stl-pos-${i}-etc" value="${d.etc?comma(d.etc):''}" placeholder="0" onchange="stlSync()"></td>
+      <td class="num stl-auto" id="stl-pos-${i}-sum">0</td>
+      <td><button class="btn btn-out btn-sm" style="padding:3px 8px;" onclick="stlDelPosRow(${i})">✕</button></td>
+    </tr>`).join('');
+
+  const platRows = STL_PLATFORMS.map(p=>{
+    const v=rec.platforms[p.id]||{};
+    return `<tr>
+      <td style="font-weight:700;color:var(--acc-dark);">${p.name}</td>
+      <td><input type="text" inputmode="numeric" class="stl-in" id="stl-p-${p.id}-sales" value="${v.sales?comma(v.sales):''}" placeholder="0" onchange="stlSync()"></td>
+      <td><input type="text" inputmode="numeric" class="stl-in" id="stl-p-${p.id}-feeMid" value="${v.feeMid?comma(v.feeMid):''}" placeholder="0" onchange="stlSync()"></td>
+      <td><input type="text" inputmode="numeric" class="stl-in" id="stl-p-${p.id}-feePay" value="${v.feePay?comma(v.feePay):''}" placeholder="0" onchange="stlSync()"></td>
+      <td><input type="text" inputmode="numeric" class="stl-in" id="stl-p-${p.id}-feeEtc" value="${v.feeEtc?comma(v.feeEtc):''}" placeholder="0" onchange="stlSync()"></td>
+      <td class="num stl-auto" id="stl-p-${p.id}-exp">0</td>
+      <td><input type="text" inputmode="numeric" class="stl-in" id="stl-p-${p.id}-dep" value="${v.deposit?comma(v.deposit):''}" placeholder="0" onchange="stlSync()"></td>
+      <td id="stl-p-${p.id}-chip"></td>
+    </tr>`;
+  }).join('');
+
+  const fileLine = rec.posExcel
+    ? `<div class="stl-file">📎 <b>${rec.posExcel.name}</b> <span style="color:var(--sub2);">· ${rec.posExcel.at} 첨부</span>
+         ${rec.posExcel.local?`<button class="btn btn-out btn-sm" onclick="stlDownloadPosExcel()">⬇ 원본 받기</button>`:`<span style="color:var(--orange);">(이 기기엔 원본 없음)</span>`}
+         <button class="btn btn-out btn-sm" onclick="stlRemovePosExcel()">첨부 삭제</button></div>`
+    : `<div class="stl-file">📎 Toss POS 월 매출 엑셀을 첨부하면 근거로 보관됩니다. <label class="btn btn-out btn-sm" style="cursor:pointer;">파일 선택<input type="file" accept=".xlsx,.xls,.csv" style="display:none;" onchange="stlPosExcel(this)"></label></div>`;
+
+  body.innerHTML = `
+    <!-- 매장·현장 (Toss POS) -->
+    <div class="stl-block">
+      <div class="stl-block-hd"><h4>🏪 매장·현장 매출 (Toss POS)</h4><button class="btn btn-out btn-sm" onclick="stlAddPosRow()">＋ 날짜 추가</button></div>
+      <div class="stl-block-desc">Toss POS의 일별 매출을 결제수단별로 입력하세요. 월 엑셀을 첨부해 근거로 남기고, 엑셀 기준 월 매출을 넣으면 일별 합계와 대조됩니다.</div>
+      <div class="stl-scroll">
+        <table class="stl-tbl" style="min-width:640px;">
+          <thead><tr><th>날짜</th><th>현금</th><th>카드</th><th>계좌이체</th><th>기타</th><th>합계</th><th></th></tr></thead>
+          <tbody id="stl-pos-tbody">${posRows||`<tr><td colspan="7" style="text-align:center;color:var(--sub2);padding:16px;">＋ 날짜 추가 로 일별 매출을 입력하세요</td></tr>`}</tbody>
+          <tfoot><tr>
+            <td>월 합계</td>
+            <td class="num" id="stl-pos-tcash">0</td><td class="num" id="stl-pos-tcard">0</td>
+            <td class="num" id="stl-pos-ttransfer">0</td><td class="num" id="stl-pos-tetc">0</td>
+            <td class="num" id="stl-pos-ttotal">0</td><td></td>
+          </tr></tfoot>
+        </table>
+      </div>
+      ${fileLine}
+      <div class="stl-file" style="margin-top:8px;">📊 엑셀 기준 월 매출 <input type="text" inputmode="numeric" class="stl-in" style="max-width:150px;" id="stl-pos-exceltotal" value="${rec.posExcelTotal?comma(rec.posExcelTotal):''}" placeholder="0" onchange="stlSync()"> <span id="stl-pos-exceldiff" style="color:var(--sub2);"></span></div>
+    </div>
+
+    <!-- 배달앱 정산 -->
+    <div class="stl-block">
+      <div class="stl-block-hd"><h4>🛵 배달앱 정산</h4></div>
+      <div class="stl-block-desc">각 앱 정산서의 매출·수수료를 입력하면 <b>정산예정액(매출−수수료)</b>이 계산되고, 실제 통장 입금액과 대사됩니다.</div>
+      <div class="stl-scroll">
+        <table class="stl-tbl" style="min-width:720px;">
+          <thead><tr><th>플랫폼</th><th>매출</th><th>중개수수료</th><th>결제수수료</th><th>광고·기타</th><th>정산예정</th><th>실입금</th><th>대사</th></tr></thead>
+          <tbody>${platRows}</tbody>
+          <tfoot><tr><td>합계</td><td class="num" id="stl-p-tsales">0</td><td class="num" id="stl-p-tfee">0</td><td></td><td></td><td class="num" id="stl-p-texp">0</td><td class="num" id="stl-p-tdep">0</td><td id="stl-p-tchip"></td></tr></tfoot>
+        </table>
+      </div>
+    </div>
+
+    <!-- 카드 정산 -->
+    <div class="stl-block">
+      <div class="stl-block-hd"><h4>💳 카드 매출 정산</h4></div>
+      <div class="stl-block-desc">POS 카드 + 밀키트 카드 매출에서 카드사 수수료를 뺀 금액이 입금돼야 합니다. (자동 집계된 카드매출 기준)</div>
+      <div class="stl-scroll">
+        <table class="stl-tbl" style="min-width:560px;">
+          <thead><tr><th>카드 매출(자동)</th><th>카드사 수수료</th><th>입금예정</th><th>실입금</th><th>대사</th></tr></thead>
+          <tbody><tr>
+            <td class="num stl-auto" id="stl-card-sales">0</td>
+            <td><input type="text" inputmode="numeric" class="stl-in" id="stl-card-fee" value="${rec.card.fee?comma(rec.card.fee):''}" placeholder="0" onchange="stlSync()"></td>
+            <td class="num stl-auto" id="stl-card-exp">0</td>
+            <td><input type="text" inputmode="numeric" class="stl-in" id="stl-card-dep" value="${rec.card.deposit?comma(rec.card.deposit):''}" placeholder="0" onchange="stlSync()"></td>
+            <td id="stl-card-chip"></td>
+          </tr></tbody>
+        </table>
+      </div>
+      <div class="stl-block-desc" style="margin:10px 0 0;" id="stl-card-breakdown"></div>
+    </div>
+
+    <!-- 요약 -->
+    <div class="stl-block" style="background:var(--bg2);">
+      <div class="stl-block-hd"><h4>📋 ${stlMonth} 정산 요약</h4><span id="stl-status"></span></div>
+      <div class="stl-sum">
+        <div class="box"><div class="k">매장·현장 (POS)</div><div class="v" id="stl-s-pos">0원</div></div>
+        <div class="box"><div class="k">배달앱 매출</div><div class="v" id="stl-s-plat">0원</div></div>
+        <div class="box"><div class="k">밀키트 (자동)</div><div class="v" id="stl-s-mk">0원</div></div>
+        <div class="box accent"><div class="k">총 매출</div><div class="v" id="stl-s-total">0원</div></div>
+        <div class="box"><div class="k">정산 오차 합</div><div class="v" id="stl-s-gap">0원</div></div>
+      </div>
+      <div style="margin-top:14px;">
+        <label style="font-size:12px;color:var(--sub);">메모</label>
+        <textarea id="stl-memo" placeholder="오차 원인, 특이사항…" style="width:100%;margin-top:5px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;color:var(--text);min-height:56px;" onchange="stlSync()">${rec.memo||''}</textarea>
+      </div>
+    </div>`;
+  stlRefreshDerived();
+}
+
+function stlSync(){
+  const rec=stlGetRecord(stlMonth);
+  rec.posDaily.forEach((d,i)=>{
+    d.date=(document.getElementById('stl-pos-'+i+'-date')||{}).value||'';
+    d.cash=stlNum('stl-pos-'+i+'-cash'); d.card=stlNum('stl-pos-'+i+'-card');
+    d.transfer=stlNum('stl-pos-'+i+'-transfer'); d.etc=stlNum('stl-pos-'+i+'-etc');
+  });
+  rec.posExcelTotal=stlNum('stl-pos-exceltotal');
+  STL_PLATFORMS.forEach(p=>{
+    rec.platforms[p.id]={
+      sales:stlNum('stl-p-'+p.id+'-sales'), feeMid:stlNum('stl-p-'+p.id+'-feeMid'),
+      feePay:stlNum('stl-p-'+p.id+'-feePay'), feeEtc:stlNum('stl-p-'+p.id+'-feeEtc'),
+      deposit:stlNum('stl-p-'+p.id+'-dep')
+    };
+  });
+  rec.card.fee=stlNum('stl-card-fee'); rec.card.deposit=stlNum('stl-card-dep');
+  const memo=document.getElementById('stl-memo'); if(memo) rec.memo=memo.value;
+  DB.save('settlements', settlements);
+  stlRefreshDerived();
+}
+
+function stlGapChip(expected, deposit){
+  if(!deposit) return '<span class="stl-chip" style="background:var(--bg3);color:var(--sub2);">입금 대기</span>';
+  const gap=Math.round(expected-deposit);
+  if(Math.abs(gap)<=1) return '<span class="stl-chip ok">✓ 일치</span>';
+  return `<span class="stl-chip bad">⚠ ${gap>0?'부족':'초과'} ${comma(Math.abs(gap))}</span>`;
+}
+
+function stlRefreshDerived(){
+  const rec=stlGetRecord(stlMonth);
+  const set=(id,v)=>{const e=document.getElementById(id); if(e) e.textContent=v;};
+  const setH=(id,v)=>{const e=document.getElementById(id); if(e) e.innerHTML=v;};
+
+  // POS 일별
+  const pos=stlPosTotals(rec);
+  rec.posDaily.forEach((d,i)=> set('stl-pos-'+i+'-sum', comma((Number(d.cash)||0)+(Number(d.card)||0)+(Number(d.transfer)||0)+(Number(d.etc)||0))+'원'));
+  set('stl-pos-tcash', comma(pos.cash)+'원'); set('stl-pos-tcard', comma(pos.card)+'원');
+  set('stl-pos-ttransfer', comma(pos.transfer)+'원'); set('stl-pos-tetc', comma(pos.etc)+'원');
+  set('stl-pos-ttotal', comma(pos.total)+'원');
+  const diffEl=document.getElementById('stl-pos-exceldiff');
+  if(diffEl){
+    if(rec.posExcelTotal>0){
+      const gd=pos.total-rec.posExcelTotal;
+      diffEl.textContent = Math.abs(gd)<=1 ? '· 일별 합계와 일치 ✓' : `· 일별 합계와 ${comma(Math.abs(gd))}원 차이`;
+      diffEl.style.color = Math.abs(gd)<=1 ? 'var(--green)' : 'var(--red)';
+    } else diffEl.textContent='';
+  }
+
+  // 배달앱
+  let tSales=0,tFee=0,tExp=0,tDep=0;
+  STL_PLATFORMS.forEach(p=>{
+    const v=rec.platforms[p.id];
+    const fee=(v.feeMid||0)+(v.feePay||0)+(v.feeEtc||0);
+    const exp=(v.sales||0)-fee;
+    set('stl-p-'+p.id+'-exp', comma(Math.round(exp))+'원');
+    setH('stl-p-'+p.id+'-chip', stlGapChip(exp, v.deposit||0));
+    tSales+=v.sales||0; tFee+=fee; tExp+=exp; tDep+=v.deposit||0;
+  });
+  set('stl-p-tsales', comma(tSales)+'원'); set('stl-p-tfee', comma(tFee)+'원');
+  set('stl-p-texp', comma(Math.round(tExp))+'원'); set('stl-p-tdep', comma(tDep)+'원');
+  setH('stl-p-tchip', stlGapChip(tExp, tDep));
+
+  // 카드 (POS카드 + 밀키트카드)
+  const mk=stlMilkitTotals(stlMonth);
+  const cardSales=pos.card + mk.card;
+  const cardExp=cardSales-(rec.card.fee||0);
+  set('stl-card-sales', comma(cardSales)+'원');
+  set('stl-card-exp', comma(Math.round(cardExp))+'원');
+  setH('stl-card-chip', stlGapChip(cardExp, rec.card.deposit||0));
+  setH('stl-card-breakdown', `POS 카드 ${comma(pos.card)}원 + 밀키트 카드 ${comma(mk.card)}원 = <b>${comma(cardSales)}원</b>`);
+
+  // 요약
+  const platGap = STL_PLATFORMS.reduce((s,p)=>{const v=rec.platforms[p.id]; const exp=(v.sales||0)-((v.feeMid||0)+(v.feePay||0)+(v.feeEtc||0)); return s+(v.deposit?exp-v.deposit:0);},0);
+  const cardGap = rec.card.deposit ? cardExp-rec.card.deposit : 0;
+  const totalGap = Math.round(platGap+cardGap);
+  const totalSales = pos.total + tSales + mk.total;
+  set('stl-s-pos', comma(pos.total)+'원'); set('stl-s-plat', comma(tSales)+'원');
+  set('stl-s-mk', comma(mk.total)+'원'); set('stl-s-total', comma(totalSales)+'원');
+  const gapEl=document.getElementById('stl-s-gap');
+  if(gapEl){ gapEl.textContent=(totalGap===0?'':(totalGap>0?'+':''))+comma(totalGap)+'원'; gapEl.style.color = totalGap===0?'var(--green)':'var(--red)'; }
+  const anyDep = tDep>0 || rec.card.deposit>0;
+  setH('stl-status', !anyDep ? '<span class="stl-chip" style="background:var(--bg3);color:var(--sub2);">입금 대기</span>'
+    : (totalGap===0 ? '<span class="stl-chip ok">✓ 전체 일치</span>' : `<span class="stl-chip bad">⚠ 오차 ${comma(Math.abs(totalGap))}원</span>`));
+}
+
+function stlAddPosRow(){ const rec=stlGetRecord(stlMonth); stlSync(); rec.posDaily.push({date:stlMonth+'-01',cash:0,card:0,transfer:0,etc:0}); DB.save('settlements',settlements); stlBuildBody(); }
+function stlDelPosRow(i){ const rec=stlGetRecord(stlMonth); stlSync(); rec.posDaily.splice(i,1); DB.save('settlements',settlements); stlBuildBody(); }
+
+/* 엑셀 첨부 — 원본은 이 기기 localStorage(동기화 제외)에 보관, 메타데이터만 기록 */
+function _b64FromBuffer(buf){ let bin=''; const bytes=new Uint8Array(buf); const chunk=0x8000; for(let i=0;i<bytes.length;i+=chunk){ bin+=String.fromCharCode.apply(null, bytes.subarray(i,i+chunk)); } return btoa(bin); }
+function stlPosExcel(input){
+  const file=input.files&&input.files[0]; if(!file) return;
+  const rec=stlGetRecord(stlMonth);
+  const reader=new FileReader();
+  reader.onload=function(e){
+    let local=false;
+    try{ const b64=_b64FromBuffer(e.target.result); localStorage.setItem('jgp_stlfile_'+stlMonth, JSON.stringify({name:file.name,type:file.type,data:b64})); local=true; }
+    catch(err){ alert('원본 파일이 커서 이 기기에 저장하지 못했습니다. 파일명만 기록합니다.\n(원본은 드라이브에 보관하세요)'); }
+    rec.posExcel={name:file.name,size:file.size,at:todayStr(),local};
+    DB.save('settlements',settlements);
+    stlBuildBody();
+  };
+  reader.readAsArrayBuffer(file);
+}
+function stlDownloadPosExcel(){
+  try{
+    const raw=localStorage.getItem('jgp_stlfile_'+stlMonth);
+    if(!raw){ alert('이 기기에 저장된 원본이 없습니다.'); return; }
+    const f=JSON.parse(raw); const bin=atob(f.data); const arr=new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
+    const blob=new Blob([arr],{type:f.type||'application/octet-stream'});
+    const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=f.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1500);
+  }catch(e){ alert('다운로드 실패'); }
+}
+function stlRemovePosExcel(){
+  if(!confirm('첨부한 엑셀을 삭제할까요?')) return;
+  const rec=stlGetRecord(stlMonth); rec.posExcel=null;
+  try{ localStorage.removeItem('jgp_stlfile_'+stlMonth); }catch(_){}
+  DB.save('settlements',settlements); stlBuildBody();
+}
+
 const APP_PALETTES = [
   {id:'terracotta', name:'테라코타 (기본)', desc:'따뜻한 테라코타 오렌지 — 기본 브랜드 컬러',
    vars:{'--acc':'#D94F2B','--acc-soft':'#F0823A','--acc-pale':'#FDF0E8','--acc-dark':'#B83C1E'}},
