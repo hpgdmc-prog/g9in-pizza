@@ -5769,6 +5769,14 @@ function mkStampShip(o){
   const st=o.deliveryStatus||'준비중';
   if((st==='배송중'||st==='배송완료') && !o.shippedDate) o.shippedDate = todayStr();
 }
+// 📮 주문 카드용 발송일 표시 — 기록이 있으면 그 날짜, 없으면 주문일 기준 추정
+function mkShipDisplay(o){
+  const st = o && o.deliveryStatus;
+  if(st!=='배송중' && st!=='배송완료') return '';
+  if(o.shippedDate) return `<div class="mko-line" style="color:var(--acc-dark);font-weight:600;">📮 발송일 ${o.shippedDate}</div>`;
+  if(o.orderDate)  return `<div class="mko-line" style="color:var(--sub);font-weight:600;">📮 발송일 ${o.orderDate} <span class="mko-dim" style="font-weight:400;">(주문일 기준 추정)</span></div>`;
+  return `<div class="mko-line mko-dim">📮 발송일 미기록</div>`;
+}
 function mkOrderShipLine(o){
   if(o.deliveryMethod!=='택배발송' || !o.desiredDate) return '';
   if((o.deliveryStatus||'준비중')!=='준비중') return '';   // 이미 발송했으면 안내 불필요
@@ -5876,7 +5884,7 @@ function renderMilkitOrders(){
         </div>
         ${shipLine}
         <div class="mko-line">📞 ${o.phone?formatPhone(o.phone):'연락처 없음'} <span class="mko-dim">· 주문 ${dt}</span></div>
-        ${(o.shippedDate && ((o.deliveryStatus)==='배송중'||(o.deliveryStatus)==='배송완료')) ? `<div class="mko-line" style="color:var(--acc-dark);font-weight:600;">📮 발송일 ${o.shippedDate}</div>` : ''}
+        ${mkShipDisplay(o)}
         ${mkFullAddr(o)?`<div class="mko-line">📍 ${mkFullAddr(o)}</div>`:''}
         ${recip}
         <div class="mko-items">${setChip}${items||'<span class="mko-dim">상품 없음</span>'}</div>
