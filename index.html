@@ -2357,20 +2357,20 @@ img{max-width:100%;height:auto;}
       <!-- ② 상품 · 금액 -->
       <div class="form-section">
         <div class="form-section-hd"><span class="fs-num">2</span> 상품 · 금액</div>
-        <div class="form-row">
-          <label>상품별 수량 <span class="req">*</span></label>
-          <div class="recipe-items-list" id="mk-order-qty-rows"></div>
-        </div>
-        <div style="font-size:11px;color:var(--sub2);margin:-4px 0 8px;">💡 피자 수량에 따라 세트 유형이 자동 선택됩니다 (2종↑ 2종세트 · 4종↑ 4종세트). <b>여러 세트를 구입하면 아래 「세트수량」을 늘리세요</b> — 정가·할인이 세트 수만큼 곱해집니다.</div>
         <div class="form-grid">
           <div class="form-row">
-            <label>구성유형</label>
+            <label>구성유형 (세트) <span class="req">*</span></label>
             <select id="mk-order-settype" onchange="mkSetTypeChanged()"></select>
           </div>
           <div class="form-row">
             <label>세트수량</label>
             <input type="number" id="mk-order-setqty" value="1" min="1" oninput="mkUpdateOrderTotals()">
           </div>
+        </div>
+        <div style="font-size:11px;color:var(--sub2);margin:2px 0 8px;line-height:1.6;">💡 <b>세트를 먼저 고르면</b> 아래 구성 상품이 자동으로 채워집니다. <b>여러 세트</b>를 구입하면 「세트수량」을 늘리세요 — 정가·할인이 세트 수만큼 곱해집니다. <span style="color:var(--sub);">낱개 판매나 특별 구성은 아래에서 수량을 직접 조정하세요.</span></div>
+        <div class="form-row">
+          <label>구성 상품 수량 <span class="req">*</span> <span class="req-note">(세트 선택 시 자동)</span></label>
+          <div class="recipe-items-list" id="mk-order-qty-rows"></div>
         </div>
         <div style="background:var(--bg2);border-radius:var(--r-md);padding:12px 16px;margin-bottom:8px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;font-size:13px;">
           <span>정가합계 <b class="num" id="mk-order-listtotal">0원</b></span>
