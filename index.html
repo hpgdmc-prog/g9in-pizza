@@ -1535,6 +1535,9 @@ img{max-width:100%;height:auto;}
     <!-- 원가 · 수익 분석 -->
     <div id="mk-pane-costs" style="display:none;">
       <div style="font-size:12px;color:var(--sub);margin-bottom:16px;line-height:1.6;">밀키트는 일반 피자와 원가 구조가 달라서 <b>배달앱 수수료 대신 포장비 · 택배비</b>를 반영해 별도로 계산합니다. 재료원가는 상품별 레시피를 등록해야 계산됩니다. ※ <b>개별 포장비</b>는 피자 개수만큼, <b>포장 박스·택배비</b>는 주문(세트) 1건당 1번만 반영되므로, 세트로 묶어 보내면 박스·배송을 나눠 써 개당 비용이 낮아집니다.</div>
+      <details class="mk-fold" style="border:1px solid var(--border);border-radius:12px;padding:11px 15px;margin-bottom:14px;background:var(--card);">
+        <summary style="cursor:pointer;font-size:14px;font-weight:700;color:var(--acc-dark);">💰 비용 설정 <span style="font-size:11.5px;font-weight:400;color:var(--sub2);">— 주문 1건당 비용·수수료·로스·고정비 · 기록/수정할 때 펼치기</span></summary>
+        <div style="padding-top:12px;">
       <div class="page-hdr" style="border-bottom:none;margin-bottom:6px;padding-bottom:0;">
         <h3 style="font-size:14px;">① 주문 1건당 드는 비용</h3>
       </div>
@@ -1560,8 +1563,13 @@ img{max-width:100%;height:auto;}
       <div class="fee-grid" id="mk-fee-grid-fixed" style="margin-bottom:10px;"></div>
       <div id="mk-fixed-preview" style="background:var(--acc-pale);border-radius:8px;padding:11px 13px;font-size:12.5px;line-height:1.7;margin-bottom:14px;"></div>
 
-      <button class="btn btn-acc btn-sm" onclick="saveMilkitFees()" style="margin-bottom:24px;">비용 설정 저장</button>
+      <button class="btn btn-acc btn-sm" onclick="saveMilkitFees()" style="margin-bottom:8px;">비용 설정 저장</button>
+        </div>
+      </details>
 
+      <details class="mk-fold" style="border:1px solid var(--border);border-radius:12px;padding:11px 15px;margin-bottom:14px;background:var(--card);">
+        <summary style="cursor:pointer;font-size:14px;font-weight:700;color:var(--acc-dark);">📊 수익 · 마진 분석 <span style="font-size:11.5px;font-weight:400;color:var(--sub2);">— 세트 순수익 · 할인 시뮬레이션 · 상품별 원가/마진</span></summary>
+        <div style="padding-top:12px;">
       <div class="page-hdr" style="border-bottom:none;margin-bottom:6px;padding-bottom:0;">
         <h3 style="font-size:14px;">세트 순수익 분석</h3>
       </div>
@@ -1579,6 +1587,8 @@ img{max-width:100%;height:auto;}
         <button class="btn btn-out btn-sm" onclick="previewMilkitCostsPrint()">🖨️ 인쇄</button>
       </div>
       <div id="mk-cost-cards"></div>
+        </div>
+      </details>
     </div>
   </div>
 
@@ -5709,6 +5719,7 @@ function mkBulkApplyField(field, to, payMethod){
     if(!mkSelectedOrderIds.has(o.id)) return;
     if(field==='deliveryStatus' && to==='배송중' && o.deliveryStatus!=='배송중') shipChanged.push(o.id);
     o[field]=to;
+    if(field==='deliveryStatus') mkStampShip(o);
     if(field==='payStatus' && to==='완료') o.payMethod = payMethod || o.payMethod || '기타';
     if(field==='payStatus' && to==='대기') o.payMethod='';
   });
@@ -5742,7 +5753,7 @@ function saveMkBulkTracking(){
     if(!el) return;
     const tv=el.value.trim();
     const ord=milkitOrders.find(x=>x.id===o.id);
-    if(ord){ ord.tracking=tv; if(tv && ord.deliveryStatus==='준비중'){ ord.deliveryStatus='배송중'; shipChanged.push(ord.id); } if(tv) cnt++; }
+    if(ord){ ord.tracking=tv; if(tv && ord.deliveryStatus==='준비중'){ ord.deliveryStatus='배송중'; mkStampShip(ord); shipChanged.push(ord.id); } if(tv) cnt++; }
   });
   DB.save('milkitOrders',milkitOrders);
   closeModal('mk-tracking-modal');
@@ -5752,6 +5763,12 @@ function saveMkBulkTracking(){
 }
 
 /* 주문 카드용 발송 안내 — 택배발송 + 희망수령일 + 아직 배송 전이면 발송 권장일 표시 */
+// 📮 발송 일자 기록 — 배송중·배송완료로 처음 바뀌는 순간의 날짜를 저장(이미 있으면 유지)
+function mkStampShip(o){
+  if(!o) return;
+  const st=o.deliveryStatus||'준비중';
+  if((st==='배송중'||st==='배송완료') && !o.shippedDate) o.shippedDate = todayStr();
+}
 function mkOrderShipLine(o){
   if(o.deliveryMethod!=='택배발송' || !o.desiredDate) return '';
   if((o.deliveryStatus||'준비중')!=='준비중') return '';   // 이미 발송했으면 안내 불필요
@@ -5858,7 +5875,8 @@ function renderMilkitOrders(){
           <span class="badge ${delBadge[o.deliveryStatus]||'badge-orange'}">${delBadgeTxt[o.deliveryStatus]||delBadgeTxt['준비중']}</span>
         </div>
         ${shipLine}
-        <div class="mko-line">📞 ${o.phone?formatPhone(o.phone):'연락처 없음'} <span class="mko-dim">· ${dt}</span></div>
+        <div class="mko-line">📞 ${o.phone?formatPhone(o.phone):'연락처 없음'} <span class="mko-dim">· 주문 ${dt}</span></div>
+        ${(o.shippedDate && ((o.deliveryStatus)==='배송중'||(o.deliveryStatus)==='배송완료')) ? `<div class="mko-line" style="color:var(--acc-dark);font-weight:600;">📮 발송일 ${o.shippedDate}</div>` : ''}
         ${mkFullAddr(o)?`<div class="mko-line">📍 ${mkFullAddr(o)}</div>`:''}
         ${recip}
         <div class="mko-items">${setChip}${items||'<span class="mko-dim">상품 없음</span>'}</div>
@@ -7118,9 +7136,11 @@ function commitMilkitOrder(obj){
     const idx=milkitOrders.findIndex(x=>x.id===mkEditId);
     const old=milkitOrders[idx];
     shipNow = obj.deliveryStatus==='배송중' && (!old || old.deliveryStatus!=='배송중');
+    if(old && old.shippedDate && !obj.shippedDate) obj.shippedDate = old.shippedDate; // 기존 발송일 보존
+    mkStampShip(obj);
     milkitOrders[idx]=obj;
   }
-  else { shipNow = obj.deliveryStatus==='배송중'; milkitOrders.push(obj); }
+  else { shipNow = obj.deliveryStatus==='배송중'; mkStampShip(obj); milkitOrders.push(obj); }
   DB.save('milkitOrders',milkitOrders);
   // 신규 고객이면 고객DB에 자동 등록
   if(obj.customer && !milkitCustomers.find(c=>c.name===obj.customer)){
@@ -7500,6 +7520,7 @@ function applyMkTrackingImport(){
     const o=milkitOrders.find(od=>od.id===x.orderId); if(!o) return;
     o.tracking=x.tracking;
     if((o.deliveryStatus||'준비중')==='준비중') o.deliveryStatus='배송중';
+    mkStampShip(o);
     changed.push(o.id);
   });
   if(!changed.length){ alert('적용할 주문이 없습니다.'); return; }
