@@ -636,6 +636,9 @@ tr:hover td{background:var(--bg2);}
   .form-grid{grid-template-columns:1fr;}
   .fee-grid{grid-template-columns:1fr 1fr;}
   input:not([type=checkbox]):not([type=radio]),select,textarea{font-size:16px!important;}
+  /* 선택 액션바를 화면 하단에 띄워 스크롤 없이 사용 */
+  .mk-bulkbar{position:fixed;left:8px;right:8px;bottom:calc(10px + var(--sai-bottom));z-index:75;margin-bottom:0;box-shadow:0 8px 28px rgba(30,26,23,.28);}
+  body.mk-selmode #menu-fab{display:none!important;}
 }
 @media(max-width:560px){
   .theme-opt-grid{grid-template-columns:1fr;}
@@ -1455,7 +1458,7 @@ img{max-width:100%;height:auto;}
           <button class="btn btn-del btn-sm" onclick="bulkDeleteMkOrders()">🗑 삭제</button>
         </div>
       </div>
-      <div class="list-hint" id="mk-order-hint"><span class="hover-only">💡 행을 클릭하면 수정 · ⠿ 를 끌면 순서 변경</span><span class="swipe-only">💡 행을 누르면 수정 · 꾹 눌러 끌면 순서 변경 · 왼쪽으로 밀면 삭제</span></div>
+      <div class="list-hint" id="mk-order-hint"><span class="hover-only">💡 행 클릭=수정 · 우클릭=선택 · ⠿ 끌어=순서변경</span><span class="swipe-only">💡 행 탭=수정 · 길게 눌러=선택 · ⠿ 끌어=순서변경 · 왼쪽으로 밀어=삭제</span></div>
       <div class="mlist" id="mk-order-list"></div>
     </div>
 
@@ -5941,7 +5944,7 @@ function renderMilkitOrders(){
     return `<div class="mrow mko-row${sel?' row-selected':''}${done?' deliv-done':''}" data-oid="${o.id}">
       ${mkSelectMode?`<span class="mko-checkbox ${sel?'on':''}">${sel?'✓':''}</span>`:''}
       <button class="mrow-del" onclick="event.stopPropagation();deleteMilkitOrder('${o.id}')">삭제</button>
-      <div class="mrow-inner mko-inner" onclick="mkOrderRowClick(this,'${o.id}')">
+      <div class="mrow-inner mko-inner" onclick="mkOrderRowClick(this,'${o.id}')" oncontextmenu="return mkRowSelectGesture(event,'${o.id}')">
         <div class="mko-top">
           <div class="mko-id">${handle}<span class="mko-no">No.${o.no||'-'}</span><span class="mko-name">${o.customer||'(이름 없음)'}</span></div>
           <span class="mko-amt num"${o.promo?' style="text-decoration:line-through;color:var(--sub2);"':''}>${comma(o.payTotal)}원</span>
@@ -5969,6 +5972,7 @@ function renderMilkitOrders(){
   if(!mkSelectMode) attachSwipe('mk-order-list');   // 선택 모드에서는 스와이프 삭제 비활성
   // 꾹 눌러 끌어서 순서 변경 (번호 정렬 + 선택 모드 아닐 때만)
   if(reorderable) mkInitOrderDrag();
+  if(!mkSelectMode) mkInitOrderLongPress();   // 길게 눌러 빠른 선택 (선택 모드 진입 전만)
 }
 
 /* ===== 선택 모드 =====
@@ -5977,6 +5981,7 @@ function renderMilkitOrders(){
 let mkSelectMode=false;
 function mkSetSelectMode(on){
   mkSelectMode=on;
+  document.body.classList.toggle('mk-selmode', on);
   if(!on) mkSelectedOrderIds.clear();
   const enter=document.getElementById('mk-select-enter');
   const selall=document.getElementById('mk-selall-wrap');
@@ -5988,11 +5993,13 @@ function mkSetSelectMode(on){
   if(tools) tools.style.justifyContent=on?'space-between':'flex-end';
   const hint=document.getElementById('mk-order-hint');
   if(hint) hint.innerHTML = on ? '💡 목록을 탭하면 선택/해제 · 여러 건 골라 한 번에 변경하세요'
-    : '<span class="hover-only">💡 행을 클릭하면 수정 · ⠿ 를 끌면 순서 변경</span><span class="swipe-only">💡 행을 누르면 수정 · 꾹 눌러 끌면 순서 변경 · 왼쪽으로 밀면 삭제</span>';
+    : '<span class="hover-only">💡 행 클릭=수정 · 우클릭=선택 · ⠿ 끌어=순서변경</span><span class="swipe-only">💡 행 탭=수정 · 길게 눌러=선택 · ⠿ 끌어=순서변경 · 왼쪽으로 밀어=삭제</span>';
   renderMilkitOrders();
 }
+let _mkSuppressRowClick=false;
 function mkOrderRowClick(inner, id){
   const row=inner.closest('.mrow');
+  if(_mkSuppressRowClick){ _mkSuppressRowClick=false; return; }
   if(row && row.classList.contains('revealed')){ row.classList.remove('revealed'); return; }
   if(row && (row.dataset.suppressClick || row._suppressClick)) return;
   if(mkSelectMode){ mkToggleRowSelect(id); return; }
@@ -6001,6 +6008,25 @@ function mkOrderRowClick(inner, id){
 function mkToggleRowSelect(id){
   if(mkSelectedOrderIds.has(id)) mkSelectedOrderIds.delete(id); else mkSelectedOrderIds.add(id);
   renderMilkitOrders();
+}
+/* 길게 누르기(모바일) · 우클릭(PC) → 바로 선택 모드로 전환 + 그 행 선택 */
+function mkQuickSelect(id){
+  if(!id) return;
+  _mkSuppressRowClick=true; setTimeout(()=>{ _mkSuppressRowClick=false; }, 500);
+  mkSelectedOrderIds.add(id);
+  if(!mkSelectMode) mkSetSelectMode(true); else renderMilkitOrders();
+  if(navigator.vibrate){ try{ navigator.vibrate(25); }catch(_){}}
+}
+function mkRowSelectGesture(e,id){ if(e){ e.preventDefault(); e.stopPropagation(); } mkQuickSelect(id); return false; }
+function mkInitOrderLongPress(){
+  document.querySelectorAll('#mk-order-list .mrow').forEach(row=>{
+    const id=row.dataset.oid; const inner=row.querySelector('.mko-inner'); if(!id||!inner) return;
+    let timer=null,sx=0,sy=0;
+    inner.addEventListener('touchstart',e=>{ if(e.target.closest('.mko-drag,button,input,select,a,textarea')) return; const t=e.touches[0]; sx=t.clientX; sy=t.clientY; clearTimeout(timer); timer=setTimeout(()=>{ timer=null; mkQuickSelect(id); },500); },{passive:true});
+    inner.addEventListener('touchmove',e=>{ const t=e.touches[0]; if(Math.abs(t.clientX-sx)>10||Math.abs(t.clientY-sy)>10) clearTimeout(timer); },{passive:true});
+    inner.addEventListener('touchend',()=>clearTimeout(timer),{passive:true});
+    inner.addEventListener('touchcancel',()=>clearTimeout(timer),{passive:true});
+  });
 }
 
 /* 주문 목록 드래그 순서변경 — 화면 순서를 번호(no)에 반영 */
