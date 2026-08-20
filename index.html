@@ -87,6 +87,9 @@ h1,h2,h3,h4{font-family:var(--sans);letter-spacing:-.01em;}
 #topbar{background:var(--topbar-bg);backdrop-filter:saturate(180%) blur(16px);-webkit-backdrop-filter:saturate(180%) blur(16px);border-bottom:1px solid var(--border);padding:14px 28px;padding-top:calc(14px + var(--sai-top));display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:50;}
 #topbar h2{font-family:var(--serif);font-size:16px;color:var(--dark);font-weight:700;letter-spacing:.05em;}
 #menu-btn{display:none;background:none;border:none;font-size:22px;cursor:pointer;padding:0;color:var(--p);}
+#menu-fab{display:none;position:fixed;left:calc(16px + var(--sai-left));bottom:calc(18px + var(--sai-bottom));z-index:80;width:54px;height:54px;border-radius:50%;background:var(--acc);color:#fff;border:none;font-size:24px;box-shadow:0 6px 20px rgba(30,26,23,.28);cursor:pointer;align-items:center;justify-content:center;transition:transform .12s;}
+#menu-fab:active{transform:scale(.92);}
+@media(max-width:768px){ #menu-fab{display:flex;} }
 #back-btn{background:var(--bg2);border:1px solid var(--border);border-radius:8px;font-size:24px;line-height:1;cursor:pointer;padding:2px 12px 5px;color:var(--p);flex-shrink:0;}
 #back-btn:active{background:var(--acc-pale);}
 #back-btn:active{opacity:.5;}
@@ -197,12 +200,12 @@ tr:hover td{background:var(--bg2);}
 .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;align-items:center;justify-content:center;padding:20px;}
 .modal-bg.open{display:flex;}
 .modal{background:#fff;border-radius:var(--r-lg);width:100%;max-width:560px;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-lg);}
-.modal-hdr{display:flex;justify-content:space-between;align-items:center;padding:20px 24px 16px;border-bottom:1px solid var(--border);}
+.modal-hdr{display:flex;justify-content:space-between;align-items:center;padding:20px 24px 16px;border-bottom:1px solid var(--border);position:sticky;top:0;background:#fff;z-index:3;border-radius:var(--r-lg) var(--r-lg) 0 0;}
 .modal-hdr h4{font-family:var(--serif);font-size:17px;font-weight:700;color:var(--dark);}
 .modal-body{padding:20px 24px;}
-.modal-footer{padding:16px 24px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;}
+.modal-footer{padding:16px 24px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;position:sticky;bottom:0;background:#fff;z-index:3;border-radius:0 0 var(--r-lg) var(--r-lg);}
 /* 크고 꽉 찬 하단 버튼 (데이터 입력 모달) */
-.modal-footer-lg{padding:14px 20px 18px;border-top:1px solid var(--border);display:flex;gap:10px;flex-wrap:wrap;}
+.modal-footer-lg{padding:14px 20px 18px;border-top:1px solid var(--border);display:flex;gap:10px;flex-wrap:wrap;position:sticky;bottom:0;background:#fff;z-index:3;border-radius:0 0 var(--r-lg) var(--r-lg);}
 .modal-footer-lg .btn{flex:1 1 auto;min-width:120px;padding:16px;font-size:15px;border-radius:11px;letter-spacing:0;}
 .modal-footer-lg .btn-acc{flex:1.7 1 auto;box-shadow:var(--shadow-sm);}
 /* 필수입력 누락 강조 */
@@ -901,6 +904,7 @@ img{max-width:100%;height:auto;}
   <div id="sidebar-footer">v1.0 · 지구인피자 © 2025</div>
 </aside>
 <div id="sidebar-overlay" onclick="closeSidebar()"></div>
+<button id="menu-fab" onclick="toggleSidebar()" aria-label="메뉴 열기" title="메뉴">☰</button>
 
 <!-- ===MAIN=== -->
 <main id="main">
