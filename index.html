@@ -91,6 +91,10 @@ h1,h2,h3,h4{font-family:var(--sans);letter-spacing:-.01em;}
 #menu-fab{display:none;position:fixed;left:calc(16px + var(--sai-left));bottom:calc(18px + var(--sai-bottom));z-index:80;width:54px;height:54px;border-radius:50%;background:var(--acc);color:#fff;border:none;font-size:24px;box-shadow:0 6px 20px rgba(30,26,23,.28);cursor:pointer;align-items:center;justify-content:center;transition:transform .12s;}
 #menu-fab:active{transform:scale(.92);}
 /* 상단바를 고정으로 바꿔 항상 ☰ 접근 가능 → 하단 FAB은 사용 안 함 */
+.tb-icon{background:none;border:1px solid var(--border);border-radius:9px;font-size:15px;cursor:pointer;padding:6px 9px;line-height:1;color:var(--p);flex-shrink:0;}
+.tb-icon:active{background:var(--bg2);transform:scale(.94);}
+#app-toast{position:fixed;left:50%;bottom:calc(30px + var(--sai-bottom));transform:translateX(-50%);background:var(--dark);color:#fff;padding:11px 18px;border-radius:22px;font-size:13.5px;font-weight:600;z-index:9999;opacity:0;transition:opacity .2s;pointer-events:none;box-shadow:0 6px 22px rgba(0,0,0,.32);max-width:88vw;text-align:center;}
+#app-toast.show{opacity:1;}
 #back-btn{background:var(--bg2);border:1px solid var(--border);border-radius:8px;font-size:24px;line-height:1;cursor:pointer;padding:2px 12px 5px;color:var(--p);flex-shrink:0;}
 #back-btn:active{background:var(--acc-pale);}
 #back-btn:active{opacity:.5;}
@@ -910,6 +914,7 @@ img{max-width:100%;height:auto;}
 </aside>
 <div id="sidebar-overlay" onclick="closeSidebar()"></div>
 <button id="menu-fab" onclick="toggleSidebar()" aria-label="메뉴 열기" title="메뉴">☰</button>
+<div id="app-toast"></div>
 
 <!-- ===MAIN=== -->
 <main id="main">
@@ -919,7 +924,9 @@ img{max-width:100%;height:auto;}
       <button id="menu-btn" onclick="toggleSidebar()">☰</button>
       <h2 id="topbar-title" style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">대시보드</h2>
     </div>
-    <div style="display:flex;gap:8px;align-items:center;">
+    <div style="display:flex;gap:7px;align-items:center;">
+      <button class="tb-icon" onclick="copyAppLink()" title="링크 복사 — 다른 기기에서 열기" aria-label="링크 복사">🔗</button>
+      <button class="tb-icon" onclick="appReload()" title="새로고침" aria-label="새로고침">🔄</button>
       <span id="topbar-date" style="font-size:12px;color:var(--sub2);"></span>
     </div>
   </div>
@@ -3227,6 +3234,27 @@ function mkSaveLastView(){
     const v=currentAppView();
     localStorage.setItem('jgp_lastView', JSON.stringify(v));
   }catch(_){}
+}
+/* 화면 하단 알림(토스트) */
+function appToast(msg){
+  let t=document.getElementById('app-toast');
+  if(!t){ t=document.createElement('div'); t.id='app-toast'; document.body.appendChild(t); }
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),1900);
+}
+/* 새로고침 */
+function appReload(){ appToast('새로고침 중…'); setTimeout(()=>location.reload(),120); }
+/* 앱 링크 복사 — 다른 웹/PC에서 열기 */
+function copyAppLink(){
+  const url = location.origin + location.pathname;
+  const ok = ()=>appToast('🔗 링크 복사됨 — 다른 기기에서 붙여넣어 여세요');
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(url).then(ok).catch(()=>_appCopyFallback(url,ok));
+  } else _appCopyFallback(url,ok);
+}
+function _appCopyFallback(url, ok){
+  try{ const ta=document.createElement('textarea'); ta.value=url; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.focus(); ta.select(); document.execCommand('copy'); ta.remove(); ok(); }
+  catch(e){ prompt('아래 링크를 복사하세요:', url); }
 }
 function toggleSidebar(){
   document.getElementById('sidebar').classList.toggle('open');
