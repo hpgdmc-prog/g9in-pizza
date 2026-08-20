@@ -83,13 +83,14 @@ h1,h2,h3,h4{font-family:var(--sans);letter-spacing:-.01em;}
 .nav-item.active{background:var(--sidebar-active-bg);border-left-color:var(--acc);color:var(--sidebar-text);font-weight:600;}
 .nav-item .nav-icon{width:18px;height:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px;}
 #sidebar-footer{padding:14px 18px;padding-bottom:max(14px,calc(12px + var(--sai-bottom)));border-top:1px solid var(--sidebar-border);font-size:11px;color:var(--sidebar-text-sub);}
-#main{flex:1;min-width:0;margin-left:var(--sidebar);display:flex;flex-direction:column;min-height:100vh;}
-#topbar{background:var(--topbar-bg);backdrop-filter:saturate(180%) blur(16px);-webkit-backdrop-filter:saturate(180%) blur(16px);border-bottom:1px solid var(--border);padding:14px 28px;padding-top:calc(14px + var(--sai-top));display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:50;}
+#main{flex:1;min-width:0;margin-left:var(--sidebar);display:flex;flex-direction:column;min-height:100vh;padding-top:calc(56px + var(--sai-top));}
+#topbar{background:var(--topbar-bg);backdrop-filter:saturate(180%) blur(16px);-webkit-backdrop-filter:saturate(180%) blur(16px);border-bottom:1px solid var(--border);padding:13px 28px;padding-top:calc(13px + var(--sai-top));display:flex;justify-content:space-between;align-items:center;position:fixed;top:0;left:var(--sidebar);right:0;z-index:50;height:calc(56px + var(--sai-top));box-sizing:border-box;}
+.section{scroll-margin-top:70px;}
 #topbar h2{font-family:var(--serif);font-size:16px;color:var(--dark);font-weight:700;letter-spacing:.05em;}
 #menu-btn{display:none;background:none;border:none;font-size:22px;cursor:pointer;padding:0;color:var(--p);}
 #menu-fab{display:none;position:fixed;left:calc(16px + var(--sai-left));bottom:calc(18px + var(--sai-bottom));z-index:80;width:54px;height:54px;border-radius:50%;background:var(--acc);color:#fff;border:none;font-size:24px;box-shadow:0 6px 20px rgba(30,26,23,.28);cursor:pointer;align-items:center;justify-content:center;transition:transform .12s;}
 #menu-fab:active{transform:scale(.92);}
-@media(max-width:768px){ #menu-fab{display:flex;} }
+/* 상단바를 고정으로 바꿔 항상 ☰ 접근 가능 → 하단 FAB은 사용 안 함 */
 #back-btn{background:var(--bg2);border:1px solid var(--border);border-radius:8px;font-size:24px;line-height:1;cursor:pointer;padding:2px 12px 5px;color:var(--p);flex-shrink:0;}
 #back-btn:active{background:var(--acc-pale);}
 #back-btn:active{opacity:.5;}
@@ -631,6 +632,7 @@ tr:hover td{background:var(--bg2);}
   #sidebar.open{transform:translateX(0);}
   #sidebar-overlay.open{display:block;}
   #main{margin-left:0;}
+  #topbar{left:0;}
   #menu-btn{display:block;}
   .section{padding:16px;}
   .form-grid{grid-template-columns:1fr;}
