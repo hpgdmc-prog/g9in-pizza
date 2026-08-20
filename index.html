@@ -29,12 +29,12 @@
   --dark:#1E1A17;
   --p:#2A2420;
   --p2:#4A3F38;
-  --bg:#FAF8F5;
-  --bg2:#F4EFE7;
-  --bg3:#EDE6DB;
+  --bg:#EFE7DB;
+  --bg2:#E6DBCB;
+  --bg3:#DACDB9;
   --card:#FFFFFF;
-  --border:#E8E0D4;
-  --border-strong:#D4C8B8;
+  --border:#DFD3C1;
+  --border-strong:#CDBEA8;
   --text:#1E1A17;
   --sub:#8C7E72;
   --sub2:#A89A8E;
@@ -498,8 +498,8 @@ tr:hover td{background:var(--bg2);}
 .theme-opt .sw-row{display:flex;gap:4px;flex-shrink:0;}
 .theme-opt .sw-row span{width:18px;height:18px;border-radius:5px;display:block;border:1px solid rgba(0,0,0,.08);}
 .theme-opt .opt-name{flex:1;min-width:0;}
-.theme-opt .opt-name .n{font-size:13px;font-weight:700;color:var(--dark);}
-.theme-opt .opt-name .d{font-size:11px;color:var(--sub2);margin-top:2px;}
+.theme-opt .opt-name .n{display:block;font-size:13px;font-weight:700;color:var(--dark);}
+.theme-opt .opt-name .d{display:block;font-size:11px;color:var(--sub2);margin-top:2px;line-height:1.4;}
 .theme-opt .opt-check{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--border-strong);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;color:#fff;}
 .theme-opt.is-active .opt-check{background:var(--acc);border-color:var(--acc);}
 .sidebar-mini-prev{width:56px;height:40px;border-radius:6px;overflow:hidden;flex-shrink:0;display:flex;flex-direction:column;justify-content:center;padding:0 6px;gap:4px;}
@@ -10315,17 +10315,32 @@ function stlImportCardBuy(input){ _stlSingle(input,'cardBuy'); }
 function stlImportCardDeposit(input){ _stlSingle(input,'cardDeposit'); }
 function stlImportPlatform(pid, input){ _stlSingle(input, pid); }
 
+/* 각 테마는 배경·카드·테두리·강조색을 함께 바꿔 대비를 준다 (sw: 미리보기 [배경, 카드, 강조]) */
 const APP_PALETTES = [
-  {id:'terracotta', name:'테라코타 (기본)', desc:'따뜻한 테라코타 오렌지 — 기본 브랜드 컬러',
-   vars:{'--acc':'#D94F2B','--acc-soft':'#F0823A','--acc-pale':'#FDF0E8','--acc-dark':'#B83C1E'}},
-  {id:'olive', name:'올리브 그린', desc:'차분한 올리브 그린 — 내추럴한 톤',
-   vars:{'--acc':'#6B7F3F','--acc-soft':'#8FA35E','--acc-pale':'#EEF2E3','--acc-dark':'#4E5E2C'}},
-  {id:'navy', name:'네이비 블루', desc:'신뢰감 있는 딥 네이비',
-   vars:{'--acc':'#2C4870','--acc-soft':'#4A6899','--acc-pale':'#E7ECF3','--acc-dark':'#1D3350'}},
-  {id:'wine', name:'버건디 와인', desc:'깊은 와인 버건디 톤',
-   vars:{'--acc':'#8E3B47','--acc-soft':'#B25E6A','--acc-pale':'#F3E3E5','--acc-dark':'#6B232E'}},
-  {id:'charcoal', name:'차콜 모노', desc:'무채색 미니멀 톤',
-   vars:{'--acc':'#3A3A3A','--acc-soft':'#5C5C5C','--acc-pale':'#ECEBE9','--acc-dark':'#1F1F1F'}},
+  {id:'terracotta', name:'테라코타 (기본)', desc:'따뜻한 샌드 배경 · 흰 카드가 또렷',
+   sw:['#EFE7DB','#FFFFFF','#D94F2B'],
+   vars:{'--bg':'#EFE7DB','--bg2':'#E6DBCB','--bg3':'#DACDB9','--card':'#FFFFFF','--border':'#DFD3C1','--border-strong':'#CDBEA8',
+     '--acc':'#D94F2B','--acc-soft':'#F0823A','--acc-pale':'#FBEDE5','--acc-dark':'#B83C1E'}},
+  {id:'slate', name:'모던 슬레이트', desc:'시원한 그레이 배경 · 블루 포인트',
+   sw:['#E8ECF2','#FFFFFF','#3B6EA5'],
+   vars:{'--bg':'#E8ECF2','--bg2':'#DDE3EC','--bg3':'#CFD8E4','--card':'#FFFFFF','--border':'#D6DDE8','--border-strong':'#BDC7D6',
+     '--acc':'#3B6EA5','--acc-soft':'#5B8BC0','--acc-pale':'#E8F0F9','--acc-dark':'#294F79'}},
+  {id:'sage', name:'세이지 그린', desc:'은은한 그린 배경 · 세이지 포인트',
+   sw:['#E6EEE6','#FFFFFF','#5E8C5A'],
+   vars:{'--bg':'#E6EEE6','--bg2':'#DBE6DB','--bg3':'#CCDCCC','--card':'#FFFFFF','--border':'#D4E0D4','--border-strong':'#BBCDBB',
+     '--acc':'#5E8C5A','--acc-soft':'#7BA877','--acc-pale':'#E9F3E8','--acc-dark':'#42683F'}},
+  {id:'navy', name:'딥 네이비', desc:'차분한 블루그레이 배경 · 네이비 포인트',
+   sw:['#E7EBF2','#FFFFFF','#2C4870'],
+   vars:{'--bg':'#E7EBF2','--bg2':'#DCE2EC','--bg3':'#CDD6E4','--card':'#FFFFFF','--border':'#D4DBE8','--border-strong':'#BAC4D6',
+     '--acc':'#2C4870','--acc-soft':'#4A6899','--acc-pale':'#E7ECF4','--acc-dark':'#1D3350'}},
+  {id:'rose', name:'로즈 버건디', desc:'로즈빛 배경 · 버건디 포인트',
+   sw:['#F1E7E8','#FFFFFF','#A0424F'],
+   vars:{'--bg':'#F1E7E8','--bg2':'#E7DADC','--bg3':'#DAC7CA','--card':'#FFFFFF','--border':'#E1D2D4','--border-strong':'#CDB6B9',
+     '--acc':'#A0424F','--acc-soft':'#C06873','--acc-pale':'#F6E7E9','--acc-dark':'#7A2B36'}},
+  {id:'charcoal', name:'차콜 모노', desc:'라이트 그레이 배경 · 무채색 포인트',
+   sw:['#E9E9E7','#FFFFFF','#454545'],
+   vars:{'--bg':'#E9E9E7','--bg2':'#DEDEDC','--bg3':'#D0D0CE','--card':'#FFFFFF','--border':'#DADAD8','--border-strong':'#C3C3C1',
+     '--acc':'#4A4A4A','--acc-soft':'#6E6E6E','--acc-pale':'#ECECEA','--acc-dark':'#2A2A2A'}},
 ];
 const SIDEBAR_TONES = [
   {id:'dark', name:'다크 (기본)', desc:'짙은 차콜 사이드바',
@@ -10361,7 +10376,7 @@ function resetAppTheme(){
 function renderSettings(){
   document.getElementById('settings-palette-grid').innerHTML = APP_PALETTES.map(p=>`
     <button class="theme-opt ${appTheme.palette===p.id?'is-active':''}" onclick="setAppTheme('palette','${p.id}')">
-      <span class="sw-row"><span style="background:${p.vars['--acc']};"></span><span style="background:${p.vars['--acc-soft']};"></span><span style="background:${p.vars['--acc-dark']};"></span></span>
+      <span class="sw-row"><span style="background:${p.sw[0]};border:1px solid rgba(0,0,0,.08);"></span><span style="background:${p.sw[1]};border:1px solid rgba(0,0,0,.14);"></span><span style="background:${p.sw[2]};"></span></span>
       <span class="opt-name"><span class="n">${p.name}</span><span class="d">${p.desc}</span></span>
       <span class="opt-check">${appTheme.palette===p.id?'✓':''}</span>
     </button>
