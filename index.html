@@ -6649,16 +6649,17 @@ function renderMilkitOrderQtyRows(qtyMap){
   qtyMap = qtyMap||{};
   const el=document.getElementById('mk-order-qty-rows');
   const rowHtml=p=>`
-    <div class="recipe-item-row" style="grid-template-columns:1fr 96px;align-items:center;">
-      <span>${p.name}<span style="color:var(--sub2);font-size:11px;margin-left:6px;">${comma(p.price)}원</span></span>
-      <input type="text" id="mk-qty-${p.id}" value="${Number(qtyMap[p.id])||''}" placeholder="0" inputmode="numeric" oninput="qtyInputFilter(this);mkAutoApplySet();mkUpdateOrderTotals()">
+    <div class="recipe-item-row" style="display:flex;align-items:center;gap:12px;min-width:0;width:100%;box-sizing:border-box;">
+      <span style="font-weight:600;flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.name}</span>
+      <span style="color:var(--sub2);font-size:12px;white-space:nowrap;flex:0 0 auto;">${comma(p.price)}원</span>
+      <input type="text" id="mk-qty-${p.id}" value="${Number(qtyMap[p.id])||''}" placeholder="0" inputmode="numeric" style="width:74px;text-align:center;flex:0 0 74px;" oninput="qtyInputFilter(this);mkAutoApplySet();mkUpdateOrderTotals()">
     </div>`;
   // 피자와 추가품목(소스팩 등)을 항상 분리해서 표시 (숨김 상품은 제외)
   const pizzas=milkitProducts.filter(p=>p.category==='피자' && !p.hidden);
   const extras=milkitProducts.filter(p=>p.category!=='피자' && !p.hidden);
   let html=pizzas.map(rowHtml).join('');
   if(extras.length){
-    html += `<div class="recipe-item-row" style="grid-template-columns:1fr;background:var(--bg2);padding:5px 10px;font-size:10px;letter-spacing:.1em;color:var(--sub2);font-weight:600;">추가품목 (세트 할인 제외)</div>`;
+    html += `<div class="recipe-item-row" style="display:block;min-width:0;width:100%;box-sizing:border-box;background:var(--bg2);padding:5px 10px;font-size:10px;letter-spacing:.1em;color:var(--sub2);font-weight:600;">추가품목 (세트 할인 제외)</div>`;
     html += extras.map(rowHtml).join('');
   }
   el.innerHTML=html;
