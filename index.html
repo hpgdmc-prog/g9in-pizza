@@ -9977,6 +9977,9 @@ function stlImportPlatform(pid, input){
   const file=input.files&&input.files[0]; if(!file) return;
   if(pid==='coupang'){ stlImportCoupang(input); return; }
   if(pid==='baemin'){ stlImportBaemin(input); return; }
+  if(pid==='yogiyo'){ stlImportYogiyo(input); return; }
+  if(pid==='ttangyeo'){ stlImportTtangyeo(input); return; }
+  if(pid==='mukkebi'){ stlImportMukkebi(input); return; }
   const rec=stlGetRecord(stlMonth);
   const pname=(STL_PLATFORMS.find(p=>p.id===pid)||{}).name||pid;
   const rd=new FileReader();
@@ -10061,6 +10064,67 @@ function stlImportBaemin(input){
     }
   };
   rd.readAsArrayBuffer(file);
+}
+
+/* 요기요 정산내역 — '요약' 시트: 주문금액/차감금액/입금받으실 금액 */
+function stlImportYogiyo(input){
+  const file=input.files&&input.files[0]; if(!file) return;
+  _stlReadWb(file, wb=>{
+    const ws=wb.Sheets['요약']||wb.Sheets[wb.SheetNames[0]];
+    const r=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+    let sales=0,fee=0,dep=0,settle=0;
+    r.forEach(row=>{
+      const label=String(row[1]||'').trim(); const val=stlNumV(row[3]);
+      if(label==='주문금액') sales=val;
+      else if(label==='차감금액') fee=val;
+      else if(label.includes('입금받으실')) dep=val;
+      else if(label==='정산금액') settle=val;
+    });
+    if(!dep) dep=settle;
+    const rec=stlGetRecord(stlMonth); const pl=rec.platforms.yogiyo; pl.file={name:file.name,at:todayStr()};
+    if(dep>0||sales>0){
+      if(sales) pl.sales=sales; pl.settlement=dep; pl.deposit=dep; pl.feeMid=0; pl.feePay=0; pl.feeEtc=fee||Math.max(0,sales-dep); pl.loaded=true;
+      DB.save('settlements',settlements); stlBuildBody();
+      alert('✅ 요기요 정산 자동 인식\n주문금액 '+comma(sales)+'원 · 정산금(입금받으실) '+comma(dep)+'원 · 차감 '+comma(fee)+'원');
+    } else { DB.save('settlements',settlements); stlBuildBody(); alert('📎 첨부됨. 요기요 요약에서 값을 못 찾았습니다. 표에 직접 입력하세요.'); }
+  });
+}
+/* 땡겨요 정산내역 — 요약 (A)주문결제/(B)차감금액/입금금액 */
+function stlImportTtangyeo(input){
+  const file=input.files&&input.files[0]; if(!file) return;
+  _stlReadWb(file, wb=>{
+    const r=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:''});
+    const hi=r.findIndex(row=>(row||[]).some(x=>String(x).includes('주문결제')));
+    const rec=stlGetRecord(stlMonth); const pl=rec.platforms.ttangyeo; pl.file={name:file.name,at:todayStr()};
+    if(hi<0){ DB.save('settlements',settlements); stlBuildBody(); alert('📎 첨부됨. 땡겨요 요약을 못 찾았습니다. 표에 직접 입력하세요.'); return; }
+    const hdr=r[hi].map(x=>String(x).trim()); const v=r[hi+1]||[];
+    const cS=hdr.findIndex(h=>h.includes('주문결제')), cF=hdr.findIndex(h=>h.includes('차감금액')), cD=hdr.findIndex(h=>h.includes('입금금액'));
+    const sales=cS>=0?stlNumV(v[cS]):0, fee=cF>=0?Math.abs(stlNumV(v[cF])):0, dep=cD>=0?stlNumV(v[cD]):0;
+    if(dep>0||sales>0){
+      if(sales) pl.sales=sales; pl.settlement=dep; pl.deposit=dep; pl.feeMid=0; pl.feePay=0; pl.feeEtc=fee||Math.max(0,sales-dep); pl.loaded=true;
+      DB.save('settlements',settlements); stlBuildBody();
+      alert('✅ 땡겨요 정산 자동 인식\n주문결제 '+comma(sales)+'원 · 입금금액(정산금) '+comma(dep)+'원 · 차감 '+comma(fee)+'원');
+    } else { DB.save('settlements',settlements); stlBuildBody(); alert('📎 첨부됨. 땡겨요 값을 못 찾았습니다. 표에 직접 입력하세요.'); }
+  });
+}
+/* 먹깨비 매출자료(주문목록) — 이 달 합계 매출 합산 (수수료·정산금은 없음 → 수기) */
+function stlImportMukkebi(input){
+  const file=input.files&&input.files[0]; if(!file) return;
+  _stlReadWb(file, wb=>{
+    const ws=wb.Sheets['주문 목록']||wb.Sheets[wb.SheetNames[0]];
+    const r=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+    const hi=r.findIndex(row=>(row||[]).some(x=>String(x).includes('주문일시')) && (row||[]).some(x=>String(x).trim()==='합계'));
+    const rec=stlGetRecord(stlMonth); const pl=rec.platforms.mukkebi; pl.file={name:file.name,at:todayStr()};
+    if(hi<0){ DB.save('settlements',settlements); stlBuildBody(); alert('📎 첨부됨. 먹깨비 주문목록을 못 찾았습니다. 표에 직접 입력하세요.'); return; }
+    const hdr=r[hi].map(x=>String(x).trim());
+    const cDate=hdr.findIndex(h=>h.includes('주문일시')), cSum=hdr.findIndex(h=>h==='합계');
+    let sales=0,cnt=0;
+    for(let i=hi+1;i<r.length;i++){ const row=r[i]; if(!row) continue; const d=String(row[cDate]||'').trim().replace(/\./g,'-'); if(d.slice(0,7)!==stlMonth) continue; sales+=stlNumV(row[cSum]); cnt++; }
+    pl.sales=sales;
+    DB.save('settlements',settlements); stlBuildBody();
+    if(cnt>0) alert('✅ 먹깨비 매출 반영\n'+stlMonth+' '+cnt+'건 · 매출 '+comma(sales)+'원\n\n※ 이 파일은 매출 자료라 수수료·정산금은 없습니다. 정산금은 표에 직접 입력하세요.');
+    else alert('📎 첨부됨. 이 파일에 '+stlMonth+' 주문이 없습니다.\n(먹깨비 매출자료는 조회기간을 해당 월로 받아 올려주세요.)');
+  });
 }
 
 const APP_PALETTES = [
