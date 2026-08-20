@@ -2946,8 +2946,14 @@ let milkitProducts = DB.load('milkitProducts', [
   {id:'mp1', name:'고르곤졸라',   price:17000, category:'피자'},
   {id:'mp2', name:'허니리얼치즈', price:17000, category:'피자'},
   {id:'mp3', name:'리얼소불고기', price:19000, category:'피자'},
-  {id:'mp4', name:'더블페퍼로니', price:22000, category:'피자'}
+  {id:'mp4', name:'더블페퍼로니', price:22000, category:'피자'},
+  {id:'mp5', name:'소스팩', price:1000, category:'추가품목', noStock:true}
 ]);
+// 소스팩 상시 보장 — 주문 메뉴엔 항상 표시, 재고에는 제외(noStock). 기존 데이터에 없으면 추가.
+if(!milkitProducts.some(p=>p.name==='소스팩' || p.id==='mp5')){
+  milkitProducts.push({id:'mp5', name:'소스팩', price:1000, category:'추가품목', noStock:true});
+  DB.save('milkitProducts', milkitProducts);
+}
 let milkitSetRules = DB.load('milkitSetRules', [
   {id:'ms1', name:'2종세트', discount:2000},
   {id:'ms2', name:'4종세트', discount:10000}
@@ -8476,6 +8482,7 @@ function renderMilkitProductSettings(){
           <option value="피자" ${p.category==='피자'?'selected':''}>피자</option>
           <option value="추가품목" ${p.category==='추가품목'?'selected':''}>추가품목</option>
         </select>
+        <label style="font-size:10px;display:block;margin-top:3px;color:var(--sub);white-space:nowrap;"><input type="checkbox" data-f="noStock" ${p.noStock?'checked':''} style="width:auto;vertical-align:middle;"> 재고제외</label>
       </td>
       <td data-label="가격(원)"><input type="text" inputmode="numeric" value="${commaFmt(p.price)}" data-f="price" oninput="this.value=commaFmt(this.value)" style="width:70px;"></td>
       <td data-label="레시피"><button class="btn btn-sm ${(p.items&&p.items.length)?'btn-edit':'btn-out'}" onclick="openMkProductRecipeModal('${p.id}')">${(p.items&&p.items.length)?'✓ 레시피 '+p.items.length:'+ 레시피'}</button></td>
@@ -8514,6 +8521,7 @@ function saveMilkitProductSettings(){
     milkitProducts[idx].name = tr.querySelector('[data-f="name"]').value.trim();
     milkitProducts[idx].category = tr.querySelector('[data-f="category"]').value;
     milkitProducts[idx].price = unComma(tr.querySelector('[data-f="price"]').value);
+    const nsEl=tr.querySelector('[data-f="noStock"]'); if(nsEl) milkitProducts[idx].noStock = nsEl.checked;
   });
   document.querySelectorAll('#mk-setrule-rows tr').forEach(tr=>{
     const idx=Number(tr.dataset.idx);
@@ -8533,7 +8541,7 @@ function saveMilkitProductSettings(){
 const MK_SHIPPED_STATES = ['배송중','배송완료'];
 
 function computeMilkitInventory(){
-  return milkitProducts.map(p=>{
+  return milkitProducts.filter(p=>!p.noStock).map(p=>{
     // 생산/조정은 재고 증가, 폐기는 감소
     const produced = milkitProduction.reduce((s,r)=>{
       if(r.productId!==p.id) return s;
@@ -8734,7 +8742,7 @@ function renderMkProductionList(){
 
 function renderMkProdQtyRows(){
   const inv=computeMilkitInventory();
-  document.getElementById('mk-prod-qty-rows').innerHTML = milkitProducts.map((p,i)=>{
+  document.getElementById('mk-prod-qty-rows').innerHTML = milkitProducts.filter(p=>!p.noStock).map((p,i)=>{
     const cur=inv.find(r=>r.product.id===p.id);
     return `<div style="display:grid;grid-template-columns:1fr 104px;gap:8px;align-items:center;padding:9px 11px;${i?'border-top:1px solid var(--border);':''}">
       <div style="min-width:0;">
