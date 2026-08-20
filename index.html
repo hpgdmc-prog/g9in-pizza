@@ -9643,7 +9643,11 @@ function stlBuildBody(){
     <!-- 자동 불러오기 -->
     <div class="stl-block" style="border:1.5px solid var(--acc);">
       <div class="stl-block-hd"><h4>📥 정산 자료 자동 불러오기</h4></div>
-      <div class="stl-block-desc">각 정산 파일을 올리면 숫자가 자동으로 채워집니다. <b>배민 정산서는 암호화</b>되어 자동 파싱이 안 되니, 매출은 POS 리포트에서 자동으로 잡고 배민 수수료·정산금만 아래에서 직접 입력하세요.</div>
+      <label style="display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer;background:var(--acc);color:#fff;border-radius:12px;padding:15px;font-size:15px;font-weight:700;margin-bottom:6px;">
+        📂 파일 여러 개 한 번에 올리기 <span style="font-weight:400;font-size:12.5px;opacity:.9;">— 앱이 종류를 알아서 분류합니다</span>
+        <input type="file" accept=".xlsx,.xls,.csv" multiple style="display:none;" onchange="stlAutoImport(this)">
+      </label>
+      <div class="stl-block-desc">POS 리포트·여신 카드·배달앱 정산서를 <b>한꺼번에 선택</b>하면 각각 알아서 채워집니다. (아래는 개별로 올리고 싶을 때) <b>배민</b>만 암호화라 엑셀에서 암호를 지운 파일이어야 자동 인식됩니다.</div>
       <div style="display:grid;grid-template-columns:1fr;gap:9px;">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:var(--bg2);border-radius:9px;padding:9px 13px;">
           <span style="font-size:12.5px;">🧾 <b>Toss POS 매출리포트</b> <span style="color:var(--sub2);">— 매장·배달 매출 전체 자동</span></span>
@@ -10126,6 +10130,105 @@ function stlImportMukkebi(input){
     else alert('📎 첨부됨. 이 파일에 '+stlMonth+' 주문이 없습니다.\n(먹깨비 매출자료는 조회기간을 해당 월로 받아 올려주세요.)');
   });
 }
+
+/* ===== 통합 파서 (apply(wb)→record, 요약 반환) + 자동 분류 업로드 ===== */
+function _stlReadWb2(file, cb){ const rd=new FileReader(); rd.onload=e=>{ let wb=null; try{ wb=XLSX.read(e.target.result,{type:'array'}); }catch(err){ cb(null,err); return; } cb(wb,null); }; rd.readAsArrayBuffer(file); }
+function _stlDetect(wb){
+  if(!wb) return 'encrypted';
+  const names=wb.SheetNames;
+  if(names.indexOf('결제 합계')>=0) return 'pos';
+  const parts=[]; names.slice(0,3).forEach(sn=>{ const r=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:''}); r.slice(0,22).forEach(row=>parts.push((row||[]).map(String).join(''))); });
+  const txt=parts.join('');
+  if(txt.indexOf('매입합계')>=0) return 'cardBuy';
+  if(txt.indexOf('실입금')>=0) return 'cardDeposit';
+  if(txt.indexOf('먹깨비')>=0 || (txt.indexOf('업소명')>=0 && txt.indexOf('공급가액')>=0)) return 'mukkebi';
+  if(txt.indexOf('땡겨요')>=0) return 'ttangyeo';
+  if(txt.indexOf('요기요')>=0 || txt.indexOf('입금받으실')>=0) return 'yogiyo';
+  if(txt.indexOf('쿠팡')>=0 || txt.indexOf('결제대행사')>=0) return 'coupang';
+  if(txt.indexOf('배민')>=0 || txt.indexOf('배달의민족')>=0 || (names.indexOf('요약')>=0 && txt.indexOf('주문중개')>=0)) return 'baemin';
+  if(txt.indexOf('주문결제')>=0 && txt.indexOf('입금금액')>=0) return 'ttangyeo';
+  if(txt.indexOf('정산금액')>=0 && txt.indexOf('중개이용료')>=0) return 'coupang';
+  return 'unknown';
+}
+function _stlApply_pos(wb){ const ws=wb.Sheets['결제 합계']; if(!ws) return null;
+  const r=XLSX.utils.sheet_to_json(ws,{header:1,defval:''}); const hdr=(r[1]||[]).map(x=>String(x).trim()); const val=r[2]||[];
+  const pick=n=>{const i=hdr.indexOf(n); return i>=0?stlNumV(val[i]):0;}; const rec=stlGetRecord(stlMonth);
+  rec.posReport={total:pick('결제금액'),cash:pick('현금'),card:pick('카드'),qr:pick('QR결제'),transfer:pick('계좌이체'),etc:pick('기타'),
+    acquirers:{baemin:pick('배달의민족'),yogiyo:pick('요기요'),coupang:pick('쿠팡이츠'),ttangyeo:pick('땡겨요'),mukkebi:pick('먹깨비')}};
+  STL_PLATFORMS.forEach(p=>{ const g=rec.posReport.acquirers[p.id]; if(g) rec.platforms[p.id].sales=g; });
+  return '총매출 '+comma(rec.posReport.total)+'원'; }
+function _stlApply_cardBuy(wb){ const r=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:''});
+  const hi=_stlFindHeaderRow(r,'매입합계'); if(hi<0) return null; const hdr=r[hi].map(x=>String(x).trim());
+  const cA=hdr.findIndex(h=>h.includes('매입합계')),cB=hdr.findIndex(h=>h.replace(/\s/g,'').includes('수수료합계')),cP=hdr.findIndex(h=>h.includes('지급예정'));
+  let A=0,B=0,P=0; for(let i=hi+1;i<r.length;i++){const row=r[i];if(!row||!/^\d{4}-\d{2}-\d{2}/.test(String(row[0])))continue;A+=stlNumV(row[cA]);if(cB>=0)B+=stlNumV(row[cB]);if(cP>=0)P+=stlNumV(row[cP]);}
+  const rec=stlGetRecord(stlMonth); rec.card.sales=A; rec.card.fee=B; rec.card.buyExpected=P; rec.card.buyLoaded=true; return '카드매출 '+comma(A)+'원 · 수수료 '+comma(B)+'원'; }
+function _stlApply_cardDeposit(wb){ const r=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:''});
+  const hi=_stlFindHeaderRow(r,'실입금'); if(hi<0) return null; const hdr=r[hi].map(x=>String(x).trim());
+  const cS=hdr.findIndex(h=>h.includes('매출금액')),cD=hdr.findIndex(h=>h.includes('실입금'));
+  let S=0,D=0; for(let i=hi+1;i<r.length;i++){const row=r[i];if(!row||!/^\d+$/.test(String(row[0]).trim()))continue;if(cS>=0)S+=stlNumV(row[cS]);D+=stlNumV(row[cD]);}
+  const rec=stlGetRecord(stlMonth); rec.card.deposit=D; rec.card.depSales=S; rec.card.depLoaded=true; return '실입금 '+comma(D)+'원'; }
+function _stlApply_baemin(wb){ const ws=wb.Sheets['요약']||wb.Sheets[wb.SheetNames[0]]; const r=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+  let dep=0,hi=-1,hc=-1; for(let i=0;i<r.length;i++){const c=(r[i]||[]).findIndex(x=>String(x).includes('입금금액'));if(c>=0){hi=i;hc=c;break;}}
+  if(hi>=0){for(let i=hi+1;i<Math.min(r.length,hi+4);i++){const v=stlNumV((r[i]||[])[hc]);if(v){dep=v;break;}}} if(!dep) return null;
+  const rec=stlGetRecord(stlMonth); const pl=rec.platforms.baemin; pl.settlement=dep;pl.deposit=dep;pl.feeMid=0;pl.feePay=0;pl.feeEtc=Math.max(0,(pl.sales||0)-dep);pl.loaded=true; return '정산금 '+comma(dep)+'원'; }
+function _stlApply_coupang(wb){ const r=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:''});
+  const h0=(r[0]||[]).map(String),h1=(r[1]||[]).map(x=>String(x).trim()); let gi=h0.findIndex(x=>x.includes('정산금액')),settleCol=-1;
+  if(gi>=0){for(let c=gi;c<gi+6&&c<h1.length;c++){if(h1[c]==='산정후'){settleCol=c;break;}}if(settleCol<0)settleCol=gi;} let payCol=h1.findIndex(x=>x==='결제금액');
+  if(settleCol<0) return null; let settle=0,pay=0;
+  for(let i=2;i<r.length;i++){const row=r[i];if(!row||!/^\d{4}-\d{2}-\d{2}/.test(String(row[0])))continue;settle+=stlNumV(row[settleCol]);if(payCol>=0)pay+=stlNumV(row[payCol]);}
+  const rec=stlGetRecord(stlMonth); const cp=rec.platforms.coupang; if(pay>0){cp.sales=pay;cp.feeMid=0;cp.feePay=0;cp.feeEtc=Math.max(0,pay-settle);} cp.settlement=settle;cp.loaded=true; return '정산금 '+comma(settle)+'원'; }
+function _stlApply_yogiyo(wb){ const ws=wb.Sheets['요약']||wb.Sheets[wb.SheetNames[0]]; const r=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+  let sales=0,fee=0,dep=0,settle=0; r.forEach(row=>{const l=String(row[1]||'').trim(),v=stlNumV(row[3]); if(l==='주문금액')sales=v; else if(l==='차감금액')fee=v; else if(l.includes('입금받으실'))dep=v; else if(l==='정산금액')settle=v;});
+  if(!dep)dep=settle; if(!dep&&!sales) return null; const rec=stlGetRecord(stlMonth); const pl=rec.platforms.yogiyo;
+  if(sales)pl.sales=sales; pl.settlement=dep;pl.deposit=dep;pl.feeMid=0;pl.feePay=0;pl.feeEtc=fee||Math.max(0,sales-dep);pl.loaded=true; return '정산금 '+comma(dep)+'원'; }
+function _stlApply_ttangyeo(wb){ const r=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:''});
+  const hi=r.findIndex(row=>(row||[]).some(x=>String(x).includes('주문결제'))); if(hi<0) return null; const hdr=r[hi].map(x=>String(x).trim()),v=r[hi+1]||[];
+  const cS=hdr.findIndex(h=>h.includes('주문결제')),cF=hdr.findIndex(h=>h.includes('차감금액')),cD=hdr.findIndex(h=>h.includes('입금금액'));
+  const sales=cS>=0?stlNumV(v[cS]):0,fee=cF>=0?Math.abs(stlNumV(v[cF])):0,dep=cD>=0?stlNumV(v[cD]):0; if(!dep&&!sales) return null;
+  const rec=stlGetRecord(stlMonth); const pl=rec.platforms.ttangyeo; if(sales)pl.sales=sales; pl.settlement=dep;pl.deposit=dep;pl.feeMid=0;pl.feePay=0;pl.feeEtc=fee||Math.max(0,sales-dep);pl.loaded=true; return '정산금 '+comma(dep)+'원'; }
+function _stlApply_mukkebi(wb){ const ws=wb.Sheets['주문 목록']||wb.Sheets[wb.SheetNames[0]]; const r=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+  const hi=r.findIndex(row=>(row||[]).some(x=>String(x).includes('주문일시'))&&(row||[]).some(x=>String(x).trim()==='합계')); if(hi<0) return null;
+  const hdr=r[hi].map(x=>String(x).trim()); const cDate=hdr.findIndex(h=>h.includes('주문일시')),cSum=hdr.findIndex(h=>h==='합계');
+  let sales=0,cnt=0; for(let i=hi+1;i<r.length;i++){const row=r[i];if(!row)continue;const d=String(row[cDate]||'').trim().replace(/\./g,'-');if(d.slice(0,7)!==stlMonth)continue;sales+=stlNumV(row[cSum]);cnt++;}
+  const rec=stlGetRecord(stlMonth); rec.platforms.mukkebi.sales=sales; return cnt>0?(cnt+'건 매출 '+comma(sales)+'원 (정산금은 수기)'):(stlMonth+' 주문 없음'); }
+const _STL_APPLY={pos:_stlApply_pos,cardBuy:_stlApply_cardBuy,cardDeposit:_stlApply_cardDeposit,baemin:_stlApply_baemin,coupang:_stlApply_coupang,yogiyo:_stlApply_yogiyo,ttangyeo:_stlApply_ttangyeo,mukkebi:_stlApply_mukkebi};
+const _STL_LABEL={pos:'Toss POS 매출리포트',cardBuy:'여신 카드 매입내역',cardDeposit:'여신 카드 입금내역',baemin:'배민',coupang:'쿠팡이츠',yogiyo:'요기요',ttangyeo:'땡겨요',mukkebi:'먹깨비'};
+const _STL_PLAT_IDS=['baemin','coupang','yogiyo','ttangyeo','mukkebi'];
+
+/* 여러 파일 한 번에 올리기 — 자동 분류 */
+function stlAutoImport(input){
+  const files=Array.from(input.files||[]); if(!files.length) return; const results=[]; let pending=files.length;
+  const done=()=>{ if(--pending>0) return; DB.save('settlements',settlements); stlBuildBody();
+    alert('📥 자동 분류 결과 ('+files.length+'개 중 인식된 것)\n\n'+results.join('\n')); };
+  files.forEach(f=>{ _stlReadWb2(f,(wb,err)=>{
+    if(err||!wb){ results.push('🔒 '+f.name+'\n    열 수 없음 — 배민이면 엑셀에서 암호 제거 후 다시, 아니면 개별/수기'); return done(); }
+    const type=_stlDetect(wb);
+    if(type==='unknown'||!_STL_APPLY[type]){ results.push('❓ '+f.name+'\n    종류 인식 실패 — 개별 슬롯/수기'); return done(); }
+    let msg=null; try{ msg=_STL_APPLY[type](wb); }catch(e){ msg=null; }
+    if(_STL_PLAT_IDS.indexOf(type)>=0) stlGetRecord(stlMonth).platforms[type].file={name:f.name,at:todayStr()};
+    results.push((msg?'✅ ':'⚠️ ')+_STL_LABEL[type]+' ← '+f.name+(msg?'\n    '+msg:'\n    값 인식 실패, 표에 수기 입력'));
+    done();
+  }); });
+}
+/* 개별 슬롯(수동, 종류 지정) */
+function _stlSingle(input, type){
+  const file=input.files&&input.files[0]; if(!file) return;
+  _stlReadWb2(file,(wb,err)=>{
+    if(err||!wb){
+      if(type==='baemin'){ const rec=stlGetRecord(stlMonth); rec.platforms.baemin.file={name:file.name,at:todayStr()}; DB.save('settlements',settlements); stlBuildBody();
+        alert('🔒 배민 파일은 암호화되어 앱에서 바로 못 엽니다.\n① 엑셀에서 열기(암호 850504 등) → ② [파일 > 정보 > 통합문서 보호 > 암호 설정]에서 암호 지우고 저장 → ③ 다시 업로드하면 자동 인식.\n또는 정산금을 아래 표에 직접 입력하세요.'); return; }
+      alert('파일을 열 수 없습니다(암호화 등). 표에 직접 입력하세요.'); return; }
+    const fn=_STL_APPLY[type]; if(!fn){ alert('종류를 인식하지 못했습니다.'); return; }
+    let msg=null; try{ msg=fn(wb); }catch(e){}
+    if(_STL_PLAT_IDS.indexOf(type)>=0) stlGetRecord(stlMonth).platforms[type].file={name:file.name,at:todayStr()};
+    DB.save('settlements',settlements); stlBuildBody();
+    alert(msg? ('✅ '+_STL_LABEL[type]+' 반영\n'+msg) : '⚠️ 값을 인식하지 못했습니다. 표에 직접 입력하세요.');
+  });
+}
+function stlImportPosReport(input){ _stlSingle(input,'pos'); }
+function stlImportCardBuy(input){ _stlSingle(input,'cardBuy'); }
+function stlImportCardDeposit(input){ _stlSingle(input,'cardDeposit'); }
+function stlImportPlatform(pid, input){ _stlSingle(input, pid); }
 
 const APP_PALETTES = [
   {id:'terracotta', name:'테라코타 (기본)', desc:'따뜻한 테라코타 오렌지 — 기본 브랜드 컬러',
