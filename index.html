@@ -65,7 +65,7 @@
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 html,body{max-width:100%;overflow-x:hidden;}
-body{font-family:var(--sans);background:var(--bg);color:var(--text);font-size:14px;-webkit-font-smoothing:antialiased;}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);font-size:14px;-webkit-font-smoothing:antialiased;word-break:keep-all;overflow-wrap:break-word;}
 body.modal-open{overflow:hidden;}
 h1,h2,h3,h4{font-family:var(--sans);letter-spacing:-.01em;}
 /* ===LAYOUT=== */
@@ -113,7 +113,7 @@ h1,h2,h3,h4{font-family:var(--sans);letter-spacing:-.01em;}
 .stat-card{position:relative;background:var(--card);padding:22px 24px 18px;transition:background .2s;}
 .stat-card:hover{background:var(--bg2);}
 .stat-card .s-label{font-size:10px;color:var(--sub2);margin-bottom:10px;letter-spacing:.18em;text-transform:uppercase;font-weight:600;}
-.stat-card .s-val{font-family:var(--serif);font-size:30px;font-weight:700;color:var(--dark);letter-spacing:-.01em;line-height:1.0;}
+.stat-card .s-val{font-family:var(--sans);font-size:28px;font-weight:800;color:var(--dark);letter-spacing:-.03em;line-height:1.08;font-variant-numeric:tabular-nums;}
 .stat-card .s-sub{font-size:11px;color:var(--sub2);margin-top:8px;}
 .stat-card.acc-border{border-top:3px solid var(--acc);}
 /* page header */
@@ -240,7 +240,7 @@ tr:hover td{background:var(--bg2);}
 .stl-sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:4px;}
 .stl-sum .box{background:var(--bg2);border-radius:11px;padding:13px 15px;}
 .stl-sum .box .k{font-size:11px;color:var(--sub);font-weight:600;}
-.stl-sum .box .v{font-family:var(--serif);font-size:21px;font-weight:700;color:var(--dark);margin-top:3px;font-variant-numeric:tabular-nums;}
+.stl-sum .box .v{font-family:var(--sans);font-size:20px;font-weight:800;color:var(--dark);margin-top:3px;font-variant-numeric:tabular-nums;letter-spacing:-.02em;}
 .stl-sum .box.accent{background:var(--acc-pale);}
 .stl-sum .box.accent .v{color:var(--acc-dark);}
 .stl-daterow td{padding:5px 6px;}
@@ -291,6 +291,16 @@ tr:hover td{background:var(--bg2);}
 .recipe-item-row:hover{background:var(--bg2);}
 .ri-handle{cursor:grab;color:var(--sub2);font-size:15px;display:flex;align-items:center;justify-content:center;height:100%;touch-action:none;user-select:none;-webkit-user-select:none;}
 .ri-handle:active{cursor:grabbing;}
+/* 드롭다운을 입력칸과 동일한 흰 박스 + 커스텀 화살표로 통일 (iOS 기본 알약 렌더 방지) */
+.settings-tbl select, .form-row select, #mk-order-settype, .mk-bulkbar-actions select{
+  -webkit-appearance:none;-moz-appearance:none;appearance:none;
+  background-color:#fff;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12'%3E%3Cpath d='M2 4.5l4 4 4-4' stroke='%23999' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 11px center;
+  padding-right:30px!important;line-height:1.4;text-overflow:ellipsis;
+}
+.settings-tbl select{border:1px solid var(--border);border-radius:8px;background-color:#fff;color:var(--text);padding:10px 30px 10px 13px;height:auto;}
+.settings-tbl input{border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text);padding:10px 13px;}
 /* 설정용 표(상품·가격, 세트 할인) — 좁은 화면에서는 표 대신 카드로 쌓아 가로 스크롤 제거 */
 @media(max-width:640px){
   .settings-tbl-wrap{border:none;background:transparent;overflow:visible;}
@@ -394,7 +404,7 @@ tr:hover td{background:var(--bg2);}
 .sim-summary{display:flex;gap:10px;margin-top:12px;}
 .sim-summary>div{flex:1;background:var(--acc-pale);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:2px;}
 .sim-summary span{font-size:11.5px;color:var(--sub);}
-.sim-summary b{font-size:18px;font-family:var(--serif);color:var(--acc-dark);}
+.sim-summary b{font-size:18px;font-family:var(--sans);font-weight:800;color:var(--acc-dark);font-variant-numeric:tabular-nums;letter-spacing:-.02em;}
 .sim-summary b.pos{color:var(--green);} .sim-summary b.neg{color:var(--red);}
 /* 밀키트 상위 그룹 네비 (판매·운영 / 관리·설정) */
 .mk-groupnav{display:flex;gap:8px;margin:2px 0 12px;}
@@ -611,7 +621,7 @@ tr:hover td{background:var(--bg2);}
 .margin-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.08);}
 .margin-row:last-child{border-bottom:none;padding-top:12px;margin-top:4px;}
 .margin-row.total{font-weight:700;font-size:15px;}
-.margin-row.total .mval{color:var(--acc-soft);font-family:var(--serif);font-size:20px;}
+.margin-row.total .mval{color:var(--acc-soft);font-family:var(--sans);font-weight:800;font-size:20px;font-variant-numeric:tabular-nums;letter-spacing:-.02em;}
 .mval{font-weight:600;opacity:.9;}
 /* recipe book layout */
 #recipe-book-content{font-family:var(--sans);}
@@ -2451,8 +2461,9 @@ img{max-width:100%;height:auto;}
           <span>할인금액 <b class="num" style="color:var(--red);" id="mk-order-discount">0원</b></span>
           <span>결제금액 <b class="num" style="color:var(--acc-dark);font-size:15px;" id="mk-order-paytotal">0원</b></span>
         </div>
-        <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--txt);cursor:pointer;padding:8px 2px;">
-          <input type="checkbox" id="mk-order-promo" style="width:17px;height:17px;flex:0 0 auto;"> 🎁 홍보용 무료 발송 — <b>매출·수익에서 제외</b> <span class="req-note">(출고·택배는 그대로)</span>
+        <label style="display:flex;align-items:flex-start;gap:9px;font-size:12.5px;color:var(--txt);cursor:pointer;padding:8px 2px;line-height:1.55;">
+          <input type="checkbox" id="mk-order-promo" style="width:17px;height:17px;flex:0 0 auto;margin-top:1px;">
+          <span style="flex:1;min-width:0;">🎁 홍보용 무료 발송 — <b>매출·수익에서 제외</b> <span class="req-note">(출고·택배는 그대로)</span></span>
         </label>
       </div>
 
@@ -4590,7 +4601,7 @@ function renderCosts(){
           <div style="font-size:11px;color:var(--sub2);margin-top:3px;">${r.category}${r.size?` · ${formatSize(r.size)}`:''}</div>
         </div>
         <div style="text-align:right;">
-          <div style="font-family:var(--serif);font-size:22px;font-weight:700;color:var(--dark);" class="num">${comma(Math.round(price))}원</div>
+          <div style="font-family:var(--sans);font-size:21px;font-weight:800;color:var(--dark);letter-spacing:-.02em;font-variant-numeric:tabular-nums;" class="num">${comma(Math.round(price))}원</div>
           <div style="font-size:11px;color:var(--sub2);">판매가</div>
         </div>
       </div>
@@ -6638,10 +6649,9 @@ function renderMilkitOrderQtyRows(qtyMap){
   qtyMap = qtyMap||{};
   const el=document.getElementById('mk-order-qty-rows');
   const rowHtml=p=>`
-    <div class="recipe-item-row" style="grid-template-columns:1fr 90px 60px;">
+    <div class="recipe-item-row" style="grid-template-columns:1fr 96px;align-items:center;">
       <span>${p.name}<span style="color:var(--sub2);font-size:11px;margin-left:6px;">${comma(p.price)}원</span></span>
       <input type="text" id="mk-qty-${p.id}" value="${Number(qtyMap[p.id])||''}" placeholder="0" inputmode="numeric" oninput="qtyInputFilter(this);mkAutoApplySet();mkUpdateOrderTotals()">
-      <span class="ri-cost">${p.category}</span>
     </div>`;
   // 피자와 추가품목(소스팩 등)을 항상 분리해서 표시 (숨김 상품은 제외)
   const pizzas=milkitProducts.filter(p=>p.category==='피자' && !p.hidden);
@@ -9445,7 +9455,7 @@ function renderMkSetCosts(){
           <div style="font-size:11px;color:var(--sub2);margin-top:3px;">평균 피자가 ${comma(Math.round(s.avgPrice))}원 기준 · 세트 할인 −${comma(a.discount)}원</div>
         </div>
         <div style="text-align:right;">
-          <div style="font-family:var(--serif);font-size:22px;font-weight:700;color:var(--dark);" class="num">${comma(Math.round(a.revenue))}원</div>
+          <div style="font-family:var(--sans);font-size:21px;font-weight:800;color:var(--dark);letter-spacing:-.02em;font-variant-numeric:tabular-nums;" class="num">${comma(Math.round(a.revenue))}원</div>
           <div style="font-size:11px;color:var(--sub2);">세트 판매가</div>
         </div>
       </div>
@@ -9575,7 +9585,7 @@ function renderMilkitCosts(){
           <div style="font-size:11px;color:var(--sub2);margin-top:3px;">${p.category}${noRecipe?' · <span style="color:var(--orange);">레시피 미등록</span>':''}</div>
         </div>
         <div style="text-align:right;">
-          <div style="font-family:var(--serif);font-size:22px;font-weight:700;color:var(--dark);" class="num">${comma(Math.round(price))}원</div>
+          <div style="font-family:var(--sans);font-size:21px;font-weight:800;color:var(--dark);letter-spacing:-.02em;font-variant-numeric:tabular-nums;" class="num">${comma(Math.round(price))}원</div>
           <div style="font-size:11px;color:var(--sub2);">판매가</div>
         </div>
       </div>
