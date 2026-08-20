@@ -6613,9 +6613,9 @@ function renderMilkitOrderQtyRows(qtyMap){
       <input type="text" id="mk-qty-${p.id}" value="${Number(qtyMap[p.id])||''}" placeholder="0" inputmode="numeric" oninput="qtyInputFilter(this);mkAutoApplySet();mkUpdateOrderTotals()">
       <span class="ri-cost">${p.category}</span>
     </div>`;
-  // 피자와 추가품목(소스팩 등)을 항상 분리해서 표시
-  const pizzas=milkitProducts.filter(p=>p.category==='피자');
-  const extras=milkitProducts.filter(p=>p.category!=='피자');
+  // 피자와 추가품목(소스팩 등)을 항상 분리해서 표시 (숨김 상품은 제외)
+  const pizzas=milkitProducts.filter(p=>p.category==='피자' && !p.hidden);
+  const extras=milkitProducts.filter(p=>p.category!=='피자' && !p.hidden);
   let html=pizzas.map(rowHtml).join('');
   if(extras.length){
     html += `<div class="recipe-item-row" style="grid-template-columns:1fr;background:var(--bg2);padding:5px 10px;font-size:10px;letter-spacing:.1em;color:var(--sub2);font-weight:600;">추가품목 (세트 할인 제외)</div>`;
@@ -8505,14 +8505,18 @@ function deleteMilkitCustomer(id){
 /* --- 메뉴 · 가격 설정 --- */
 function renderMilkitProductSettings(){
   document.getElementById('mk-product-rows').innerHTML = milkitProducts.map((p,idx)=>`
-    <tr data-idx="${idx}">
-      <td data-label="상품명"><input type="text" value="${p.name}" data-f="name" style="width:90px;"></td>
+    <tr data-idx="${idx}"${p.hidden?' style="opacity:.5;"':''}>
+      <td data-label="상품명"><input type="text" value="${p.name}" data-f="name" style="width:90px;">${p.hidden?'<div style="font-size:9.5px;color:var(--orange);">숨김중</div>':''}</td>
       <td data-label="구분">
         <select data-f="category" style="width:76px;">
           <option value="피자" ${p.category==='피자'?'selected':''}>피자</option>
           <option value="추가품목" ${p.category==='추가품목'?'selected':''}>추가품목</option>
         </select>
-        <label style="font-size:10px;display:block;margin-top:3px;color:var(--sub);white-space:nowrap;"><input type="checkbox" data-f="noStock" ${p.noStock?'checked':''} style="width:auto;vertical-align:middle;"> 재고제외</label>
+        <select data-f="visibility" style="width:76px;margin-top:3px;font-size:11px;" title="주문·재고에 어떻게 보일지">
+          <option value="normal" ${(!p.hidden&&!p.noStock)?'selected':''}>정상</option>
+          <option value="nostock" ${(!p.hidden&&p.noStock)?'selected':''}>재고제외</option>
+          <option value="hidden" ${p.hidden?'selected':''}>숨김</option>
+        </select>
       </td>
       <td data-label="가격(원)"><input type="text" inputmode="numeric" value="${commaFmt(p.price)}" data-f="price" oninput="this.value=commaFmt(this.value)" style="width:70px;"></td>
       <td data-label="레시피"><button class="btn btn-sm ${(p.items&&p.items.length)?'btn-edit':'btn-out'}" onclick="openMkProductRecipeModal('${p.id}')">${(p.items&&p.items.length)?'✓ 레시피 '+p.items.length:'+ 레시피'}</button></td>
@@ -8551,7 +8555,7 @@ function saveMilkitProductSettings(){
     milkitProducts[idx].name = tr.querySelector('[data-f="name"]').value.trim();
     milkitProducts[idx].category = tr.querySelector('[data-f="category"]').value;
     milkitProducts[idx].price = unComma(tr.querySelector('[data-f="price"]').value);
-    const nsEl=tr.querySelector('[data-f="noStock"]'); if(nsEl) milkitProducts[idx].noStock = nsEl.checked;
+    const visEl=tr.querySelector('[data-f="visibility"]'); if(visEl){ const vv=visEl.value; milkitProducts[idx].hidden=(vv==='hidden'); milkitProducts[idx].noStock=(vv==='nostock'); }
   });
   document.querySelectorAll('#mk-setrule-rows tr').forEach(tr=>{
     const idx=Number(tr.dataset.idx);
@@ -8571,7 +8575,7 @@ function saveMilkitProductSettings(){
 const MK_SHIPPED_STATES = ['배송중','배송완료'];
 
 function computeMilkitInventory(){
-  return milkitProducts.filter(p=>!p.noStock).map(p=>{
+  return milkitProducts.filter(p=>!p.noStock && !p.hidden).map(p=>{
     // 생산/조정은 재고 증가, 폐기는 감소
     const produced = milkitProduction.reduce((s,r)=>{
       if(r.productId!==p.id) return s;
@@ -8772,7 +8776,7 @@ function renderMkProductionList(){
 
 function renderMkProdQtyRows(){
   const inv=computeMilkitInventory();
-  document.getElementById('mk-prod-qty-rows').innerHTML = milkitProducts.filter(p=>!p.noStock).map((p,i)=>{
+  document.getElementById('mk-prod-qty-rows').innerHTML = milkitProducts.filter(p=>!p.noStock && !p.hidden).map((p,i)=>{
     const cur=inv.find(r=>r.product.id===p.id);
     return `<div style="display:grid;grid-template-columns:1fr 104px;gap:8px;align-items:center;padding:9px 11px;${i?'border-top:1px solid var(--border);':''}">
       <div style="min-width:0;">
