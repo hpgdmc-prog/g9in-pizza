@@ -8535,18 +8535,20 @@ function deleteMilkitCustomer(id){
 /* --- 메뉴 · 가격 설정 --- */
 function renderMilkitProductSettings(){
   document.getElementById('mk-product-rows').innerHTML = milkitProducts.map((p,idx)=>`
-    <tr data-idx="${idx}"${p.hidden?' style="opacity:.5;"':''}>
-      <td data-label="상품명"><input type="text" value="${p.name}" data-f="name" style="width:90px;">${p.hidden?'<div style="font-size:9.5px;color:var(--orange);">숨김중</div>':''}</td>
+    <tr data-idx="${idx}"${p.hidden?' style="opacity:.55;"':''}>
+      <td data-label="상품명"><input type="text" value="${p.name}" data-f="name" style="width:118px;">${p.hidden?'<span style="font-size:10px;color:var(--orange);margin-left:6px;white-space:nowrap;">숨김중</span>':''}</td>
       <td data-label="구분">
-        <select data-f="category" style="width:76px;">
-          <option value="피자" ${p.category==='피자'?'selected':''}>피자</option>
-          <option value="추가품목" ${p.category==='추가품목'?'selected':''}>추가품목</option>
-        </select>
-        <select data-f="visibility" style="width:76px;margin-top:3px;font-size:11px;" title="주문·재고에 어떻게 보일지">
-          <option value="normal" ${(!p.hidden&&!p.noStock)?'selected':''}>정상</option>
-          <option value="nostock" ${(!p.hidden&&p.noStock)?'selected':''}>재고제외</option>
-          <option value="hidden" ${p.hidden?'selected':''}>숨김</option>
-        </select>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px;">
+          <select data-f="category" style="width:100%;">
+            <option value="피자" ${p.category==='피자'?'selected':''}>피자</option>
+            <option value="추가품목" ${p.category==='추가품목'?'selected':''}>추가품목</option>
+          </select>
+          <select data-f="visibility" style="width:100%;" title="주문·재고에 어떻게 보일지 — 정상/재고제외/숨김">
+            <option value="normal" ${(!p.hidden&&!p.noStock)?'selected':''}>표시: 정상</option>
+            <option value="nostock" ${(!p.hidden&&p.noStock)?'selected':''}>표시: 재고제외</option>
+            <option value="hidden" ${p.hidden?'selected':''}>표시: 숨김</option>
+          </select>
+        </div>
       </td>
       <td data-label="가격(원)"><input type="text" inputmode="numeric" value="${commaFmt(p.price)}" data-f="price" oninput="this.value=commaFmt(this.value)" style="width:70px;"></td>
       <td data-label="레시피"><button class="btn btn-sm ${(p.items&&p.items.length)?'btn-edit':'btn-out'}" onclick="openMkProductRecipeModal('${p.id}')">${(p.items&&p.items.length)?'✓ 레시피 '+p.items.length:'+ 레시피'}</button></td>
