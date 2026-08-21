@@ -9187,6 +9187,19 @@ function renderMkInvAsOf(){
   const rows=mkStockAsOf(d);
   const tot=rows.reduce((s,r)=>s+r.qty,0);
   const future = d>todayStr();
+  // 선택한 날짜 당일의 이동 요약 (판매가 실제로 빠졌는지 한눈에 보이도록)
+  const dayEv=mkStockLedger().filter(e=>e.date===d);
+  const sumBy=t=>dayEv.filter(e=>e.type===t).reduce((s,e)=>s+Math.abs(e.qty),0);
+  const made=sumBy('생산'), sold=sumBy('판매'), ret=sumBy('반품'), disc=sumBy('폐기');
+  const dayNet=dayEv.reduce((s,e)=>s+e.qty,0);
+  const chips=[];
+  if(made) chips.push(`생산 +${comma(made)}`);
+  if(sold) chips.push(`판매 −${comma(sold)}`);
+  if(ret)  chips.push(`반품 +${comma(ret)}`);
+  if(disc) chips.push(`폐기 −${comma(disc)}`);
+  const dayLine = chips.length
+    ? `<div style="padding:8px 12px;font-size:12px;color:var(--sub);background:var(--bg2);border-top:1px solid var(--border);">📆 이 날 하루 이동: ${chips.join(' · ')} <b style="color:var(--text);">→ 순증감 ${dayNet<0?'−':'+'}${comma(Math.abs(dayNet))}개</b></div>`
+    : `<div style="padding:8px 12px;font-size:12px;color:var(--sub2);background:var(--bg2);border-top:1px solid var(--border);">📆 이 날은 재고 이동이 없었습니다.</div>`;
   const rowsHtml=rows.map(r=>`
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--border);">
       <span style="font-weight:600;color:var(--text);word-break:keep-all;">${r.product.name}</span>
@@ -9200,7 +9213,8 @@ function renderMkInvAsOf(){
         <span style="font-size:12px;color:var(--sub);">합계 <b style="color:var(--acc-dark);">${comma(tot)}개</b></span>
       </div>
       ${rowsHtml}
-      <div style="padding:8px 12px;font-size:11.5px;color:var(--sub2);background:var(--bg2);">그 날짜까지의 생산·판매·반품·폐기를 모두 반영한 <b>그날 남아있던 수량</b>입니다.${future?' <span style="color:var(--orange);">※ 미래 날짜라 현재 예정분까지 포함됩니다.</span>':''}</div>
+      ${dayLine}
+      <div style="padding:8px 12px;font-size:11.5px;color:var(--sub2);background:var(--bg2);border-top:1px solid var(--border);">그 날짜까지의 생산·판매·반품·폐기를 모두 반영한 <b>그날 남아있던 수량</b>입니다. 판매는 <b>발송일</b> 기준으로 빠집니다.${future?' <span style="color:var(--orange);">※ 미래 날짜라 현재 예정분까지 포함됩니다.</span>':''}</div>
     </div>`;
 }
 /* 재고 이동 이력 — 생산·폐기·조정(수동 기록) + 판매(출고)·반품(주문)까지 모든 이동을 한 줄기로 모은다.
