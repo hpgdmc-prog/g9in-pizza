@@ -2605,6 +2605,10 @@ img{max-width:100%;height:auto;}
               <option value="반품">반품 (재고 복구)</option>
             </select>
           </div>
+          <div class="form-row" id="mk-row-shipped">
+            <label>발송일 <span class="req-note">(재고 차감 기준일)</span></label>
+            <input type="date" id="mk-order-shipped">
+          </div>
         </div>
         <div class="form-row" id="mk-row-tracking">
           <label>송장번호</label>
@@ -7297,13 +7301,14 @@ function openMilkitOrderModal(id){
     document.getElementById('mk-order-paystatus').value=o.payStatus||'대기';
     document.getElementById('mk-order-delmethod').value=o.deliveryMethod||'택배발송';
     document.getElementById('mk-order-delstatus').value=o.deliveryStatus||'준비중';
+    document.getElementById('mk-order-shipped').value=o.shippedDate||'';
     document.getElementById('mk-order-tracking').value=o.tracking||'';
     document.getElementById('mk-order-note').value=o.note||'';
   } else {
     const now=new Date();
     document.getElementById('mk-order-date').value=todayStr();
     document.getElementById('mk-order-time').value=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
-    ['mk-order-customer','mk-order-phone','mk-order-desired','mk-order-address','mk-order-address-detail','mk-order-tracking','mk-order-note','mk-order-recipient','mk-order-recipient-phone'].forEach(f=>document.getElementById(f).value='');
+    ['mk-order-customer','mk-order-phone','mk-order-desired','mk-order-address','mk-order-address-detail','mk-order-shipped','mk-order-tracking','mk-order-note','mk-order-recipient','mk-order-recipient-phone'].forEach(f=>document.getElementById(f).value='');
     mkSyncRecipientPh();
     renderMilkitOrderQtyRows({});
     setSel.value='낱개';
@@ -7556,6 +7561,7 @@ function saveMilkitOrder(){
     desiredDate:document.getElementById('mk-order-desired').value,
     deliveryMethod:document.getElementById('mk-order-delmethod').value,
     deliveryStatus:document.getElementById('mk-order-delstatus').value,
+    shippedDate:document.getElementById('mk-order-shipped').value||'',
     tracking:document.getElementById('mk-order-tracking').value.trim(),
     note:document.getElementById('mk-order-note').value.trim()
   };
