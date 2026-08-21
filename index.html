@@ -1130,11 +1130,13 @@ img{max-width:100%;height:auto;}
     <div id="order-plan-panel">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
         <span style="font-size:13px;color:var(--sub2);">최소재고 이하 재료 자동 목록 — 구매앱 주문 시 참고하세요</span>
-        <div style="display:flex;gap:8px;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-acc btn-sm" onclick="openStockCountModal()">📋 재고 실사 입력</button>
           <button class="btn btn-out btn-sm" onclick="exportOrderPlan()">📥 계획서 엑셀</button>
           <button class="btn btn-out btn-sm" onclick="renderOrderPlan()">🔄 새로고침</button>
         </div>
       </div>
+      <div id="order-lastcount-hint" style="font-size:12px;color:var(--sub);margin-bottom:10px;"></div>
       <div class="mobile-scroll-hint">💡 표가 넓으면 좌우로 스크롤하세요</div>
       <div class="table-wrap">
         <table>
@@ -1210,6 +1212,37 @@ img{max-width:100%;height:auto;}
       <div class="modal-footer-lg">
         <button class="btn btn-out" onclick="closeModal('recv-modal')">취소</button>
         <button class="btn btn-acc" onclick="saveReceiving()">입고 저장</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===재고 실사 MODAL=== -->
+  <div class="modal-bg" id="stock-count-modal">
+    <div class="modal" style="max-width:720px;">
+      <div class="modal-hdr">
+        <h4>📋 재고 실사 입력</h4>
+        <button class="btn btn-icon btn-out" onclick="closeModal('stock-count-modal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div style="font-size:12px;color:var(--sub);margin-bottom:12px;line-height:1.6;">발주일에 <b>현재 남은 재고를 세어 입력</b>하세요. 직전 기록과 비교해 <b>그동안 사용량</b>이 자동 계산되고, <b>최소재고 기준 발주 권장량</b>이 나옵니다. 입력한 값은 현재재고로 반영됩니다.</div>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">
+          <label style="font-size:12px;color:var(--sub);">실사 날짜</label>
+          <input type="date" id="stock-count-date" style="padding:8px 10px;border:1px solid var(--border);border-radius:var(--r-sm);font-family:inherit;font-size:13px;background:#fff;color:var(--text);">
+          <label style="font-size:12px;color:var(--sub);margin-left:6px;">구입처</label>
+          <select id="stock-count-supplier" onchange="renderStockCountRows()" style="padding:8px 10px;border:1px solid var(--border);border-radius:var(--r-sm);font-family:inherit;font-size:13px;background:#fff;color:var(--text);min-width:130px;"></select>
+          <label style="font-size:12px;color:var(--sub);display:flex;align-items:center;gap:5px;cursor:pointer;"><input type="checkbox" id="stock-count-onlymin" onchange="renderStockCountRows()"> 최소재고 설정된 것만</label>
+        </div>
+        <div class="mobile-scroll-hint">💡 표가 넓으면 좌우로 스크롤하세요</div>
+        <div class="table-wrap">
+          <table class="settings-tbl" style="min-width:600px;">
+            <thead><tr><th>재료명</th><th>기록재고</th><th>그새 입고</th><th>현재고(실사)</th><th>사용량</th><th>최소</th><th>발주권장</th></tr></thead>
+            <tbody id="stock-count-rows"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer-lg">
+        <button class="btn btn-out" onclick="closeModal('stock-count-modal')">취소</button>
+        <button class="btn btn-acc" onclick="saveStockCount()">💾 실사 저장 · 재고 반영</button>
       </div>
     </div>
   </div>
@@ -2969,6 +3002,7 @@ let fees        = DB.load('fees',{
 
 let editId = null;
 let receivings = DB.load('receivings',[]);  // 입고 기록
+let stockCounts = DB.load('stockCounts',[]);  // 재고 실사 기록: {id,date,items:[{ingredientId,counted,prev,received,used}],note}
 let orderCart  = DB.load('orderCart',[]);   // 임시 발주계획 카트
 let ocrImageB64 = null; let ocrMimeType = 'image/jpeg';
 
@@ -4763,7 +4797,102 @@ function renderOrders(){
   renderOrderPlan();
 }
 
+/* ===== 재고 실사(정기 재고조사) ===== */
+function mkLastStockCount(){ return stockCounts.length ? stockCounts[stockCounts.length-1] : null; }
+/* 특정 재료의, 지정 날짜 이후 입고 합계(구입단위 기준) */
+function ingReceivedSince(ingId, sinceDate){
+  let sum=0;
+  receivings.forEach(r=>{
+    if(sinceDate && (r.date||'') <= sinceDate) return;
+    (r.items||[]).forEach(it=>{ if(it.ingredientId===ingId) sum += Number(it.qty)||0; });
+  });
+  return sum;
+}
+function openStockCountModal(){
+  document.getElementById('stock-count-date').value=todayStr();
+  const sel=document.getElementById('stock-count-supplier');
+  sel.innerHTML='<option value="">전체 구입처</option>'+suppliers.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+  document.getElementById('stock-count-onlymin').checked=false;
+  renderStockCountRows();
+  openModal('stock-count-modal');
+}
+function stockCountList(){
+  const supId=document.getElementById('stock-count-supplier')?.value||'';
+  const onlyMin=document.getElementById('stock-count-onlymin')?.checked;
+  return ingredients.filter(i=>(!supId||i.supplierId===supId) && (!onlyMin || Number(i.minStock)>0));
+}
+function renderStockCountRows(){
+  const last=mkLastStockCount();
+  const sinceDate=last?last.date:'';
+  const rows=stockCountList();
+  const tb=document.getElementById('stock-count-rows');
+  if(!rows.length){ tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--sub2);padding:16px;">해당 재료가 없습니다.</td></tr>'; return; }
+  tb.innerHTML=rows.map(i=>{
+    const pu=i.purchaseUnit||'g';
+    const recv=ingReceivedSince(i.id, sinceDate);
+    const rec=Number(i.stock||0);   // 기록상 현재고
+    const min=Number(i.minStock)||0;
+    return `<tr data-ing="${i.id}">
+      <td data-label="재료명">${i.name}</td>
+      <td data-label="기록재고" class="num">${comma(rec)}<small style="color:var(--sub2);">${pu}</small></td>
+      <td data-label="그새 입고" class="num" style="color:var(--sub2);">${recv?'+'+comma(recv):'-'}</td>
+      <td data-label="현재고(실사)"><input type="text" inputmode="numeric" class="stlc-in" data-ing="${i.id}" placeholder="${comma(rec)}" oninput="qtyInputFilter(this);stockCountRowCalc(this)" style="width:90px;text-align:right;padding:7px 9px;border:1px solid var(--border);border-radius:6px;font-family:inherit;"></td>
+      <td data-label="사용량" class="num stlc-used" data-ing="${i.id}" style="color:var(--sub2);">-</td>
+      <td data-label="최소" class="num">${min?comma(min):'-'}</td>
+      <td data-label="발주권장" class="num stlc-order" data-ing="${i.id}">-</td>
+    </tr>`;
+  }).join('');
+}
+function stockCountRowCalc(input){
+  const ingId=input.dataset.ing;
+  const i=ingredients.find(x=>x.id===ingId); if(!i) return;
+  const counted = input.value.trim()==='' ? null : (Number(String(input.value).replace(/[^0-9.-]/g,''))||0);
+  const rec=Number(i.stock||0), min=Number(i.minStock)||0, pq=Number(i.purchaseQty)||1;
+  const usedEl=document.querySelector('.stlc-used[data-ing="'+ingId+'"]');
+  const ordEl=document.querySelector('.stlc-order[data-ing="'+ingId+'"]');
+  if(counted===null){ if(usedEl){usedEl.textContent='-';usedEl.style.color='var(--sub2)';} if(ordEl)ordEl.textContent='-'; return; }
+  const used=rec-counted;
+  if(usedEl){ usedEl.textContent=(used>=0?'':'+')+comma(used); usedEl.style.color = used>0?'var(--acc-dark)':(used<0?'var(--green)':'var(--sub2)'); }
+  // 발주 권장: 최소재고의 2배까지 채우기 (현재 실사 기준)
+  if(ordEl){
+    if(min>0 && counted<=min){ const target=min*2; const units=Math.ceil(Math.max(target-counted,0)/pq); ordEl.innerHTML=`<b style="color:var(--acc);">${units}단위</b>`; }
+    else ordEl.innerHTML='<span style="color:var(--green);">충분</span>';
+  }
+}
+function saveStockCount(){
+  const date=document.getElementById('stock-count-date').value||todayStr();
+  const last=mkLastStockCount(); const sinceDate=last?last.date:'';
+  const inputs=[...document.querySelectorAll('.stlc-in')].filter(el=>el.value.trim()!=='');
+  if(!inputs.length){ alert('실사한 재고를 하나 이상 입력하세요.'); return; }
+  const items=[];
+  inputs.forEach(el=>{
+    const ingId=el.dataset.ing; const i=ingredients.find(x=>x.id===ingId); if(!i) return;
+    const counted=Number(String(el.value).replace(/[^0-9.-]/g,''))||0;
+    const prev=Number(i.stock||0);
+    const received=ingReceivedSince(ingId, sinceDate);
+    const used=prev-counted;
+    items.push({ingredientId:ingId, counted, prev, received, used});
+    i.stock=counted;   // 실사값을 현재고로 반영
+  });
+  stockCounts.push({id:uid(), date, items, note:''});
+  DB.save('ingredients',ingredients);
+  DB.save('stockCounts',stockCounts);
+  closeModal('stock-count-modal');
+  renderIngredients(); renderOrders();
+  const totalUsed=items.reduce((s,it)=>s+Math.max(it.used,0),0);
+  alert(`✅ 재고 실사 완료 (${items.length}개 재료)\n현재고가 반영되고, 사용량·발주 권장이 갱신됐습니다.`);
+}
 function renderOrderPlan(){
+  // 마지막 실사 정보 힌트
+  const hintEl=document.getElementById('order-lastcount-hint');
+  if(hintEl){
+    const last=mkLastStockCount();
+    if(last){
+      const days=Math.max(0, Math.round((new Date(todayStr())-new Date(last.date))/86400000));
+      const totUsed=(last.items||[]).reduce((s,it)=>s+Math.max(Number(it.used)||0,0),0);
+      hintEl.innerHTML=`🗓️ 마지막 재고 실사: <b>${last.date}</b> (${days}일 전) · 그때 파악된 사용 재료 ${last.items.length}종`;
+    } else hintEl.innerHTML='🗓️ 아직 재고 실사 기록이 없습니다. <b>재고 실사 입력</b>으로 시작하면 사용량이 자동 계산됩니다.';
+  }
   const low = ingredients.filter(i=>Number(i.minStock)>0 && Number(i.stock||0)<=Number(i.minStock))
     .sort((a,b)=>(Number(a.stock||0)/Number(a.minStock||1))-(Number(b.stock||0)/Number(b.minStock||1)));
   const tbody = document.getElementById('order-plan-tbody');
