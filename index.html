@@ -8143,7 +8143,7 @@ function friendlyAiError(e){
 /* ============================================================
    규칙 기반 한글 주문 텍스트 파서 — API 키 없이 무료로 동작
    ============================================================ */
-const MKP_PHONE_RE = /01[016789][-\s.)]?\d{3,4}[-\s.]?\d{4}/;
+const MKP_PHONE_RE = /(?:01[016789]|0[2-6]\d?)[-\s.)]?\d{3,4}[-\s.]?\d{4}/;
 const MKP_NAME_TAIL = /(입니다|이에요|예요|이라고|라고|이구요|구요|인데요|인데|님|씨)$/;
 const MKP_NAME_STOP = /^(연락처|전화|전화번호|휴대폰|핸드폰|번호|주소|배송지|품목|상품|주문|수량|배송|결제|합계|금액|메모|비고|받는분|보내는분|오늘|내일|모레|글피|어제|택배|직접|방문|수령|픽업|배달|감사|안녕|사장|고객|카톡|문자)$/;
 
@@ -8166,6 +8166,13 @@ function mkpMatchProduct(token, products){
   const rev=products.filter(p=>t.includes(mkpNorm(p.name)));
   if(rev.length===1) return rev[0];
   if(contains.length>1) return contains.sort((a,b)=>mkpNorm(b.name).length-mkpNorm(a.name).length)[0];
+  // 부분 순서(subsequence) 매칭: "허니치즈"→"허니리얼치즈" (글자가 순서대로 다 들어있으면)
+  if(t.length>=2){
+    const isSub=(s,l)=>{ let i=0; for(const c of l){ if(c===s[i]) i++; if(i>=s.length) break; } return i>=s.length; };
+    const sub=products.filter(p=>isSub(t, mkpNorm(p.name)));
+    if(sub.length===1) return sub[0];
+    if(sub.length>1) return sub.sort((a,b)=>mkpNorm(a.name).length-mkpNorm(b.name).length)[0];
+  }
   return null;
 }
 
@@ -8178,7 +8185,7 @@ function mkpAddressScore(line, products){
   if(/[가-힣]{2,}시(\s|$)/.test(l)) s+=2;
   if(/[가-힣]{2,}[구군](\s|$)/.test(l)) s+=3;
   if(/[가-힣]{2,}[읍면리](\s|$)/.test(l)) s+=2;
-  if(/[가-힣]{2,}[로길]\s*\d/.test(l)) s+=3;
+  if(/[가-힣]{2,}\d*\s*[로길]\s*\d/.test(l)) s+=3;
   if(/[가-힣]{2,}동(\s|$|\d)/.test(l)) s+=2;
   if(/\d+\s*동\s*\d+\s*호|\d+호/.test(l)) s+=2;
   if(/아파트|빌라|오피스텔|타워|단지/.test(l)) s+=2;
@@ -8370,18 +8377,26 @@ function mkpParseSingle(text, products, base){
   };
 }
 
-/* 여러 건이 한 번에 붙여넣어진 경우 전화번호 기준으로 분리 */
+/* 여러 건이 한 번에 붙여넣어진 경우 주문별로 분리
+   우선순위: ① 빈 줄 구분 ② '주문자' 등 시작 표시 ③ 전화번호로 끝나는 블록(폴백) */
 function mkpSplitBlocks(text){
-  const lines=text.split('\n');
-  const blocks=[]; let cur=[]; let curHasPhone=false;
-  for(const line of lines){
-    const hasPhone=MKP_PHONE_RE.test(line);
-    if(hasPhone && curHasPhone){ blocks.push(cur.join('\n')); cur=[line]; continue; }
-    if(hasPhone) curHasPhone=true;
-    cur.push(line);
+  const phoneCount=(text.match(new RegExp(MKP_PHONE_RE.source,'g'))||[]).length;
+  // ① 빈 줄로 분리 — 각 조각에 전화가 있으면 채택
+  let parts=text.split(/\n\s*\n+/).map(s=>s.trim()).filter(Boolean);
+  let wp=parts.filter(p=>MKP_PHONE_RE.test(p));
+  if(parts.length>1 && wp.length>=2 && wp.length>=phoneCount-1) return wp;
+  // ② '주문자/주문/받는사람' 등 주문 시작 표시로 분리
+  if(/(^|\n)\s*[-•]?\s*(주문자|주문\s*:|받는\s*사람|성함)/.test(text)){
+    let bym=text.split(/\n(?=\s*[-•]?\s*(?:주문자|받는\s*사람|성함))/).map(s=>s.trim()).filter(Boolean);
+    let wm=bym.filter(p=>MKP_PHONE_RE.test(p));
+    if(wm.length>=2) return wm;
   }
+  // ③ 폴백: 전화번호로 끝나는 블록 (전화가 각 주문 끝에 오는 경우)
+  const lines=text.split('\n'); const blocks=[]; let cur=[];
+  for(const line of lines){ cur.push(line); if(MKP_PHONE_RE.test(line)){ blocks.push(cur.join('\n')); cur=[]; } }
   if(cur.length) blocks.push(cur.join('\n'));
-  return blocks.map(b=>b.trim()).filter(b=>b && MKP_PHONE_RE.test(b));
+  const bp=blocks.map(b=>b.trim()).filter(b=>b && MKP_PHONE_RE.test(b));
+  return bp.length?bp:[text];
 }
 
 function mkpParseOrders(text, products, base){
