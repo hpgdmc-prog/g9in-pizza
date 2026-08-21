@@ -1458,6 +1458,7 @@ img{max-width:100%;height:auto;}
             <select id="mk-order-delstatus-filter" onchange="renderMilkitOrders()">
               <option value="">전체</option><option value="준비중">준비중</option>
               <option value="배송중">배송중</option><option value="배송완료">배송완료</option>
+              <option value="반품">반품</option>
             </select>
           </div>
           <div class="f-field">
@@ -1511,6 +1512,7 @@ img{max-width:100%;height:auto;}
               <option value="deliveryStatus:준비중">준비중</option>
               <option value="deliveryStatus:배송중">배송중</option>
               <option value="deliveryStatus:배송완료">배송완료</option>
+              <option value="deliveryStatus:반품">반품</option>
             </optgroup>
             <optgroup label="💳 결제상태">
               <option value="payStatus:완료">결제완료</option>
@@ -1594,7 +1596,7 @@ img{max-width:100%;height:auto;}
     <!-- 판매 현황 -->
     <!-- 재고 관리 -->
     <div id="mk-pane-inventory" style="display:none;">
-      <div style="font-size:12px;color:var(--sub);margin-bottom:16px;line-height:1.6;">만들어 놓은 <b>생산 수량</b>에서 주문 배송이 나간 <b>출고 수량</b>을 빼서 현재 재고를 계산합니다. 출고는 배송상태가 <b>배송중·배송완료</b>인 주문에서 자동으로 집계되므로, 생산한 수량만 등록하면 됩니다.</div>
+      <div style="font-size:12px;color:var(--sub);margin-bottom:16px;line-height:1.6;">만들어 놓은 <b>생산 수량</b>에서 주문 배송이 나간 <b>출고 수량</b>을 빼서 현재 재고를 계산합니다. 출고는 배송상태가 <b>배송중·배송완료</b>인 주문에서 자동 집계되고, 주문을 <b>반품</b>으로 바꾸면 재고가 자동으로 복구됩니다. 아래 <b>재고 이동 이력</b>에서 언제 누구에게 판매·반품됐는지까지 모든 이동을 볼 수 있어요.</div>
       <div class="stat-grid" id="mk-inv-stats" style="margin-bottom:20px;"></div>
       <div class="page-hdr" style="border-bottom:none;margin-bottom:10px;padding-bottom:0;">
         <h3 style="font-size:14px;">상품별 재고 현황</h3>
@@ -1612,8 +1614,16 @@ img{max-width:100%;height:auto;}
           <tbody id="mk-inv-rows"></tbody>
         </table>
       </div>
-      <div class="page-hdr" style="border-bottom:none;margin-bottom:10px;padding-bottom:0;">
-        <h3 style="font-size:14px;">생산 · 폐기 이력</h3>
+      <div class="page-hdr" style="border-bottom:none;margin-bottom:6px;padding-bottom:0;">
+        <h3 style="font-size:14px;">재고 이동 이력</h3>
+        <span style="font-size:11.5px;color:var(--sub2);">생산 · 판매 · 반품 · 폐기 모든 이동</span>
+      </div>
+      <div class="f-quick" id="mk-ledger-filter" style="margin:0 0 10px;">
+        <button type="button" class="f-chip on" data-lt="" onclick="setMkLedgerFilter('')">전체</button>
+        <button type="button" class="f-chip" data-lt="생산" onclick="setMkLedgerFilter('생산')">🏭 생산</button>
+        <button type="button" class="f-chip" data-lt="판매" onclick="setMkLedgerFilter('판매')">🚚 판매</button>
+        <button type="button" class="f-chip" data-lt="반품" onclick="setMkLedgerFilter('반품')">↩️ 반품</button>
+        <button type="button" class="f-chip" data-lt="폐기" onclick="setMkLedgerFilter('폐기')">🗑️ 폐기</button>
       </div>
       <div id="mk-prod-list"></div>
     </div>
@@ -2586,6 +2596,7 @@ img{max-width:100%;height:auto;}
               <option value="준비중">준비중</option>
               <option value="배송중">배송중</option>
               <option value="배송완료">배송완료</option>
+              <option value="반품">반품 (재고 복구)</option>
             </select>
           </div>
         </div>
@@ -6085,6 +6096,7 @@ function mkStampShip(o){
   if(!o) return;
   const st=o.deliveryStatus||'준비중';
   if((st==='배송중'||st==='배송완료') && !o.shippedDate) o.shippedDate = todayStr();
+  if(st==='반품' && !o.returnedDate) o.returnedDate = todayStr();   // 반품 처리일 기록(재고 이동 이력용)
 }
 // 📮 주문 카드용 발송일 표시 — 기록이 있으면 그 날짜, 없으면 주문일 기준 추정
 function mkShipDisplay(o){
@@ -6162,8 +6174,8 @@ function renderMilkitOrders(){
   }
   const payBadge={'완료':'badge-green','대기':'badge-orange'};
   const payBadgeTxt={'완료':'💳 결제완료','대기':'💳 미납'};
-  const delBadge={'배송완료':'badge-green','배송중':'badge-blue','준비중':'badge-orange'};
-  const delBadgeTxt={'배송완료':'🚚 배송완료','배송중':'🚚 배송중','준비중':'🚚 배송준비중'};
+  const delBadge={'배송완료':'badge-green','배송중':'badge-blue','준비중':'badge-orange','반품':'badge-red'};
+  const delBadgeTxt={'배송완료':'🚚 배송완료','배송중':'🚚 배송중','준비중':'🚚 배송준비중','반품':'↩️ 반품'};
   const sort=document.getElementById('mk-order-sort')?.value||'noDesc';
   const reorderable = (sort==='noDesc'||sort==='noAsc') && !mkSelectMode;   // 선택 모드에서는 드래그 대신 탭 선택
   el.className='mlist'+(mkSelectMode?' select-mode':'');
@@ -7557,6 +7569,7 @@ function commitMilkitOrder(obj){
     const old=milkitOrders[idx];
     shipNow = obj.deliveryStatus==='배송중' && (!old || old.deliveryStatus!=='배송중');
     if(old && old.shippedDate && !obj.shippedDate) obj.shippedDate = old.shippedDate; // 기존 발송일 보존
+    if(old && old.returnedDate && !obj.returnedDate) obj.returnedDate = old.returnedDate; // 기존 반품일 보존
     mkStampShip(obj);
     milkitOrders[idx]=obj;
   }
@@ -9147,49 +9160,96 @@ function mkProdDelta(r){
   const q=Number(r.qty)||0;
   return r.type==='폐기' ? -Math.abs(q) : q;   // 폐기는 감소, 생산/조정은 부호 그대로
 }
+/* 재고 이동 이력 — 생산·폐기·조정(수동 기록) + 판매(출고)·반품(주문)까지 모든 이동을 한 줄기로 모은다.
+   판매/반품은 주문에서 파생: 배송중·배송완료는 '판매(−)', 반품은 '판매(−)' 후 '반품(+)'으로 표시(재고는 자동 복구). */
+let mkLedgerFilter='';
+function setMkLedgerFilter(t){
+  mkLedgerFilter=t;
+  document.querySelectorAll('#mk-ledger-filter .f-chip').forEach(c=>c.classList.toggle('on',(c.dataset.lt||'')===t));
+  renderMkProductionList();
+}
+function mkStockLedger(){
+  const ev=[];
+  // 1) 수동 기록: 생산 / 폐기 / 조정
+  milkitProduction.forEach(r=>{
+    const type = r.type==='폐기' ? '폐기' : (r.type==='조정' ? '조정' : '생산');
+    const note = r.note || ((r.type==='조정' && r.counted!=null) ? `실사 ${comma(r.counted)}개로 맞춤` : '');
+    ev.push({date:r.date||'', type, productId:r.productId, qty:mkProdDelta(r), party:'', note, prodId:r.id});
+  });
+  // 2) 주문에서 파생: 판매(출고) · 반품
+  milkitOrders.forEach(o=>{
+    const st=o.deliveryStatus||'준비중';
+    const shipped = MK_SHIPPED_STATES.includes(st);
+    const returned = (st==='반품');
+    if(!shipped && !returned) return;
+    const party = (o.recipient && o.recipient!==o.customer) ? o.recipient : (o.customer||'(이름없음)');
+    milkitProducts.forEach(p=>{
+      const q=mkEffQty(o,p.id); if(q<=0) return;
+      ev.push({date:o.shippedDate||o.orderDate||'', type:'판매', productId:p.id, qty:-q, party, note:o.promo?'🎁 무료 발송':'', orderId:o.id, orderNo:o.no});
+      if(returned) ev.push({date:o.returnedDate||todayStr(), type:'반품', productId:p.id, qty:q, party, note:'', orderId:o.id, orderNo:o.no});
+    });
+  });
+  return ev;
+}
+const MK_LEDGER_META={
+  '생산':{cls:'badge-green', txt:'🏭 생산'},
+  '판매':{cls:'badge-blue',  txt:'🚚 판매'},
+  '반품':{cls:'badge-orange',txt:'↩️ 반품'},
+  '폐기':{cls:'badge-red',   txt:'🗑️ 폐기'},
+  '조정':{cls:'badge-gray',  txt:'🔧 실사 맞춤'}
+};
 function renderMkProductionList(){
   const el=document.getElementById('mk-prod-list');
-  const list=[...milkitProduction].sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.id>a.id?1:-1));
+  let list=mkStockLedger();
+  if(mkLedgerFilter) list=list.filter(e=>e.type===mkLedgerFilter);
+  // 최신 날짜 위로 (같은 날은 출고/반품 → 생산 순 유지 위해 안정 정렬)
+  list.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
   if(!list.length){
-    el.innerHTML=`<div class="empty-state"><div class="empty-icon">📦</div><p>생산 기록이 없습니다</p><p style="font-size:12px;color:var(--sub2);">"+ 생산 등록"으로 만들어 놓은 수량을 기록하세요</p></div>`;
+    el.innerHTML=`<div class="empty-state"><div class="empty-icon">📦</div><p>${mkLedgerFilter?'해당 이동 기록이 없습니다':'재고 이동 기록이 없습니다'}</p><p style="font-size:12px;color:var(--sub2);">"+ 생산 등록"으로 만든 수량을 기록하거나, 주문을 배송하면 판매·반품이 여기에 쌓입니다</p></div>`;
     return;
   }
-  // 날짜별로 묶어서 표시 (몇월 며칠에 무엇을 얼마나 만들었는지 한눈에)
   const byDate={}; const order=[];
-  list.forEach(r=>{ const d=r.date||'날짜 미상'; if(!byDate[d]){ byDate[d]=[]; order.push(d); } byDate[d].push(r); });
+  list.forEach(e=>{ const d=e.date||'날짜 미상'; if(!byDate[d]){ byDate[d]=[]; order.push(d); } byDate[d].push(e); });
   const wd=['일','월','화','수','목','금','토'];
-  const rowHtml=r=>{
-    const p=milkitProducts.find(x=>x.id===r.productId);
-    const typeBadge = r.type==='폐기' ? `<span class="badge badge-red">🗑️ 폐기</span>`
-      : (r.type==='조정' ? `<span class="badge badge-blue">🔧 실사 맞춤</span>` : `<span class="badge badge-green">🏭 생산</span>`);
-    const delta=mkProdDelta(r); const sign=delta<0?'−':'+';
-    const adjInfo = (r.type==='조정' && r.counted!=null) ? `<div class="mrow-meta">실사 ${comma(r.counted)}개로 맞춤</div>` : '';
+  const rowHtml=e=>{
+    const p=milkitProducts.find(x=>x.id===e.productId);
+    const meta=MK_LEDGER_META[e.type]||MK_LEDGER_META['생산'];
+    const sign=e.qty<0?'−':'+';
+    let partyLine='';
+    if(e.type==='판매') partyLine=`<div class="mrow-meta">→ ${e.party}님에게${e.orderNo?` · No.${e.orderNo}`:''}</div>`;
+    else if(e.type==='반품') partyLine=`<div class="mrow-meta">← ${e.party}님 반품${e.orderNo?` · No.${e.orderNo}`:''}</div>`;
+    const onclick = e.prodId ? `mrowClick(this,'openMkProductionModal','${e.prodId}')`
+                             : (e.orderId ? `mrowClick(this,'openMilkitOrderModal','${e.orderId}')` : '');
+    const delBtn = e.prodId ? `<button class="mrow-del" onclick="event.stopPropagation();deleteMkProduction('${e.prodId}')">삭제</button>` : '';
     return `<div class="mrow">
-      <button class="mrow-del" onclick="event.stopPropagation();deleteMkProduction('${r.id}')">삭제</button>
-      <div class="mrow-inner" onclick="mrowClick(this,'openMkProductionModal','${r.id}')">
+      ${delBtn}
+      <div class="mrow-inner" ${onclick?`onclick="${onclick}"`:''} style="cursor:${onclick?'pointer':'default'};">
         <div class="mrow-main">
-          <b>${p?p.name:'(삭제된 상품)'}</b> ${typeBadge}
-          ${adjInfo}
-          ${r.note?`<div class="mrow-meta">${r.note}</div>`:''}
+          <b>${p?p.name:'(삭제된 상품)'}</b> <span class="badge ${meta.cls}">${meta.txt}</span>
+          ${partyLine}
+          ${e.note?`<div class="mrow-meta">${e.note}</div>`:''}
         </div>
-        <div class="mrow-side"><b style="color:${delta<0?'#b23':'inherit'};">${sign}${comma(Math.abs(delta))}</b>개</div>
+        <div class="mrow-side"><b style="color:${e.qty<0?'#b23':'var(--green)'};">${sign}${comma(Math.abs(e.qty))}</b>개</div>
       </div>
     </div>`;
   };
   el.innerHTML=order.map(d=>{
     const recs=byDate[d];
-    const dayTotal=recs.reduce((s,r)=>s+mkProdDelta(r),0);
-    const made=recs.filter(r=>r.type!=='폐기').reduce((s,r)=>s+(Number(r.qty)||0),0);
+    const net=recs.reduce((s,e)=>s+e.qty,0);
+    const sold=recs.filter(e=>e.type==='판매').reduce((s,e)=>s+Math.abs(e.qty),0);
+    const made=recs.filter(e=>e.type==='생산').reduce((s,e)=>s+e.qty,0);
+    const parts=[];
+    if(made) parts.push(`생산 +${comma(made)}`);
+    if(sold) parts.push(`판매 −${comma(sold)}`);
     let label=d;
     const m=d.match(/^(\d{4})-(\d{2})-(\d{2})$/);
     if(m){ const dt=new Date(+m[1],+m[2]-1,+m[3]); label=`${+m[2]}월 ${+m[3]}일 (${wd[dt.getDay()]})`; }
     return `<div class="mk-prod-date-hd">
         <span>📅 ${label}</span>
-        <span class="mk-prod-date-sum">생산 ${comma(made)}개 · 순증감 ${dayTotal<0?'−':'+'}${comma(Math.abs(dayTotal))}개</span>
+        <span class="mk-prod-date-sum">${parts.join(' · ')}${parts.length?' · ':''}순증감 ${net<0?'−':'+'}${comma(Math.abs(net))}개</span>
       </div>
       <div class="mlist" style="margin-bottom:12px;">${recs.map(rowHtml).join('')}</div>`;
   }).join('');
-  attachSwipe('mk-prod-list');
 }
 
 function renderMkProdQtyRows(){
