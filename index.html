@@ -9042,12 +9042,16 @@ function computeMilkitInventoryAsOf(D){
     const produced=evs.filter(e=>e.type==='생산'||e.type==='조정'||e.type==='폐기').reduce((s,e)=>s+e.qty,0);
     const stock=evs.reduce((s,e)=>s+e.qty,0);          // 그날까지 모든 이동 합계
     const shipped=produced-stock;                       // 순 출고(판매−반품) = 생산−현재고
-    // 그날 시점 출고대기: 주문됐고(주문일≤D) 아직 발송 전(발송일 없음 또는 D 이후)
+    // 그날 시점 출고대기: 주문됐고(주문일≤D) 그날까지 아직 발송 안 된 수량
+    // 출고 판단은 출고 집계(ledger)와 동일한 기준 사용 — 발송일 없으면 주문일로 대체(엑셀 가져온 배송완료 주문 중복 방지)
     const pending=milkitOrders.reduce((s,o)=>{
       const q=mkEffQty(o,p.id); if(q<=0) return s;
-      if(!o.orderDate || o.orderDate>D) return s;
-      if(o.shippedDate && o.shippedDate<=D) return s;
-      return s+q;
+      if(!o.orderDate || o.orderDate>D) return s;              // 아직 주문 전
+      const st=o.deliveryStatus||'준비중';
+      const everShipped = MK_SHIPPED_STATES.includes(st) || st==='반품';  // 발송된 적 있는 주문
+      const shipDate = o.shippedDate || o.orderDate;           // 발송일 없으면 주문일 기준
+      if(everShipped && shipDate<=D) return s;                 // D까지 이미 발송됨 → 대기 아님
+      return s+q;                                              // 아직 미발송 → 출고대기
     },0);
     const available=stock-pending;
     return {product:p, produced, shipped, pending, stock, available};
