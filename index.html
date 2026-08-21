@@ -1474,9 +1474,14 @@ img{max-width:100%;height:auto;}
           </div>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:12px;flex-wrap:wrap;">
-          <label style="font-size:12.5px;color:var(--sub);display:flex;align-items:center;gap:6px;cursor:pointer;">
-            <input type="checkbox" id="mk-order-hidedone" onchange="mkToggleHideDone(this)"> 배송완료 숨기기
-          </label>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <label style="font-size:12.5px;color:var(--sub);display:flex;align-items:center;gap:6px;cursor:pointer;">
+              <input type="checkbox" id="mk-order-shiptoday" onchange="mkToggleShipToday(this)"> 📦 오늘 발송 예정만 <span style="color:var(--sub2);">(희망일 도래·미발송)</span>
+            </label>
+            <label style="font-size:12.5px;color:var(--sub);display:flex;align-items:center;gap:6px;cursor:pointer;">
+              <input type="checkbox" id="mk-order-hidedone" onchange="mkToggleHideDone(this)"> 🚚 배송완료 숨기기
+            </label>
+          </div>
           <button class="btn btn-out btn-sm" onclick="resetMkOrderFilters()">필터 초기화</button>
         </div>
       </div>
@@ -1487,7 +1492,6 @@ img{max-width:100%;height:auto;}
       </select>
       <div class="f-summary" id="mk-order-filter-summary"></div>
       <div id="mko-seltools" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;justify-content:space-between;">
-        <button type="button" class="btn btn-out btn-sm mk-hidedone-mini" id="mk-order-shiptoday-btn" onclick="mkToggleShipToday()" title="오늘 발송해야 하는 주문만 보기">📦 오늘 발송</button>
         <button type="button" class="btn btn-out btn-sm mk-hidedone-mini" id="mk-order-hidedone-btn" onclick="mkQuickToggleHideDone()" title="배송완료 주문 숨기기/보이기">🚚 배송완료 숨김</button>
         <button class="btn btn-out btn-sm" id="mk-select-enter" onclick="mkSetSelectMode(true)">☑️ 선택</button>
         <label id="mk-selall-wrap" style="display:none;font-size:13px;color:var(--sub);align-items:center;gap:7px;cursor:pointer;">
@@ -5821,21 +5825,21 @@ function mkSyncHideDoneBtn(){
   const btn=document.getElementById('mk-order-hidedone-btn');
   if(btn){ btn.classList.toggle('is-on', on); btn.textContent = on ? '🚚 배송완료 숨김 ✓' : '🚚 배송완료 숨김'; }
 }
-/* 오늘 발송 예정 주문만 보기 — 준비중(미발송)이면서 배송이 나가야 하고 발송 권장일이 오늘/지난 주문 */
+/* 오늘 발송 예정 주문만 보기 — 준비중(미발송)·배송건·희망수령일이 설정돼 있고 발송 권장일(희망일 하루 전)이 오늘 이하(오늘/지연) */
 let mkShipTodayOnly=false;
 function mkIsShipToday(o){
   if((o.deliveryStatus||'준비중')!=='준비중') return false;          // 이미 발송/완료면 제외
   if(!(o.deliveryMethod==='택배발송'||o.deliveryMethod==='직접배송')) return false; // 배송 나가는 건만
-  return mkLogenShipToday(o);                                        // 발송 권장일 ≤ 오늘
+  if(!o.desiredDate) return false;                                   // 희망일 없는 건은 제외
+  const recv=new Date(o.desiredDate+'T00:00:00'); if(isNaN(recv)) return false;
+  const ship=new Date(recv); ship.setDate(ship.getDate()-1);         // 발송 권장일 = 희망일 하루 전
+  const today=new Date(); today.setHours(0,0,0,0);
+  return ship<=today;                                                // 오늘 발송해야 하거나 지난 것
 }
-function mkToggleShipToday(){
-  mkShipTodayOnly=!mkShipTodayOnly;
-  mkSyncShipTodayBtn();
+function mkToggleShipToday(el){
+  mkShipTodayOnly=!!(el?el.checked:!mkShipTodayOnly);
+  const chk=document.getElementById('mk-order-shiptoday'); if(chk) chk.checked=mkShipTodayOnly;
   renderMilkitOrders();
-}
-function mkSyncShipTodayBtn(){
-  const btn=document.getElementById('mk-order-shiptoday-btn');
-  if(btn){ btn.classList.toggle('is-on', mkShipTodayOnly); btn.textContent = mkShipTodayOnly ? '📦 오늘 발송 ✓' : '📦 오늘 발송'; }
 }
 function mkRestoreHideDone(){
   const el=document.getElementById('mk-order-hidedone');
@@ -5959,7 +5963,7 @@ function resetMkOrderFilters(){
   const sort=document.getElementById('mk-order-sort'); if(sort) sort.value='noDesc';
   const hd=document.getElementById('mk-order-hidedone'); if(hd){ hd.checked=false; try{localStorage.setItem('jgp_mkHideDone','0');}catch(_){} }
   const box=document.getElementById('mk-order-custom-range'); if(box) box.style.display='none';
-  mkShipTodayOnly=false; mkSyncShipTodayBtn();
+  mkShipTodayOnly=false; const st=document.getElementById('mk-order-shiptoday'); if(st) st.checked=false;
   renderMilkitOrders();
 }
 
