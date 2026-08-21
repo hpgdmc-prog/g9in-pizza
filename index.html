@@ -170,6 +170,8 @@ h1,h2,h3,h4{font-family:var(--sans);letter-spacing:-.01em;}
 .stlc-sub{display:flex;flex-wrap:wrap;gap:3px 12px;font-size:12px;color:var(--sub);margin-top:7px;}
 .stlc-sub b{color:var(--text);font-weight:600;}
 .stlc-sub .stlc-order b{color:var(--acc-dark);}
+.mk-day-detail summary::-webkit-details-marker{display:none;}
+.mk-day-detail[open] summary{border-bottom:1px solid var(--border);}
 #mk-pane-orders{position:relative;border-radius:var(--r-lg);transition:background .15s;}
 #mk-pane-orders.mk-drop-active{background:var(--acc-pale);outline:2px dashed var(--acc);outline-offset:-2px;}
 #mk-pane-orders.mk-drop-active::after{content:'📥 여기에 엑셀 파일을 놓으세요';position:fixed;inset:0;z-index:150;display:flex;align-items:center;justify-content:center;background:rgba(217,79,43,.08);color:var(--acc-dark);font-size:20px;font-weight:700;pointer-events:none;}
@@ -1600,7 +1602,9 @@ img{max-width:100%;height:auto;}
       <div class="stat-grid" id="mk-inv-stats" style="margin-bottom:16px;"></div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px;">
         <label style="font-size:12.5px;color:var(--sub);font-weight:600;">📅 특정 날짜 기준 재고</label>
+        <button class="btn btn-out btn-sm" style="min-width:34px;" onclick="mkInvShiftDay(-1)" title="전날">◀</button>
         <input type="date" id="mk-inv-asof" onchange="renderMilkitInventory()" style="padding:8px 10px;border:1px solid var(--border);border-radius:var(--r-sm);font-family:inherit;font-size:13px;background:#fff;color:var(--text);">
+        <button class="btn btn-out btn-sm" style="min-width:34px;" onclick="mkInvShiftDay(1)" title="다음날">▶</button>
         <button class="btn btn-out btn-sm" onclick="var e=document.getElementById('mk-inv-asof');e.value='';renderMilkitInventory();">오늘(현재고)로</button>
       </div>
       <div id="mk-inv-asof-result" style="display:none;margin-bottom:20px;"></div>
@@ -9209,13 +9213,55 @@ function mkProdDelta(r){
   return r.type==='폐기' ? -Math.abs(q) : q;   // 폐기는 감소, 생산/조정은 부호 그대로
 }
 /* 특정 날짜(그날 영업 마감 시점) 기준으로 상품별 남아있던 재고 = 그 날짜까지의 모든 이동 합계 */
-function mkStockAsOf(dateStr){
+/* 날짜 문자열(YYYY-MM-DD)을 days 만큼 이동 */
+function mkShiftDate(dstr, days){
+  const m=String(dstr||'').match(/^(\d{4})-(\d{2})-(\d{2})$/); if(!m) return dstr;
+  const dt=new Date(+m[1],+m[2]-1,+m[3]); dt.setDate(dt.getDate()+days);
+  const p=n=>String(n).padStart(2,'0');
+  return dt.getFullYear()+'-'+p(dt.getMonth()+1)+'-'+p(dt.getDate());
+}
+/* 날짜 조회 전날/다음날 이동 */
+function mkInvShiftDay(delta){
+  const el=document.getElementById('mk-inv-asof'); if(!el) return;
+  el.value=mkShiftDate(el.value||todayStr(), delta);
+  renderMilkitInventory();
+}
+/* 특정 날짜(D)의 '하루 흐름' — 전날재고 + 당일생산 − 당일출고 = 현재고 */
+function computeMilkitDayFlow(D){
+  const prevInv=computeMilkitInventoryAsOf(mkShiftDate(D,-1));
+  const todayInv=computeMilkitInventoryAsOf(D);
   const led=mkStockLedger();
-  return milkitProducts.filter(p=>!p.noStock && !p.hidden).map(p=>{
-    const qty=led.filter(e=>e.productId===p.id && e.date && e.date<=dateStr)
-                 .reduce((s,e)=>s+e.qty,0);
-    return {product:p, qty};
+  const prevMap={}; prevInv.forEach(r=>prevMap[r.product.id]=r.stock);
+  return todayInv.map(r=>{
+    const pid=r.product.id;
+    const evs=led.filter(e=>e.productId===pid && e.date===D);
+    const dayProduced=evs.filter(e=>e.type==='생산'||e.type==='조정'||e.type==='폐기').reduce((s,e)=>s+e.qty,0);
+    const shipDelta=evs.filter(e=>e.type==='판매'||e.type==='반품').reduce((s,e)=>s+e.qty,0); // 판매(−)+반품(+)
+    return {product:r.product, prevStock:(prevMap[pid]||0), dayProduced, dayShipped:-shipDelta,
+            stock:r.stock, pending:r.pending, available:r.available};
   });
+}
+/* 특정 날짜 하루의 상세 내역(생산·판매·반품·폐기) HTML — 접이식으로 표시 */
+function mkDayDetailHtml(D){
+  const led=mkStockLedger().filter(e=>e.date===D);
+  const nameOf=id=>{ const p=milkitProducts.find(x=>x.id===id); return p?p.name:'(삭제된 상품)'; };
+  const sec=(title, items)=> items.length ? `<div style="margin:8px 0 2px;font-size:12px;font-weight:700;color:var(--text);">${title}</div>`+
+    items.map(t=>`<div style="font-size:12.5px;color:var(--sub);padding:2px 0 2px 6px;">${t}</div>`).join('') : '';
+  // 생산(생산/조정/폐기) — 상품별
+  const prodEvs=led.filter(e=>e.type==='생산'||e.type==='조정'||e.type==='폐기');
+  const prodItems=prodEvs.map(e=>{
+    const tag=e.type==='폐기'?'🗑️ 폐기':(e.type==='조정'?'🔧 실사맞춤':'🏭 생산');
+    return `${nameOf(e.productId)} <b style="color:${e.qty<0?'#b23':'var(--green)'};">${e.qty<0?'−':'+'}${comma(Math.abs(e.qty))}</b> <span style="color:var(--sub2);">${tag}${e.note?' · '+e.note:''}</span>`;
+  });
+  // 판매 — 상품별·주문별
+  const saleItems=led.filter(e=>e.type==='판매').map(e=>
+    `${nameOf(e.productId)} <b style="color:#b23;">−${comma(Math.abs(e.qty))}</b> <span style="color:var(--sub2);">→ ${e.party||''}${e.orderNo?' · No.'+e.orderNo:''}</span>`);
+  // 반품
+  const retItems=led.filter(e=>e.type==='반품').map(e=>
+    `${nameOf(e.productId)} <b style="color:var(--green);">+${comma(Math.abs(e.qty))}</b> <span style="color:var(--sub2);">← ${e.party||''}${e.orderNo?' · No.'+e.orderNo:''} 반품</span>`);
+  const body = (sec('🏭 생산·조정·폐기', prodItems)+sec('🚚 판매(출고)', saleItems)+sec('↩️ 반품', retItems))
+    || `<div style="font-size:12.5px;color:var(--sub2);padding:4px 0;">이 날은 재고 이동이 없었습니다.</div>`;
+  return body;
 }
 function renderMkInvAsOf(){
   const box=document.getElementById('mk-inv-asof-result');
@@ -9232,46 +9278,46 @@ function renderMkInvAsOf(){
   if(!d){ box.style.display='none'; box.innerHTML=''; return; }
   const m=d.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   const label=m?`${+m[2]}월 ${+m[3]}일 (${wd[new Date(+m[1],+m[2]-1,+m[3]).getDay()]})`:d;
-  const inv=computeMilkitInventoryAsOf(d);
-  const tot=inv.reduce((s,r)=>s+r.stock,0);
+  const flow=computeMilkitDayFlow(d);
+  const tot=flow.reduce((s,r)=>s+r.stock,0);
+  const totMade=flow.reduce((s,r)=>s+Math.max(r.dayProduced,0),0);
+  const totOut=flow.reduce((s,r)=>s+Math.max(r.dayShipped,0),0);
   const future = d>todayStr();
-  // 선택한 날짜 당일의 이동 요약 (판매가 실제로 빠졌는지 한눈에 보이도록)
-  const dayEv=mkStockLedger().filter(e=>e.date===d);
-  const sumBy=t=>dayEv.filter(e=>e.type===t).reduce((s,e)=>s+Math.abs(e.qty),0);
-  const made=sumBy('생산'), sold=sumBy('판매'), ret=sumBy('반품'), disc=sumBy('폐기');
-  const dayNet=dayEv.reduce((s,e)=>s+e.qty,0);
-  const chips=[];
-  if(made) chips.push(`생산 +${comma(made)}`);
-  if(sold) chips.push(`판매 −${comma(sold)}`);
-  if(ret)  chips.push(`반품 +${comma(ret)}`);
-  if(disc) chips.push(`폐기 −${comma(disc)}`);
-  const dayLine = chips.length
-    ? `<div style="padding:8px 12px;font-size:12px;color:var(--sub);background:var(--bg2);border-top:1px solid var(--border);">📆 이 날 하루 이동: ${chips.join(' · ')} <b style="color:var(--text);">→ 순증감 ${dayNet<0?'−':'+'}${comma(Math.abs(dayNet))}개</b></div>`
-    : `<div style="padding:8px 12px;font-size:12px;color:var(--sub2);background:var(--bg2);border-top:1px solid var(--border);">📆 이 날은 재고 이동이 없었습니다.</div>`;
-  const rowsHtml=inv.map(r=>`<tr>
+  const num=(v,extra='')=>`<td style="text-align:right;${extra}">${comma(v)}</td>`;
+  const rowsHtml=flow.map(r=>`<tr>
       <td>${r.product.name}</td>
-      <td style="text-align:right;">${comma(r.produced)}</td>
-      <td style="text-align:right;">${comma(r.shipped)}</td>
+      <td style="text-align:right;color:var(--sub2);">${comma(r.prevStock)}</td>
+      <td style="text-align:right;color:${r.dayProduced>0?'var(--green)':(r.dayProduced<0?'#b23':'var(--sub2)')};">${r.dayProduced>0?'+':''}${comma(r.dayProduced)}</td>
+      <td style="text-align:right;color:${r.dayShipped>0?'#b23':'var(--sub2)'};">${r.dayShipped>0?'−'+comma(r.dayShipped):'0'}</td>
       <td style="text-align:right;font-weight:700;">${comma(r.stock)}</td>
       <td style="text-align:right;">${comma(r.pending)}</td>
       <td style="text-align:right;color:${r.available<0?'#b23':'inherit'};">${comma(r.available)}</td>
       <td>${mkInvBadge(r)}</td>
-    </tr>`).join('') || `<tr><td colspan="7" style="text-align:center;color:var(--sub2);padding:14px;">상품이 없습니다.</td></tr>`;
+    </tr>`).join('') || `<tr><td colspan="8" style="text-align:center;color:var(--sub2);padding:14px;">상품이 없습니다.</td></tr>`;
   box.style.display='';
   box.innerHTML=`
     <div style="border:1px solid var(--acc);border-radius:10px;overflow:hidden;">
       <div style="background:var(--acc-pale);padding:10px 12px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
-        <b style="color:var(--acc-dark);">📅 ${label} 마감 기준 재고 현황</b>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <button class="btn btn-out btn-sm" style="min-width:34px;padding:4px 8px;" onclick="mkInvShiftDay(-1)" title="전날">◀</button>
+          <b style="color:var(--acc-dark);">📅 ${label} 마감 기준</b>
+          <button class="btn btn-out btn-sm" style="min-width:34px;padding:4px 8px;" onclick="mkInvShiftDay(1)" title="다음날">▶</button>
+        </div>
         <span style="font-size:12px;color:var(--sub);">현재고 합계 <b style="color:var(--acc-dark);">${comma(tot)}개</b></span>
       </div>
       <div class="table-wrap" style="border:none;border-radius:0;">
         <table>
-          <thead><tr><th>상품명</th><th>생산</th><th>출고</th><th>현재고</th><th>출고대기</th><th>여유</th><th>상태</th></tr></thead>
+          <thead><tr><th>상품명</th><th>전날재고</th><th>당일생산</th><th>당일출고</th><th>현재고</th><th>출고대기</th><th>여유</th><th>상태</th></tr></thead>
           <tbody>${rowsHtml}</tbody>
         </table>
       </div>
-      ${dayLine}
-      <div style="padding:8px 12px;font-size:11.5px;color:var(--sub2);background:var(--bg2);border-top:1px solid var(--border);">그 날짜까지의 생산·판매·반품·폐기를 모두 반영한 <b>그날 시점</b> 현황입니다. 판매는 <b>발송일</b> 기준으로 빠집니다.${future?' <span style="color:var(--orange);">※ 미래 날짜라 현재 예정분까지 포함됩니다.</span>':''}</div>
+      <details class="mk-day-detail">
+        <summary style="cursor:pointer;padding:9px 12px;font-size:12.5px;color:var(--acc-dark);background:var(--bg2);border-top:1px solid var(--border);list-style:none;user-select:none;">
+          🔎 이 날 상세 보기 — 생산 +${comma(totMade)} · 출고 −${comma(totOut)} <span style="color:var(--sub2);">(눌러서 펼치기)</span>
+        </summary>
+        <div style="padding:6px 14px 12px;">${mkDayDetailHtml(d)}</div>
+      </details>
+      <div style="padding:8px 12px;font-size:11.5px;color:var(--sub2);background:var(--bg2);border-top:1px solid var(--border);">전날재고 + 당일생산 − 당일출고 = 현재고. 그날까지의 모든 이동을 반영한 <b>그날 마감(자정)</b> 기준이며, 출고는 <b>발송일</b> 기준입니다.${future?' <span style="color:var(--orange);">※ 미래 날짜라 현재 예정분까지 포함됩니다.</span>':''}</div>
     </div>`;
 }
 /* 재고 이동 이력 — 생산·폐기·조정(수동 기록) + 판매(출고)·반품(주문)까지 모든 이동을 한 줄기로 모은다.
