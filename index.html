@@ -7974,12 +7974,15 @@ function mkAiOrderToBulk(o){
     if(!p) p=mkpMatchProduct(it.name||'', milkitProducts);
     if(p) products.push({id:p.id, qty:Number(it.qty)||1});
   });
-  return {customer:o.customer||'', phone:String(o.phone||'').replace(/\D/g,''), address:o.address||'', products,
+  return {customer:o.customer||'', phone:String(o.phone||'').replace(/\D/g,''),
+    recipient:o.recipient||'', recipientPhone:String(o.recipientPhone||'').replace(/\D/g,''), amount:Number(o.amount)||0,
+    address:o.address||'', products,
+    setType:o.setType||'', setQty:Number(o.setQty)||1,
     desiredDate:o.desiredDate||'', deliveryMethod:o.deliveryMethod||'', note:o.note||''};
 }
 function toMkOcrShape(r){
   return {
-    customer:r.customer, phone:r.phone, address:r.address,
+    customer:r.customer, phone:r.phone, recipient:r.recipient||'', recipientPhone:r.recipientPhone||'', amount:r.amount||0, address:r.address,
     products:r.products.map(it=>{
       const p=milkitProducts.find(x=>x.id===it.id);
       return {name:p?p.name:'', qty:it.qty};
@@ -8010,10 +8013,14 @@ function showMkBulkParseModal(){
     }).join(', ');
     const f=flags[i];
     const isDup=f.inBatch||f.existing.length>0;
+    const nameCell = (r.customer||'<span style="color:var(--sub2);">(미인식)</span>')
+      + (r.recipient?` <span style="color:var(--acc-dark);font-size:11px;">→ ${r.recipient}</span>`:'')
+      + (r.amount>0?`<div style="font-size:10.5px;color:var(--sub2);">${comma(r.amount)}원</div>`:'');
+    const phoneShown = r.recipientPhone || r.phone;
     return `<tr>
       <td><input type="checkbox" class="mk-bulkparse-chk" data-idx="${i}" ${isDup?'':'checked'}></td>
-      <td>${r.customer||'<span style="color:var(--sub2);">(미인식)</span>'}</td>
-      <td>${r.phone?formatPhone(r.phone):'<span style="color:var(--sub2);">-</span>'}</td>
+      <td>${nameCell}</td>
+      <td>${phoneShown?formatPhone(phoneShown):'<span style="color:var(--sub2);">-</span>'}</td>
       <td style="font-size:11.5px;">${r.address||'<span style="color:var(--sub2);">-</span>'}</td>
       <td style="font-size:11.5px;">${items||'<span style="color:var(--sub2);">(미인식)</span>'}</td>
       <td>${mkDupCellHtml(f)}</td>
@@ -8036,12 +8043,16 @@ function saveMkBulkParsed(){
   picked.forEach(r=>{
     const qty={};
     r.products.forEach(it=>{ qty[it.id]=(qty[it.id]||0)+(Number(it.qty)||0); });
-    const {listTotal,discount,payTotal}=mkCalcTotals(qty,'',1);
+    const st=r.setType||'', sq=r.setQty||1;
+    let {listTotal,discount,payTotal}=mkCalcTotals(qty,st,sq);
+    // 명시된 금액이 있으면 결제금액으로 반영(할인 역산)
+    if(r.amount>0){ payTotal=r.amount; discount=Math.max(0, listTotal-r.amount); }
     nextNo+=1;
     milkitOrders.push({
       id:uid(), no:nextNo, orderDate:today,
       customer:r.customer||'(미입력)', phone:r.phone||'', address:r.address||'',
-      qty, setType:'', setQty:1, listTotal, discount, payTotal,
+      recipient:r.recipient||'', recipientPhone:r.recipientPhone||'',
+      qty, setType:st, setQty:sq, listTotal, discount, payTotal,
       payMethod:'', payStatus:'대기',
       desiredDate:r.desiredDate||'', deliveryMethod:r.deliveryMethod||'택배발송',
       deliveryStatus:'준비중', tracking:'', note:r.note||''
@@ -8334,6 +8345,23 @@ function mkpParseName(text, phoneRaw){
   return '';
 }
 
+/* 라벨(주문자/받는사람 등) 뒤의 이름 추출 */
+function mkpLabelName(text, labels){
+  for(const lb of labels){
+    const re=new RegExp(lb+'\\s*(?:분|사람|인)?\\s*[:：)\\]]?\\s*([가-힣]{2,5})');
+    const m=text.match(re);
+    if(m){ const nm=mkpStripNameTail(m[1]); if(nm.length>=2 && !MKP_NAME_STOP.test(nm)) return nm; }
+  }
+  return '';
+}
+/* 명시된 금액 (예: "(39,000)" · "금액 34000원") */
+function mkpParseAmount(text){
+  let m=text.match(/[(（]\s*(\d{1,3}(?:,\d{3})+|\d{4,7})\s*원?\s*[)）]/);
+  if(m) return Number(m[1].replace(/,/g,''));
+  m=text.match(/(?:금액|합계|결제|가격|총액)\s*[:：]?\s*(\d{1,3}(?:,\d{3})+|\d{4,7})\s*원?/);
+  if(m) return Number(m[1].replace(/,/g,''));
+  return 0;
+}
 /* 주소 문자열에서 뒤에 붙은 상품·수량·배송·날짜 말꼬리 제거 */
 function mkpCleanAddress(address, products){
   if(!address) return '';
@@ -8365,9 +8393,19 @@ function mkpParseSingle(text, products, base){
     if(mm) address=mkpCleanAddress(mm[1].trim(), products);
   }
   const setType=mkpParseSet(text);
+  const digits=phoneRaw.replace(/\D/g,'');
+  const ordererName=mkpLabelName(text, ['주문자','보내는','발송자','주문인','주문하신']);
+  const recipName=mkpLabelName(text, ['받는사람','받는분','받는이','받으실','수령인','수취인','수신인']);
+  let customer, recipient='', recipientPhone='', phone='';
+  if(ordererName && recipName && ordererName!==recipName){
+    customer=ordererName; recipient=recipName; recipientPhone=digits;   // 전화는 받는사람 것
+  } else {
+    customer = ordererName || recipName || mkpParseName(text, phoneRaw);
+    phone = digits;
+  }
   return {
-    customer: mkpParseName(text, phoneRaw),
-    phone: phoneRaw.replace(/\D/g,''),
+    customer, phone, recipient, recipientPhone,
+    amount: mkpParseAmount(text),
     address,
     products: Object.entries(mkpParseProducts(text, products)).map(([id,qty])=>({id,qty})),
     setType, setQty: mkpParseSetQty(text, setType),
@@ -8409,10 +8447,12 @@ function mkOcrPromptText(){
   const productNames=milkitProducts.map(p=>p.name).join(', ');
   const setNames=milkitSetRules.map(r=>r.name).join(', ');
   return `아래 문자/카톡 주문 내용에서 주문을 추출해 JSON 배열로만 응답하세요. 주문이 여러 건이면 각각을 배열 원소로, 한 건이면 원소 1개인 배열로 반환합니다.
-형식: [{"customer":"주문자명","phone":"연락처 숫자만","address":"배송주소(도로명+동/호수+아파트/건물명까지 포함)","products":[{"name":"상품명","qty":수량}],"setType":"구성유형 또는 빈문자열","setQty":세트수량(기본1),"desiredDate":"YYYY-MM-DD 또는 빈문자열","deliveryMethod":"택배발송/직접배송/직접수령 중 하나 또는 빈문자열","note":"기타 특이사항"}]
+형식: [{"customer":"주문자명","phone":"주문자 연락처 숫자만","recipient":"받는사람(다를 때만)","recipientPhone":"받는사람 연락처 숫자만","amount":명시된결제금액숫자,"address":"배송주소(도로명+동/호수+아파트/건물명까지 포함)","products":[{"name":"상품명","qty":수량}],"setType":"구성유형 또는 빈문자열","setQty":세트수량(기본1),"desiredDate":"YYYY-MM-DD 또는 빈문자열","deliveryMethod":"택배발송/직접배송/직접수령 중 하나 또는 빈문자열","note":"기타 특이사항"}]
 - 상품명은 반드시 다음 중에서만 골라 사용(줄임말·별칭도 이 목록으로 매칭): ${productNames}
 - 구성유형은 가능하면 다음 중에서 선택: ${setNames} (해당 없으면 빈 문자열)
 - 이름·전화·주소·상품이 어떤 순서로 적혀 있어도 각각 정확히 분리하세요
+- '주문자'와 '받는사람'이 다르면 customer=주문자, recipient=받는사람, 연락처·주소는 받는사람 것으로 넣으세요. 같으면 recipient는 빈 문자열
+- 연락처는 휴대폰이 아니어도(지역번호 등) 추출하세요. amount는 (39,000) 같은 금액 표기가 있으면 숫자만
 - 확실하지 않은 값은 빈 문자열 또는 0
 - 반드시 JSON 배열만 반환하고 다른 설명 없이`;
 }
