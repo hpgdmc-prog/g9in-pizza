@@ -7254,13 +7254,18 @@ const _mkNorm=v=>String(v==null?'':v).replace(/\s/g,'').toLowerCase();
 function findMilkitDuplicates(cand, excludeId){
   const sig=mkQtySignature(cand.qty);
   const name=_mkNorm(cand.customer), addr=_mkNorm(mkFullAddr(cand));
+  const recip=_mkNorm(cand.recipient||'');
+  const ph=String(cand.recipientPhone||cand.phone||'').replace(/\D/g,'');
   const out=[];
   milkitOrders.forEach(o=>{
     if(excludeId && o.id===excludeId) return;
     const sameName = !!name && _mkNorm(o.customer)===name;
-    const sameAddr = _mkNorm(mkFullAddr(o))===addr;         // 둘 다 비어 있어도 "같음"으로 봄
+    const sameRecip = _mkNorm(o.recipient||'')===recip;                          // 받는사람 같음(둘 다 비어도 같음)
+    const samePhone = String(o.recipientPhone||o.phone||'').replace(/\D/g,'')===ph; // 연락처 같음
+    const sameAddr = _mkNorm(mkFullAddr(o))===addr;                              // 주소 같음(둘 다 비어도 같음)
     const sameItems = !!sig && mkQtySignature(o.qty)===sig;
-    if(sameName && sameAddr && sameItems) out.push({order:o, sameProducts:true, sameAddr:true});
+    // 주문자·받는사람·연락처·주소·메뉴가 모두 같을 때만 중복 (한 명이 여러 명에게 보내는 건 중복 아님)
+    if(sameName && sameRecip && samePhone && sameAddr && sameItems) out.push({order:o, sameProducts:true, sameAddr:true});
   });
   return out;
 }
@@ -7835,7 +7840,12 @@ function mkFlagDuplicates(list){
   return list.map(cand=>{
     const existing=findMilkitDuplicates(cand, null);
     const sig=mkQtySignature(cand.qty);
-    const inBatch=seen.some(s=>_mkNorm(s.customer)===_mkNorm(cand.customer) && _mkNorm(s.address)===_mkNorm(cand.address) && mkQtySignature(s.qty)===sig);
+    const cph=String(cand.recipientPhone||cand.phone||'').replace(/\D/g,'');
+    const inBatch=seen.some(s=>_mkNorm(s.customer)===_mkNorm(cand.customer)
+      && _mkNorm(s.recipient||'')===_mkNorm(cand.recipient||'')
+      && String(s.recipientPhone||s.phone||'').replace(/\D/g,'')===cph
+      && _mkNorm(mkFullAddr(s))===_mkNorm(mkFullAddr(cand))
+      && mkQtySignature(s.qty)===sig);
     seen.push(cand);
     return {existing, inBatch};
   });
@@ -7997,7 +8007,7 @@ function showMkBulkParseModal(){
   const cands=mkBulkParsed.map(r=>{
     const qty={};
     r.products.forEach(it=>{ qty[it.id]=(qty[it.id]||0)+(Number(it.qty)||0); });
-    return {customer:r.customer, phone:r.phone, qty, orderDate:todayStr()};
+    return {customer:r.customer, phone:r.phone, recipient:r.recipient||'', recipientPhone:r.recipientPhone||'', address:r.address||'', qty, orderDate:todayStr()};
   });
   const flags=mkFlagDuplicates(cands);
   const dupCount=flags.filter(f=>f.inBatch||f.existing.length).length;
