@@ -157,6 +157,19 @@ h1,h2,h3,h4{font-family:var(--sans);letter-spacing:-.01em;}
 /* table */
 .table-wrap{background:#fff;border-radius:var(--r-lg);border:1px solid var(--border);overflow:auto;}
 .mobile-scroll-hint{display:none;font-size:11px;color:var(--sub2);margin-bottom:6px;}
+/* 재고 실사 입력 — 재료별 컴팩트 카드 */
+.stlc-list{display:flex;flex-direction:column;gap:8px;}
+.stlc-card{border:1px solid var(--border);border-radius:10px;padding:10px 12px;background:#fff;}
+.stlc-card.done{border-color:var(--acc);background:var(--acc-pale);}
+.stlc-top{display:flex;align-items:center;gap:10px;justify-content:space-between;}
+.stlc-name{font-weight:700;font-size:14px;color:var(--text);word-break:keep-all;line-height:1.35;flex:1;min-width:0;}
+.stlc-inwrap{display:flex;align-items:center;gap:5px;flex-shrink:0;}
+.stlc-inwrap input{width:96px;text-align:right;padding:10px 11px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:16px;color:var(--text);background:#fff;}
+.stlc-inwrap input:focus{border-color:var(--acc);outline:none;}
+.stlc-inwrap .stlc-unit{font-size:13px;color:var(--sub2);min-width:20px;}
+.stlc-sub{display:flex;flex-wrap:wrap;gap:3px 12px;font-size:12px;color:var(--sub);margin-top:7px;}
+.stlc-sub b{color:var(--text);font-weight:600;}
+.stlc-sub .stlc-order b{color:var(--acc-dark);}
 #mk-pane-orders{position:relative;border-radius:var(--r-lg);transition:background .15s;}
 #mk-pane-orders.mk-drop-active{background:var(--acc-pale);outline:2px dashed var(--acc);outline-offset:-2px;}
 #mk-pane-orders.mk-drop-active::after{content:'📥 여기에 엑셀 파일을 놓으세요';position:fixed;inset:0;z-index:150;display:flex;align-items:center;justify-content:center;background:rgba(217,79,43,.08);color:var(--acc-dark);font-size:20px;font-weight:700;pointer-events:none;}
@@ -1232,13 +1245,7 @@ img{max-width:100%;height:auto;}
           <select id="stock-count-supplier" onchange="renderStockCountRows()" style="padding:8px 10px;border:1px solid var(--border);border-radius:var(--r-sm);font-family:inherit;font-size:13px;background:#fff;color:var(--text);min-width:130px;"></select>
           <label style="font-size:12px;color:var(--sub);display:flex;align-items:center;gap:5px;cursor:pointer;"><input type="checkbox" id="stock-count-onlymin" onchange="renderStockCountRows()"> 최소재고 설정된 것만</label>
         </div>
-        <div class="mobile-scroll-hint">💡 표가 넓으면 좌우로 스크롤하세요</div>
-        <div class="table-wrap">
-          <table class="settings-tbl" style="min-width:600px;">
-            <thead><tr><th>재료명</th><th>기록재고</th><th>그새 입고</th><th>현재고(실사)</th><th>사용량</th><th>최소</th><th>발주권장</th></tr></thead>
-            <tbody id="stock-count-rows"></tbody>
-          </table>
-        </div>
+        <div id="stock-count-rows" class="stlc-list"></div>
       </div>
       <div class="modal-footer-lg">
         <button class="btn btn-out" onclick="closeModal('stock-count-modal')">취소</button>
@@ -4827,37 +4834,52 @@ function renderStockCountRows(){
   const sinceDate=last?last.date:'';
   const rows=stockCountList();
   const tb=document.getElementById('stock-count-rows');
-  if(!rows.length){ tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--sub2);padding:16px;">해당 재료가 없습니다.</td></tr>'; return; }
+  if(!rows.length){ tb.innerHTML='<div style="text-align:center;color:var(--sub2);padding:24px;">해당 재료가 없습니다.</div>'; return; }
   tb.innerHTML=rows.map(i=>{
     const pu=i.purchaseUnit||'g';
     const recv=ingReceivedSince(i.id, sinceDate);
     const rec=Number(i.stock||0);   // 기록상 현재고
     const min=Number(i.minStock)||0;
-    return `<tr data-ing="${i.id}">
-      <td data-label="재료명">${i.name}</td>
-      <td data-label="기록재고" class="num">${comma(rec)}<small style="color:var(--sub2);">${pu}</small></td>
-      <td data-label="그새 입고" class="num" style="color:var(--sub2);">${recv?'+'+comma(recv):'-'}</td>
-      <td data-label="현재고(실사)"><input type="text" inputmode="numeric" class="stlc-in" data-ing="${i.id}" placeholder="${comma(rec)}" oninput="qtyInputFilter(this);stockCountRowCalc(this)" style="width:90px;text-align:right;padding:7px 9px;border:1px solid var(--border);border-radius:6px;font-family:inherit;"></td>
-      <td data-label="사용량" class="num stlc-used" data-ing="${i.id}" style="color:var(--sub2);">-</td>
-      <td data-label="최소" class="num">${min?comma(min):'-'}</td>
-      <td data-label="발주권장" class="num stlc-order" data-ing="${i.id}">-</td>
-    </tr>`;
+    const meta=[`기록 <b>${comma(rec)}${pu}</b>`];
+    if(min>0) meta.push(`최소 ${comma(min)}${pu}`);
+    if(recv) meta.push(`그새 입고 +${comma(recv)}`);
+    return `<div class="stlc-card" data-ing="${i.id}">
+      <div class="stlc-top">
+        <div class="stlc-name">${i.name}</div>
+        <div class="stlc-inwrap">
+          <input type="text" inputmode="numeric" class="stlc-in" data-ing="${i.id}" placeholder="${comma(rec)}" oninput="qtyInputFilter(this);stockCountRowCalc(this)">
+          <span class="stlc-unit">${pu}</span>
+        </div>
+      </div>
+      <div class="stlc-sub">
+        <span>${meta.join(' · ')}</span>
+        <span class="stlc-used" data-ing="${i.id}" style="display:none;"></span>
+        <span class="stlc-order" data-ing="${i.id}" style="display:none;"></span>
+      </div>
+    </div>`;
   }).join('');
 }
 function stockCountRowCalc(input){
   const ingId=input.dataset.ing;
   const i=ingredients.find(x=>x.id===ingId); if(!i) return;
   const counted = input.value.trim()==='' ? null : (Number(String(input.value).replace(/[^0-9.-]/g,''))||0);
-  const rec=Number(i.stock||0), min=Number(i.minStock)||0, pq=Number(i.purchaseQty)||1;
+  const rec=Number(i.stock||0), min=Number(i.minStock)||0, pq=Number(i.purchaseQty)||1, pu=i.purchaseUnit||'g';
   const usedEl=document.querySelector('.stlc-used[data-ing="'+ingId+'"]');
   const ordEl=document.querySelector('.stlc-order[data-ing="'+ingId+'"]');
-  if(counted===null){ if(usedEl){usedEl.textContent='-';usedEl.style.color='var(--sub2)';} if(ordEl)ordEl.textContent='-'; return; }
+  const card=document.querySelector('.stlc-card[data-ing="'+ingId+'"]');
+  if(counted===null){
+    if(usedEl){usedEl.style.display='none';} if(ordEl){ordEl.style.display='none';}
+    if(card) card.classList.remove('done');
+    return;
+  }
+  if(card) card.classList.add('done');
   const used=rec-counted;
-  if(usedEl){ usedEl.textContent=(used>=0?'':'+')+comma(used); usedEl.style.color = used>0?'var(--acc-dark)':(used<0?'var(--green)':'var(--sub2)'); }
+  if(usedEl){ usedEl.style.display=''; usedEl.innerHTML=`사용량 <b>${(used>=0?'':'+')+comma(used)}${pu}</b>`; }
   // 발주 권장: 최소재고의 2배까지 채우기 (현재 실사 기준)
   if(ordEl){
-    if(min>0 && counted<=min){ const target=min*2; const units=Math.ceil(Math.max(target-counted,0)/pq); ordEl.innerHTML=`<b style="color:var(--acc);">${units}단위</b>`; }
-    else ordEl.innerHTML='<span style="color:var(--green);">충분</span>';
+    ordEl.style.display='';
+    if(min>0 && counted<=min){ const target=min*2; const units=Math.ceil(Math.max(target-counted,0)/pq); ordEl.innerHTML=`발주 <b>${units}단위</b>`; }
+    else ordEl.innerHTML='<span style="color:var(--green);">재고 충분</span>';
   }
 }
 function saveStockCount(){
