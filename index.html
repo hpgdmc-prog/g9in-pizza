@@ -7691,7 +7691,9 @@ function deleteMilkitOrder(id){
 }
 
 function exportMilkitOrders(){
-  const ws=XLSX.utils.json_to_sheet(milkitOrders.map(o=>{
+  const list=getFilteredMilkitOrders();   // 현재 화면에 보이는(필터 적용된) 주문만
+  if(!list.length){ alert('내보낼 주문이 없습니다. 필터를 확인해 주세요.'); return; }
+  const ws=XLSX.utils.json_to_sheet(list.map(o=>{
     const row={ 번호:o.no, 주문일자:o.orderDate, 주문자명:o.customer, 연락처:formatPhone(o.phone), 배송주소:o.address, 상세주소:o.addressDetail||'' };
     milkitProducts.forEach(p=>{ row[p.name+' 수량']=mkEffQty(o,p.id); });
     Object.assign(row,{
@@ -7710,7 +7712,8 @@ function exportMilkitOrders(){
    택배발송 + 미발송(준비중) 주문을 로젠 '주문등록/출력(복수건)' 업로드용 엑셀로 내보낸다.
    받는 분(수하인) 정보는 주문에서, 보내는 분(송하인)은 저장된 설정에서 채운다. */
 function mkLogenTargets(){
-  return milkitOrders.filter(o=>o.deliveryMethod==='택배발송' && (o.deliveryStatus||'준비중')==='준비중');
+  // 현재 화면 필터(오늘 발송 등)에 걸린 목록 기준으로, 택배발송·미발송(준비중)만
+  return getFilteredMilkitOrders().filter(o=>o.deliveryMethod==='택배발송' && (o.deliveryStatus||'준비중')==='준비중');
 }
 /* 희망배송일 기준 '오늘 발송할' 주문인지 — 희망일 없거나 발송 권장일(희망일 하루 전)이 오늘/지남이면 true */
 function mkLogenShipToday(o){
@@ -7729,9 +7732,11 @@ function openMkLogenModal(){
   // 기본 선택: 오늘 발송할 주문만 체크 (희망일이 미래인 건은 자동 해제)
   _mkLogenSel=new Set(list.filter(mkLogenShipToday).map(o=>o.id));
   const holdN=list.length-_mkLogenSel.size;
+  const fLabel=mkOrderFilterLabel();
+  const fNote=fLabel?`<br><span style="color:var(--acc-dark);">🔎 현재 필터 적용됨: ${fLabel}</span>`:'';
   document.getElementById('mk-logen-count').innerHTML = list.length
-    ? `택배발송 · 미발송(준비중) 주문 <b>${list.length}건</b>` + (holdN?` · <span style="color:var(--acc-dark);">희망일이 남은 ${holdN}건은 기본 제외</span>`:'') + `<br><span style="color:var(--sub2);">체크한 주문만 엑셀로 내보냅니다.</span>`
-    : `<span style="color:var(--orange);">내보낼 미발송(준비중) 택배 주문이 없습니다.</span>`;
+    ? `택배발송 · 미발송(준비중) 주문 <b>${list.length}건</b>` + (holdN?` · <span style="color:var(--acc-dark);">희망일이 남은 ${holdN}건은 기본 제외</span>`:'') + fNote + `<br><span style="color:var(--sub2);">체크한 주문만 엑셀로 내보냅니다.</span>`
+    : `<span style="color:var(--orange);">내보낼 미발송(준비중) 택배 주문이 없습니다.</span>${fNote}`;
   renderMkLogenList();
   openModal('mk-logen-modal');
 }
