@@ -6286,7 +6286,7 @@ function mkInitOrderDrag(){
     disp.forEach((o,i)=>{ o.no=nos[i]; });
     DB.save('milkitOrders',milkitOrders);
     renderMilkitOrders();
-  }, {longPress:true, handleSelector:'.mko-drag', ignore:'input,button,select,a,textarea,.badge'});
+  }, {handleSelector:'.mko-drag', ignore:'input,button,select,a,textarea,.badge'});   // 순서변경은 ⠿ 핸들로만 — 본문 길게누르기는 '선택' 전용(제스처 충돌 방지)
 }
 
 /* 주문 순서(번호) 변경 — 화면에 보이는 목록에서 위/아래 이웃과 번호를 맞바꿈 */
