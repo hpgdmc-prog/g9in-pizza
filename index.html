@@ -7951,7 +7951,9 @@ function applyMkFreeParse(txt){
   const results=mkpParseOrders(txt, milkitProducts, new Date());
   const useful=results.filter(r=>r.customer||r.phone||r.products.length);
   if(!useful.length){
-    alert('주문 정보를 찾지 못했습니다.\n\n주문자명·연락처·상품명이 포함되어 있는지 확인해 주세요.\n인식이 어려우면 아래 "AI 정밀 인식"을 사용할 수 있습니다.');
+    const hasKey=!!localStorage.getItem('jgp_claude_key');
+    if(hasKey && confirm('무료 인식으로 주문 정보를 찾지 못했어요.\nAI로 정밀 인식할까요? (Claude API · 유료)')){ runMkOcr(); return; }
+    alert('주문 정보를 찾지 못했습니다.\n\n주문자명·연락처·상품명이 포함되어 있는지 확인해 주세요.\n인식이 어려우면 아래 "🤖 AI 정밀 인식"을 사용할 수 있습니다(설정에 API 키 입력).');
     return;
   }
   if(useful.length===1){
@@ -7964,6 +7966,17 @@ function applyMkFreeParse(txt){
 }
 
 /* 파서 결과를 기존 AI 결과 적용 함수와 같은 모양으로 변환 */
+/* AI가 준 주문(상품명 기준)을 일괄등록 형태(상품 id)로 변환 */
+function mkAiOrderToBulk(o){
+  const products=[];
+  (o.products||[]).forEach(it=>{
+    let p=milkitProducts.find(x=>x.name===it.name);
+    if(!p) p=mkpMatchProduct(it.name||'', milkitProducts);
+    if(p) products.push({id:p.id, qty:Number(it.qty)||1});
+  });
+  return {customer:o.customer||'', phone:String(o.phone||'').replace(/\D/g,''), address:o.address||'', products,
+    desiredDate:o.desiredDate||'', deliveryMethod:o.deliveryMethod||'', note:o.note||''};
+}
 function toMkOcrShape(r){
   return {
     customer:r.customer, phone:r.phone, address:r.address,
@@ -7971,7 +7984,7 @@ function toMkOcrShape(r){
       const p=milkitProducts.find(x=>x.id===it.id);
       return {name:p?p.name:'', qty:it.qty};
     }),
-    setType:'', setQty:1,
+    setType:r.setType||'', setQty:r.setQty||1,
     desiredDate:r.desiredDate, deliveryMethod:r.deliveryMethod, note:r.note||''
   };
 }
@@ -8201,6 +8214,19 @@ function mkpParseDate(text, base){
   return '';
 }
 
+function mkpParseSet(text){
+  const t=mkpNorm(text);
+  // 이름이 긴 세트부터 매칭(4종세트 우선)
+  const rules=[...milkitSetRules].sort((a,b)=>mkpNorm(b.name).length-mkpNorm(a.name).length);
+  const hit=rules.find(r=>r.name && t.includes(mkpNorm(r.name)));
+  return hit?hit.name:'';
+}
+function mkpParseSetQty(text, setType){
+  if(!setType) return 1;
+  const m=text.match(/(?:세트\s*(?:수량)?\s*[:：]?\s*(\d{1,2})|(\d{1,2})\s*세트)/);
+  if(m){ const n=Number(m[1]||m[2]); if(n>=1) return n; }
+  return 1;
+}
 function mkpParseDelivery(text){
   if(/택배/.test(text)) return '택배발송';
   if(/직접\s*배송|배달/.test(text)) return '직접배송';
@@ -8331,11 +8357,13 @@ function mkpParseSingle(text, products, base){
     const mm=t.match(rx);
     if(mm) address=mkpCleanAddress(mm[1].trim(), products);
   }
+  const setType=mkpParseSet(text);
   return {
     customer: mkpParseName(text, phoneRaw),
     phone: phoneRaw.replace(/\D/g,''),
     address,
     products: Object.entries(mkpParseProducts(text, products)).map(([id,qty])=>({id,qty})),
+    setType, setQty: mkpParseSetQty(text, setType),
     desiredDate: mkpParseDate(text, base),
     deliveryMethod: mkpParseDelivery(text),
     note:''
@@ -8365,12 +8393,13 @@ function mkpParseOrders(text, products, base){
 function mkOcrPromptText(){
   const productNames=milkitProducts.map(p=>p.name).join(', ');
   const setNames=milkitSetRules.map(r=>r.name).join(', ');
-  return `아래 정보를 JSON 객체 하나로만 추출해서 응답하세요.
-형식: {"customer":"주문자명","phone":"연락처 숫자만","address":"배송주소","products":[{"name":"상품명","qty":수량}],"setType":"구성유형 또는 빈문자열","setQty":세트수량(기본1),"desiredDate":"YYYY-MM-DD 또는 빈문자열","deliveryMethod":"택배발송/직접배송/직접수령 중 하나 또는 빈문자열","note":"기타 특이사항"}
-- 상품명은 반드시 다음 중에서만 골라 사용: ${productNames}
+  return `아래 문자/카톡 주문 내용에서 주문을 추출해 JSON 배열로만 응답하세요. 주문이 여러 건이면 각각을 배열 원소로, 한 건이면 원소 1개인 배열로 반환합니다.
+형식: [{"customer":"주문자명","phone":"연락처 숫자만","address":"배송주소(도로명+동/호수+아파트/건물명까지 포함)","products":[{"name":"상품명","qty":수량}],"setType":"구성유형 또는 빈문자열","setQty":세트수량(기본1),"desiredDate":"YYYY-MM-DD 또는 빈문자열","deliveryMethod":"택배발송/직접배송/직접수령 중 하나 또는 빈문자열","note":"기타 특이사항"}]
+- 상품명은 반드시 다음 중에서만 골라 사용(줄임말·별칭도 이 목록으로 매칭): ${productNames}
 - 구성유형은 가능하면 다음 중에서 선택: ${setNames} (해당 없으면 빈 문자열)
-- 확실하지 않은 값은 빈 문자열 또는 0으로 두세요
-- JSON 객체만 반환하고 다른 텍스트 없이`;
+- 이름·전화·주소·상품이 어떤 순서로 적혀 있어도 각각 정확히 분리하세요
+- 확실하지 않은 값은 빈 문자열 또는 0
+- 반드시 JSON 배열만 반환하고 다른 설명 없이`;
 }
 
 async function runMkOcr(){
@@ -8405,11 +8434,15 @@ async function runMkOcr(){
     if(!resp.ok){ const e=await resp.json(); throw new Error(e.error?.message||resp.statusText); }
     const data=await resp.json();
     const text=data.content[0]?.text||'';
-    const match=text.match(/\{[\s\S]*\}/);
+    const match=text.match(/\[[\s\S]*\]|\{[\s\S]*\}/);
     if(!match) throw new Error('인식 결과에서 JSON을 찾지 못했습니다.\n원본: '+text.slice(0,200));
-    const parsed=JSON.parse(match[0]);
+    let parsed=JSON.parse(match[0]);
+    let arr = Array.isArray(parsed) ? parsed : (Array.isArray(parsed.orders) ? parsed.orders : [parsed]);
+    arr = arr.filter(o=>o && (o.customer||o.phone||(o.products&&o.products.length)));
+    if(!arr.length) throw new Error('주문 정보를 인식하지 못했습니다.');
     closeModal('mk-ocr-modal');
-    applyMkOcrResult(parsed);
+    if(arr.length===1){ applyMkOcrResult(arr[0]); }
+    else { mkBulkParsed = arr.map(mkAiOrderToBulk); showMkBulkParseModal(); }
   }catch(e){
     alert(friendlyAiError(e));
   }finally{
