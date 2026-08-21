@@ -1492,6 +1492,7 @@ img{max-width:100%;height:auto;}
       </select>
       <div class="f-summary" id="mk-order-filter-summary"></div>
       <div id="mko-seltools" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;justify-content:space-between;">
+        <button type="button" class="btn btn-out btn-sm mk-hidedone-mini" id="mk-order-shiptoday-btn" onclick="mkToggleShipToday()" title="오늘 발송해야 하는 주문만 보기(희망일 도래·미발송)">📦 오늘 발송</button>
         <button type="button" class="btn btn-out btn-sm mk-hidedone-mini" id="mk-order-hidedone-btn" onclick="mkQuickToggleHideDone()" title="배송완료 주문 숨기기/보이기">🚚 배송완료 숨김</button>
         <button class="btn btn-out btn-sm" id="mk-select-enter" onclick="mkSetSelectMode(true)">☑️ 선택</button>
         <label id="mk-selall-wrap" style="display:none;font-size:13px;color:var(--sub);align-items:center;gap:7px;cursor:pointer;">
@@ -5838,8 +5839,13 @@ function mkIsShipToday(o){
 }
 function mkToggleShipToday(el){
   mkShipTodayOnly=!!(el?el.checked:!mkShipTodayOnly);
-  const chk=document.getElementById('mk-order-shiptoday'); if(chk) chk.checked=mkShipTodayOnly;
+  mkSyncShipTodayUi();
   renderMilkitOrders();
+}
+function mkSyncShipTodayUi(){
+  const chk=document.getElementById('mk-order-shiptoday'); if(chk) chk.checked=mkShipTodayOnly;
+  const btn=document.getElementById('mk-order-shiptoday-btn');
+  if(btn){ btn.classList.toggle('is-on', mkShipTodayOnly); btn.textContent = mkShipTodayOnly ? '📦 오늘 발송 ✓' : '📦 오늘 발송'; }
 }
 function mkRestoreHideDone(){
   const el=document.getElementById('mk-order-hidedone');
@@ -5963,7 +5969,7 @@ function resetMkOrderFilters(){
   const sort=document.getElementById('mk-order-sort'); if(sort) sort.value='noDesc';
   const hd=document.getElementById('mk-order-hidedone'); if(hd){ hd.checked=false; try{localStorage.setItem('jgp_mkHideDone','0');}catch(_){} }
   const box=document.getElementById('mk-order-custom-range'); if(box) box.style.display='none';
-  mkShipTodayOnly=false; const st=document.getElementById('mk-order-shiptoday'); if(st) st.checked=false;
+  mkShipTodayOnly=false; mkSyncShipTodayUi();
   renderMilkitOrders();
 }
 
