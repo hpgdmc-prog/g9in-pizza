@@ -5687,17 +5687,18 @@ function mkCalcTotals(qtyMap, setType, setQty, deliveryMethod){
   const isSet = !!rule && mkSetRuleSize(rule) >= 2;   // 2종/4종 등 실제 세트만
   const n = Math.max(1, Number(setQty)||1);           // 세트 수 (몇 세트 구입)
   // 피자와 추가품목(소스팩 등)을 나눠 합산 — 세트 구성(피자)만 세트수량만큼 곱함
-  let pizzaBase=0, extraBase=0;
+  let pizzaBase=0, extraBase=0, pizzaCount=0;
   milkitProducts.forEach(p=>{
-    const amt = (Number(qtyMap[p.id])||0) * (Number(p.price)||0);
-    if(p.category==='피자') pizzaBase += amt; else extraBase += amt;
+    const q = Number(qtyMap[p.id])||0;
+    const amt = q * (Number(p.price)||0);
+    if(p.category==='피자'){ pizzaBase += amt; pizzaCount += q; } else extraBase += amt;
   });
   // 세트: 피자 정가 × 세트수량 (+ 추가품목은 입력 수량 그대로), 할인 = 세트할인 × 세트수량
   const listTotal = isSet ? (pizzaBase * n + extraBase) : (pizzaBase + extraBase);
   const discount  = isSet ? ((Number(rule.discount)||0) * n) : 0;
-  // 낱개(단품) + 택배발송이면 배송비 부과 (세트는 무료배송)
-  const hasPizza = pizzaBase>0;
-  const shippingFee = (!isSet && hasPizza && deliveryMethod==='택배발송') ? (Number(milkitFees.shippingCost)||0) : 0;
+  // 배송비: 피자가 딱 1개(단품)일 때만 3,000원, 2개 이상이면 무료 (세트든 낱개든 총 2개 이상이면 무료)
+  const totalPizza = isSet ? pizzaCount * n : pizzaCount;
+  const shippingFee = (deliveryMethod==='택배발송' && totalPizza===1) ? (Number(milkitFees.shippingCost)||0) : 0;
   const payTotal  = Math.max(listTotal - discount, 0) + shippingFee;
   return {listTotal, discount, shippingFee, payTotal};
 }
@@ -7432,11 +7433,13 @@ function saveMilkitOrder(){
   milkitProducts.forEach(p=>{ const q=numVal('mk-qty-'+p.id); qty[p.id]=q; itemCount+=q; });
   // ── 필수입력 검증 ──
   const needDeliv = (delMethod==='택배발송' || delMethod==='직접배송');
+  const recipPhoneRaw=(document.getElementById('mk-order-recipient-phone').value||'').replace(/\D/g,'');
   const miss=[];
   if(!orderDate) miss.push({id:'mk-order-date', label:'주문일자'});
   if(mkOrderChannel!=='store' && !customer) miss.push({id:'mk-order-customer', label:'주문자명'});
   if(itemCount<=0) miss.push({id:'mk-order-qty-rows', label:'상품 수량(최소 1개)'});
-  if(needDeliv && !phoneRaw) miss.push({id:'mk-order-phone', label:'연락처'});
+  // 받는 분 연락처가 있으면 주문자(보내는분) 연락처는 필수 아님
+  if(needDeliv && !phoneRaw && !recipPhoneRaw) miss.push({id:'mk-order-phone', label:'연락처(주문자 또는 받는분)'});
   if(needDeliv && !addressRaw) miss.push({id:'mk-order-address', label:'배송주소'});
   if(miss.length){
     miss.forEach(m=>{ const el=document.getElementById(m.id); if(el) el.classList.add('input-invalid'); });
