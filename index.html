@@ -128,6 +128,7 @@ h1,h2,h3,h4{font-family:var(--sans);letter-spacing:-.01em;}
 .f-toggle{display:flex;align-items:center;gap:6px;padding:9px 13px;border:1px solid var(--border-strong);border-radius:var(--r-sm);
   background:#fff;font-family:inherit;font-size:12.5px;font-weight:600;color:var(--p);cursor:pointer;white-space:nowrap;flex-shrink:0;}
 .f-toggle.has-filter{border-color:var(--acc);color:var(--acc-dark);background:var(--acc-pale);}
+.f-toggle.is-on{border-color:var(--acc);color:#fff;background:var(--acc);}
 .f-toggle .f-count{display:none;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--acc);color:#fff;
   font-size:10.5px;line-height:17px;text-align:center;}
 .f-toggle.has-filter .f-count{display:inline-block;}
@@ -1378,6 +1379,7 @@ img{max-width:100%;height:auto;}
       </div>
       <div class="filter-bar">
         <input type="text" class="f-search" id="mk-order-search" placeholder="🔎 주문자명 · 연락처 검색…" oninput="renderMilkitOrders()">
+        <button type="button" class="f-toggle" id="mk-order-hidedone-btn" onclick="mkQuickToggleHideDone()" title="배송완료 주문을 목록에서 숨기기/보이기">🚚 배송완료 숨김</button>
         <button type="button" class="f-toggle" id="mk-order-filter-toggle" onclick="toggleMkOrderFilterPanel()">
           필터 <span class="f-count" id="mk-order-filter-count">0</span> <span class="f-caret">▼</span>
         </button>
@@ -5643,14 +5645,28 @@ function setMkOrderPeriod(v){
 }
 function mkOrderPeriodChanged(){ setMkOrderPeriod(document.getElementById('mk-order-period').value); }
 
-/* 배송완료 숨기기 (설정 유지) */
+/* 배송완료 숨기기 (설정 유지) — 필터 안 체크박스 + 필터 밖 상시 토글 버튼 동기화 */
 function mkToggleHideDone(el){
   try{ localStorage.setItem('jgp_mkHideDone', el.checked?'1':'0'); }catch(_){}
+  mkSyncHideDoneBtn();
   renderMilkitOrders();
+}
+function mkQuickToggleHideDone(){
+  const on = localStorage.getItem('jgp_mkHideDone')!=='1';
+  try{ localStorage.setItem('jgp_mkHideDone', on?'1':'0'); }catch(_){}
+  const chk=document.getElementById('mk-order-hidedone'); if(chk) chk.checked=on;
+  mkSyncHideDoneBtn();
+  renderMilkitOrders();
+}
+function mkSyncHideDoneBtn(){
+  const on = localStorage.getItem('jgp_mkHideDone')==='1';
+  const btn=document.getElementById('mk-order-hidedone-btn');
+  if(btn){ btn.classList.toggle('is-on', on); btn.textContent = on ? '🚚 배송완료 숨김 ✓' : '🚚 배송완료 숨김'; }
 }
 function mkRestoreHideDone(){
   const el=document.getElementById('mk-order-hidedone');
   if(el) el.checked = localStorage.getItem('jgp_mkHideDone')==='1';
+  mkSyncHideDoneBtn();
 }
 
 /* 적용된 필터 개수 · 칩 상태 · 접기 버튼 표시 갱신 */
