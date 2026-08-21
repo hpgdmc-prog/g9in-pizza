@@ -2462,6 +2462,7 @@ img{max-width:100%;height:auto;}
         <div style="background:var(--bg2);border-radius:var(--r-md);padding:12px 16px;margin-bottom:8px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;font-size:13px;">
           <span>정가합계 <b class="num" id="mk-order-listtotal">0원</b></span>
           <span>할인금액 <b class="num" style="color:var(--red);" id="mk-order-discount">0원</b></span>
+          <span style="display:none;">배송비(낱개) <b class="num" style="color:var(--acc-dark);" id="mk-order-shipfee">0원</b></span>
           <span>결제금액 <b class="num" style="color:var(--acc-dark);font-size:15px;" id="mk-order-paytotal">0원</b></span>
         </div>
         <label style="display:flex;align-items:flex-start;gap:9px;font-size:12.5px;color:var(--txt);cursor:pointer;padding:8px 2px;line-height:1.55;">
@@ -2527,7 +2528,7 @@ img{max-width:100%;height:auto;}
           </div>
           <div class="form-row" id="mk-row-delmethod">
             <label>배송방법</label>
-            <select id="mk-order-delmethod" onchange="mkDeliveryHint()">
+            <select id="mk-order-delmethod" onchange="mkDeliveryHint();mkUpdateOrderTotals()">
               <option value="택배발송">택배발송</option>
               <option value="직접배송">직접배송</option>
               <option value="직접수령">직접수령</option>
@@ -5552,7 +5553,7 @@ function exportScoutList(){
 function mkProductName(id){ const p=milkitProducts.find(x=>x.id===id); return p?p.name:id; }
 function mkProductPrice(id){ const p=milkitProducts.find(x=>x.id===id); return p?Number(p.price)||0:0; }
 
-function mkCalcTotals(qtyMap, setType, setQty){
+function mkCalcTotals(qtyMap, setType, setQty, deliveryMethod){
   const rule = milkitSetRules.find(r=>r.name===setType);
   const isSet = !!rule && mkSetRuleSize(rule) >= 2;   // 2종/4종 등 실제 세트만
   const n = Math.max(1, Number(setQty)||1);           // 세트 수 (몇 세트 구입)
@@ -5565,8 +5566,11 @@ function mkCalcTotals(qtyMap, setType, setQty){
   // 세트: 피자 정가 × 세트수량 (+ 추가품목은 입력 수량 그대로), 할인 = 세트할인 × 세트수량
   const listTotal = isSet ? (pizzaBase * n + extraBase) : (pizzaBase + extraBase);
   const discount  = isSet ? ((Number(rule.discount)||0) * n) : 0;
-  const payTotal  = Math.max(listTotal - discount, 0);
-  return {listTotal, discount, payTotal};
+  // 낱개(단품) + 택배발송이면 배송비 부과 (세트는 무료배송)
+  const hasPizza = pizzaBase>0;
+  const shippingFee = (!isSet && hasPizza && deliveryMethod==='택배발송') ? (Number(milkitFees.shippingCost)||0) : 0;
+  const payTotal  = Math.max(listTotal - discount, 0) + shippingFee;
+  return {listTotal, discount, shippingFee, payTotal};
 }
 // 🔢 주문의 '제품별 실제 수량' — 세트수량 반영 (재고 출고·판매통계·원가 등 모든 합산의 기준)
 //    세트 주문이고 qty가 '한 세트' 구성(피자수 ≤ 세트크기)이면 피자 수량 × 세트수량,
@@ -6718,10 +6722,13 @@ function mkUpdateOrderTotals(){
   milkitProducts.forEach(p=>{ qtyMap[p.id]=numVal('mk-qty-'+p.id); });
   const setType=document.getElementById('mk-order-settype').value;
   const setQty=Number(document.getElementById('mk-order-setqty').value)||1;
-  const {listTotal,discount,payTotal}=mkCalcTotals(qtyMap,setType,setQty);
+  const delMethod=(document.getElementById('mk-order-delmethod')||{}).value||'';
+  const {listTotal,discount,shippingFee,payTotal}=mkCalcTotals(qtyMap,setType,setQty,delMethod);
   document.getElementById('mk-order-listtotal').textContent=comma(listTotal)+'원';
   document.getElementById('mk-order-discount').textContent=comma(discount)+'원';
   document.getElementById('mk-order-paytotal').textContent=comma(payTotal)+'원';
+  const shipEl=document.getElementById('mk-order-shipfee');
+  if(shipEl){ shipEl.parentElement.style.display = shippingFee>0 ? '' : 'none'; shipEl.textContent='+'+comma(shippingFee)+'원'; }
   if(listTotal>0){ const qr=document.getElementById('mk-order-qty-rows'); if(qr) qr.classList.remove('input-invalid'); }
 }
 
@@ -7313,7 +7320,8 @@ function saveMilkitOrder(){
   }
   const setType=document.getElementById('mk-order-settype').value;
   const setQty=Number(document.getElementById('mk-order-setqty').value)||1;
-  const {listTotal,discount,payTotal}=mkCalcTotals(qty,setType,setQty);
+  const delMethodForCalc=document.getElementById('mk-order-delmethod').value;
+  const {listTotal,discount,payTotal}=mkCalcTotals(qty,setType,setQty,delMethodForCalc);
   const phone=formatPhone(document.getElementById('mk-order-phone').value);
   const address=document.getElementById('mk-order-address').value.trim();
   const addressDetail=document.getElementById('mk-order-address-detail').value.trim();
@@ -7428,7 +7436,7 @@ function mkDupMerge(){
   merged.qty=qty;
   const setType=merged.setType||mkDupCand.setType||'';
   const setQty=Number(merged.setQty)||1;
-  const t=mkCalcTotals(qty,setType,setQty);
+  const t=mkCalcTotals(qty,setType,setQty,merged.deliveryMethod||mkDupCand.deliveryMethod||'');
   merged.listTotal=t.listTotal; merged.discount=t.discount; merged.payTotal=t.payTotal;
   // 비어 있던 정보는 새 주문 값으로 채움
   ['phone','address','desiredDate','tracking'].forEach(k=>{ if(!merged[k] && mkDupCand[k]) merged[k]=mkDupCand[k]; });
@@ -8054,7 +8062,8 @@ function saveMkBulkParsed(){
     const qty={};
     r.products.forEach(it=>{ qty[it.id]=(qty[it.id]||0)+(Number(it.qty)||0); });
     const st=r.setType||'', sq=r.setQty||1;
-    let {listTotal,discount,payTotal}=mkCalcTotals(qty,st,sq);
+    const dm=r.deliveryMethod||'택배발송';
+    let {listTotal,discount,payTotal}=mkCalcTotals(qty,st,sq,dm);
     // 명시된 금액이 있으면 결제금액으로 반영(할인 역산)
     if(r.amount>0){ payTotal=r.amount; discount=Math.max(0, listTotal-r.amount); }
     nextNo+=1;
