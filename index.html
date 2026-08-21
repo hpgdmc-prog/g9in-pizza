@@ -129,6 +129,7 @@ h1,h2,h3,h4{font-family:var(--sans);letter-spacing:-.01em;}
   background:#fff;font-family:inherit;font-size:12.5px;font-weight:600;color:var(--p);cursor:pointer;white-space:nowrap;flex-shrink:0;}
 .f-toggle.has-filter{border-color:var(--acc);color:var(--acc-dark);background:var(--acc-pale);}
 .f-toggle.is-on{border-color:var(--acc);color:#fff;background:var(--acc);}
+.mk-hidedone-mini.is-on{border-color:var(--acc)!important;color:#fff!important;background:var(--acc)!important;}
 .f-toggle .f-count{display:none;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--acc);color:#fff;
   font-size:10.5px;line-height:17px;text-align:center;}
 .f-toggle.has-filter .f-count{display:inline-block;}
@@ -1379,7 +1380,6 @@ img{max-width:100%;height:auto;}
       </div>
       <div class="filter-bar">
         <input type="text" class="f-search" id="mk-order-search" placeholder="🔎 주문자명 · 연락처 검색…" oninput="renderMilkitOrders()">
-        <button type="button" class="f-toggle" id="mk-order-hidedone-btn" onclick="mkQuickToggleHideDone()" title="배송완료 주문을 목록에서 숨기기/보이기">🚚 배송완료 숨김</button>
         <button type="button" class="f-toggle" id="mk-order-filter-toggle" onclick="toggleMkOrderFilterPanel()">
           필터 <span class="f-count" id="mk-order-filter-count">0</span> <span class="f-caret">▼</span>
         </button>
@@ -1446,7 +1446,8 @@ img{max-width:100%;height:auto;}
         <option value="7"></option><option value="30"></option><option value="custom"></option>
       </select>
       <div class="f-summary" id="mk-order-filter-summary"></div>
-      <div id="mko-seltools" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;justify-content:flex-end;">
+      <div id="mko-seltools" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;justify-content:space-between;">
+        <button type="button" class="btn btn-out btn-sm mk-hidedone-mini" id="mk-order-hidedone-btn" onclick="mkQuickToggleHideDone()" title="배송완료 주문 숨기기/보이기">🚚 배송완료 숨김</button>
         <button class="btn btn-out btn-sm" id="mk-select-enter" onclick="mkSetSelectMode(true)">☑️ 선택</button>
         <label id="mk-selall-wrap" style="display:none;font-size:13px;color:var(--sub);align-items:center;gap:7px;cursor:pointer;">
           <input type="checkbox" id="mk-order-select-all" onchange="toggleMkOrderSelectAll(this)" style="width:20px;height:20px;"> 전체 선택
@@ -6029,7 +6030,7 @@ function renderMilkitOrders(){
   if(!mkSelectMode) attachSwipe('mk-order-list');   // 선택 모드에서는 스와이프 삭제 비활성
   // 꾹 눌러 끌어서 순서 변경 (번호 정렬 + 선택 모드 아닐 때만)
   if(reorderable) mkInitOrderDrag();
-  if(!mkSelectMode) mkInitOrderLongPress();   // 길게 눌러 빠른 선택 (선택 모드 진입 전만)
+  mkInitOrderLongPress();   // 길게 눌러 선택 모드 켜기/끄기 (양쪽 모드에서 동작)
 }
 
 /* ===== 선택 모드 =====
@@ -6039,6 +6040,7 @@ let mkSelectMode=false;
 function mkSetSelectMode(on){
   mkSelectMode=on;
   document.body.classList.toggle('mk-selmode', on);
+  const hd=document.getElementById('mk-order-hidedone-btn'); if(hd) hd.style.display = on ? 'none' : '';
   if(!on) mkSelectedOrderIds.clear();
   const enter=document.getElementById('mk-select-enter');
   const selall=document.getElementById('mk-selall-wrap');
@@ -6070,9 +6072,10 @@ function mkToggleRowSelect(id){
 function mkQuickSelect(id){
   if(!id) return;
   _mkSuppressRowClick=true; setTimeout(()=>{ _mkSuppressRowClick=false; }, 500);
-  mkSelectedOrderIds.add(id);
-  if(!mkSelectMode) mkSetSelectMode(true); else renderMilkitOrders();
   if(navigator.vibrate){ try{ navigator.vibrate(25); }catch(_){}}
+  if(mkSelectMode){ mkSetSelectMode(false); return; }   // 이미 선택 모드면 길게 눌러서 종료(해제)
+  mkSelectedOrderIds.add(id);
+  mkSetSelectMode(true);
 }
 function mkRowSelectGesture(e,id){ if(e){ e.preventDefault(); e.stopPropagation(); } mkQuickSelect(id); return false; }
 function mkInitOrderLongPress(){
