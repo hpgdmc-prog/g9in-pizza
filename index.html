@@ -1600,8 +1600,8 @@ img{max-width:100%;height:auto;}
       <div class="stat-grid" id="mk-inv-stats" style="margin-bottom:16px;"></div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px;">
         <label style="font-size:12.5px;color:var(--sub);font-weight:600;">📅 특정 날짜 기준 재고</label>
-        <input type="date" id="mk-inv-asof" onchange="renderMkInvAsOf()" style="padding:8px 10px;border:1px solid var(--border);border-radius:var(--r-sm);font-family:inherit;font-size:13px;background:#fff;color:var(--text);">
-        <button class="btn btn-out btn-sm" onclick="var e=document.getElementById('mk-inv-asof');e.value='';renderMkInvAsOf();">오늘(현재고)로</button>
+        <input type="date" id="mk-inv-asof" onchange="renderMilkitInventory()" style="padding:8px 10px;border:1px solid var(--border);border-radius:var(--r-sm);font-family:inherit;font-size:13px;background:#fff;color:var(--text);">
+        <button class="btn btn-out btn-sm" onclick="var e=document.getElementById('mk-inv-asof');e.value='';renderMilkitInventory();">오늘(현재고)로</button>
       </div>
       <div id="mk-inv-asof-result" style="display:none;margin-bottom:20px;"></div>
       <div class="page-hdr" style="border-bottom:none;margin-bottom:10px;padding-bottom:0;">
@@ -9142,30 +9142,36 @@ function renderDashboardMilkitInventory(){
 
 function renderMilkitInventory(){
   const inv=computeMilkitInventory();
-  const totProduced=inv.reduce((s,r)=>s+r.produced,0);
-  const totShipped=inv.reduce((s,r)=>s+r.shipped,0);
-  const totStock=inv.reduce((s,r)=>s+r.stock,0);
-  const totPending=inv.reduce((s,r)=>s+r.pending,0);
-  const shortCount=inv.filter(r=>r.available<0).length;
+  // 상단 요약 카드: 특정 날짜가 선택돼 있으면 그 날짜 이후 생산·주문을 빼고 그날 기준으로 표시
+  const asof=(document.getElementById('mk-inv-asof')||{}).value||'';
+  const statInv = asof ? computeMilkitInventoryAsOf(asof) : inv;
+  const totProduced=statInv.reduce((s,r)=>s+r.produced,0);
+  const totShipped=statInv.reduce((s,r)=>s+r.shipped,0);
+  const totStock=statInv.reduce((s,r)=>s+r.stock,0);
+  const totPending=statInv.reduce((s,r)=>s+r.pending,0);
+  const shortCount=statInv.filter(r=>r.available<0).length;
+  const am=asof.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const asofShort = am?`${+am[2]}/${+am[3]}`:'';
+  const asofSuffix = asof?` <span style="color:var(--acc-dark);">(${asofShort} 기준)</span>`:'';
 
   document.getElementById('mk-inv-stats').innerHTML=`
     <div class="stat-card acc-border">
-      <div class="s-label">총 생산 수량 (누적)</div>
+      <div class="s-label">총 생산 수량${asof?` (${asofShort}까지)`:' (누적)'}</div>
       <div class="s-val num">${comma(totProduced)}</div>
       <div class="s-sub">개</div>
     </div>
     <div class="stat-card acc-border">
-      <div class="s-label">총 출고 수량 (누적)</div>
+      <div class="s-label">총 출고 수량${asof?` (${asofShort}까지)`:' (누적)'}</div>
       <div class="s-val num">${comma(totShipped)}</div>
       <div class="s-sub">배송중 · 배송완료 기준</div>
     </div>
     <div class="stat-card acc-border">
-      <div class="s-label">현재 재고</div>
+      <div class="s-label">${asof?asofShort+' 재고':'현재 재고'}</div>
       <div class="s-val num">${comma(totStock)}</div>
       <div class="s-sub">생산 − 출고</div>
     </div>
     <div class="stat-card acc-border">
-      <div class="s-label">출고 대기</div>
+      <div class="s-label">출고 대기${asofSuffix}</div>
       <div class="s-val num">${comma(totPending)}</div>
       <div class="s-sub">${shortCount>0?`⚠️ 재고 부족 ${shortCount}개 상품`:'개 · 재고 충분'}</div>
     </div>
