@@ -464,6 +464,7 @@ tr:hover td{background:var(--bg2);}
 /* 밀키트 상위 그룹 네비 (판매·운영 / 관리·설정) */
 .mk-groupnav{display:flex;gap:8px;margin:2px 0 12px;}
 .mk-group{flex:1;padding:12px 10px;border:1px solid var(--border);border-radius:11px;background:#fff;font-family:inherit;font-size:14px;font-weight:700;color:var(--sub);cursor:pointer;transition:.15s;line-height:1.3;}
+.mk-group svg{width:16px;height:16px;vertical-align:-3px;margin-right:5px;}
 .mk-group .mk-group-sub{display:block;font-size:11px;font-weight:500;color:var(--sub2);margin-top:2px;}
 .mk-group.active{background:var(--acc);border-color:var(--acc);color:#fff;box-shadow:var(--shadow-sm);}
 .mk-group.active .mk-group-sub{color:rgba(255,255,255,.85);}
@@ -1424,8 +1425,8 @@ img{max-width:100%;height:auto;}
     <div class="stat-grid" id="mk-stats"></div>
     <div class="stat-grid" id="mk-inv-summary" style="margin-top:12px;"></div>
     <div class="mk-groupnav">
-      <button class="mk-group active" data-g="sales" onclick="mkSelectGroup('sales')">🛒 판매 · 운영<span class="mk-group-sub">주문 · 재고 · 판매현황</span></button>
-      <button class="mk-group" data-g="manage" onclick="mkSelectGroup('manage')">⚙️ 관리 · 설정<span class="mk-group-sub">메뉴가격 · 고객 · 원가</span></button>
+      <button class="mk-group active" data-g="sales" onclick="mkSelectGroup('sales')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h2l2.2 11.5a1.5 1.5 0 0 0 1.5 1.2h8a1.5 1.5 0 0 0 1.5-1.2L21 8H6"/><circle cx="9" cy="20" r="1.3"/><circle cx="18" cy="20" r="1.3"/></svg>판매 · 운영<span class="mk-group-sub">주문 · 재고 · 판매현황</span></button>
+      <button class="mk-group" data-g="manage" onclick="mkSelectGroup('manage')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5 5l2.1 2.1M16.9 16.9 19 19M19 5l-2.1 2.1M7.1 16.9 5 19"/></svg>관리 · 설정<span class="mk-group-sub">메뉴가격 · 고객 · 원가</span></button>
     </div>
     <div class="tabs">
       <button class="tab active" id="mk-tabbtn-orders" onclick="showMilkitTab('orders')">📝 주문 내역</button>
@@ -1543,8 +1544,8 @@ img{max-width:100%;height:auto;}
       </select>
       <div class="f-summary" id="mk-order-filter-summary"></div>
       <div id="mko-seltools" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;justify-content:space-between;">
-        <button type="button" class="btn btn-out btn-sm mk-hidedone-mini" id="mk-order-shiptoday-btn" onclick="mkToggleShipToday()" title="오늘 발송해야 하는 주문만 보기(희망일 도래·미발송)">📦 오늘 발송</button>
-        <button type="button" class="btn btn-out btn-sm mk-hidedone-mini" id="mk-order-hidedone-btn" onclick="mkQuickToggleHideDone()" title="배송완료 주문 숨기기/보이기">🚚 배송완료 숨김</button>
+        <button type="button" class="btn btn-out btn-sm mk-hidedone-mini" id="mk-order-shiptoday-btn" onclick="mkToggleShipToday()" title="오늘 발송해야 하는 주문만 보기(희망일 도래·미발송)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h11v9H3z"/><path d="M14 10.5h4l3 3V16h-7z"/><circle cx="7" cy="18" r="1.5"/><circle cx="17.5" cy="18" r="1.5"/></svg>오늘 발송</button>
+        <button type="button" class="btn btn-out btn-sm mk-hidedone-mini" id="mk-order-hidedone-btn" onclick="mkQuickToggleHideDone()" title="배송완료 주문 숨기기/보이기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"/><path d="M10.6 10.7a2 2 0 0 0 2.7 2.9"/><path d="M9.4 5.2A9 9 0 0 1 21 12a12.3 12.3 0 0 1-2 2.6M6.1 6.2A12.3 12.3 0 0 0 3 12a9 9 0 0 0 12 6.3"/></svg>배송완료 숨김</button>
         <button class="btn btn-out btn-sm" id="mk-select-enter" onclick="mkSetSelectMode(true)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3.5"/><path d="M8 12l3 3 5-6"/></svg>선택</button>
         <label id="mk-selall-wrap" style="display:none;font-size:13px;color:var(--sub);align-items:center;gap:7px;cursor:pointer;">
           <input type="checkbox" id="mk-order-select-all" onchange="toggleMkOrderSelectAll(this)" style="width:20px;height:20px;"> 전체 선택
@@ -1649,7 +1650,7 @@ img{max-width:100%;height:auto;}
       <div style="font-size:12px;color:var(--sub);margin-bottom:16px;line-height:1.6;">만들어 놓은 <b>생산 수량</b>에서 주문 배송이 나간 <b>출고 수량</b>을 빼서 현재 재고를 계산합니다. 출고는 배송상태가 <b>배송중·배송완료</b>인 주문에서 자동 집계되고, 주문을 <b>반품</b>으로 바꾸면 재고가 자동으로 복구됩니다. 아래 <b>재고 이동 이력</b>에서 언제 누구에게 판매·반품됐는지까지 모든 이동을 볼 수 있어요.</div>
       <div class="stat-grid" id="mk-inv-stats" style="margin-bottom:16px;"></div>
       <button class="btn btn-acc" style="width:100%;padding:15px;font-size:15.5px;font-weight:700;margin-bottom:18px;box-shadow:var(--shadow-sm);display:flex;align-items:center;justify-content:center;gap:8px;" onclick="openMkProductionModal()">
-        <span style="font-size:19px;">🏭</span> 생산 등록 <span style="font-weight:500;opacity:.92;font-size:13px;">— 오늘 만든 수량 기록</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;"><path d="M3 20V9l6 4V9l6 4V9l6 4v7z"/><path d="M3 20h18"/></svg> 생산 등록 <span style="font-weight:500;opacity:.92;font-size:13px;">— 오늘 만든 수량 기록</span>
       </button>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px;">
         <label style="font-size:12.5px;color:var(--sub);font-weight:600;">📅 특정 날짜 기준 재고</label>
@@ -1663,9 +1664,9 @@ img{max-width:100%;height:auto;}
         <div class="page-hdr" style="border-bottom:1px solid var(--border);margin-bottom:12px;padding-bottom:10px;">
           <h3 style="font-size:15px;">📦 상품별 재고 현황 <span id="mk-inv-now-tag" class="badge badge-green" style="font-weight:700;">📍 현재</span></h3>
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <button class="btn btn-out btn-sm" onclick="openMkStockEditModal()">📝 재고 수정</button>
-            <button class="btn btn-out btn-sm" onclick="previewMilkitInventoryPrint()">🖨️ 인쇄</button>
-            <button class="btn btn-out btn-sm" onclick="exportMkInventoryLedger()">📥 엑셀</button>
+            <button class="btn btn-out btn-sm" onclick="openMkStockEditModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L18.5 9.5l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg>재고 수정</button>
+            <button class="btn btn-out btn-sm" onclick="previewMilkitInventoryPrint()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><path d="M6 18H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="7"/></svg>인쇄</button>
+            <button class="btn btn-out btn-sm" onclick="exportMkInventoryLedger()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M12 15l-4-4M12 15l4-4"/><path d="M4 19h16"/></svg>엑셀</button>
           </div>
         </div>
         <table class="mk-inv-tbl">
@@ -5914,7 +5915,7 @@ function mkQuickToggleHideDone(){
 function mkSyncHideDoneBtn(){
   const on = localStorage.getItem('jgp_mkHideDone')==='1';
   const btn=document.getElementById('mk-order-hidedone-btn');
-  if(btn){ btn.classList.toggle('is-on', on); btn.textContent = on ? '🚚 배송완료 숨김 ✓' : '🚚 배송완료 숨김'; }
+  if(btn){ btn.classList.toggle('is-on', on); btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"/><path d="M10.6 10.7a2 2 0 0 0 2.7 2.9"/><path d="M9.4 5.2A9 9 0 0 1 21 12a12.3 12.3 0 0 1-2 2.6M6.1 6.2A12.3 12.3 0 0 0 3 12a9 9 0 0 0 12 6.3"/></svg>배송완료 숨김${on?' ✓':''}`; }
 }
 /* 오늘 발송 예정 주문만 보기 — 준비중(미발송)·배송건·희망수령일이 설정돼 있고 발송 권장일(희망일 하루 전)이 오늘 이하(오늘/지연) */
 let mkShipTodayOnly=false;
@@ -5935,7 +5936,7 @@ function mkToggleShipToday(el){
 function mkSyncShipTodayUi(){
   const chk=document.getElementById('mk-order-shiptoday'); if(chk) chk.checked=mkShipTodayOnly;
   const btn=document.getElementById('mk-order-shiptoday-btn');
-  if(btn){ btn.classList.toggle('is-on', mkShipTodayOnly); btn.textContent = mkShipTodayOnly ? '📦 오늘 발송 ✓' : '📦 오늘 발송'; }
+  if(btn){ btn.classList.toggle('is-on', mkShipTodayOnly); btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h11v9H3z"/><path d="M14 10.5h4l3 3V16h-7z"/><circle cx="7" cy="18" r="1.5"/><circle cx="17.5" cy="18" r="1.5"/></svg>오늘 발송${mkShipTodayOnly?' ✓':''}`; }
 }
 function mkRestoreHideDone(){
   const el=document.getElementById('mk-order-hidedone');
