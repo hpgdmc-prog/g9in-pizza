@@ -1418,6 +1418,7 @@ img{max-width:100%;height:auto;}
             <div class="mk-menu-list">
               <button onclick="closeMkMenus();openMkSmsModal()">📨 단체 문자</button>
               <button onclick="closeMkMenus();openMkShipSmsModal()">🚚 발송 안내 문자</button>
+              <button onclick="closeMkMenus();openMkThanksSms()">🎉 배송완료 감사 문자</button>
             </div>
           </div>
           <div class="mk-menu">
@@ -2685,8 +2686,15 @@ img{max-width:100%;height:auto;}
       <div id="mk-sms-list" class="sms-list"></div>
       <div id="mk-sms-nophone" class="sms-note"></div>
 
-      <div class="sms-scope-label" style="margin-top:14px;">메시지</div>
-      <textarea id="mk-sms-body" class="sms-body" rows="4" placeholder="예) [지구인피자] 주문하신 밀키트가 오늘 발송됩니다. 감사합니다!" oninput="mkSmsCountBytes()"></textarea>
+      <div class="sms-scope-label" style="margin-top:14px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+        <span>메시지 <span style="font-weight:400;color:var(--sub);font-size:12px;">치환: {이름} {상품}</span></span>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:8px;">
+        <select id="mk-sms-tpl" class="sms-select" style="flex:1;min-width:140px;" onchange="mkSmsLoadTpl(this.value)"></select>
+        <button type="button" class="btn btn-out btn-sm" onclick="mkSmsSaveTpl()" title="현재 메시지를 새 문구로 저장">💾 문구 저장</button>
+        <button type="button" class="btn btn-out btn-sm" onclick="mkSmsDeleteTpl()" title="선택한 문구 삭제">🗑</button>
+      </div>
+      <textarea id="mk-sms-body" class="sms-body" rows="4" placeholder="예) [지구인피자] {이름}님, 주문하신 밀키트가 잘 도착했습니다. 감사합니다!" oninput="mkSmsCountBytes()"></textarea>
       <div id="mk-sms-bytes" class="sms-bytes"></div>
       <div class="sms-note" style="margin-top:8px;line-height:1.6;">💡 <b>내 폰 요금제(문자 무제한)로 무료 발송</b>하는 방법:<br>
         · <b>모바일</b> — 아래 <b>문자 앱 열기</b>로 한 명씩 발송<br>
@@ -3081,6 +3089,12 @@ let milkitOrders = DB.load('milkitOrders', []);
 const MK_SHIPSMS_DEFAULT='[지구인피자] {이름}님, 주문하신 밀키트를 발송했습니다.\n송장번호: {송장번호}\n감사합니다 :)';
 let mkShipSmsTpl = DB.load('mkShipSmsTpl', MK_SHIPSMS_DEFAULT);
 let mkShipSmsAuto = DB.load('mkShipSmsAuto', true);
+// 단체 문자용 저장 문구(템플릿) — 사용자가 직접 추가·수정·삭제. {이름}{상품} 자동 치환
+const MK_SMS_TPL_DEFAULTS=[
+  {id:'tpl_thanks', name:'배송완료 감사', body:'[지구인피자] {이름}님, 주문하신 밀키트가 잘 도착했습니다. 맛있게 즐기시고 또 찾아주세요! 감사합니다 😊'},
+  {id:'tpl_review', name:'후기 요청', body:'[지구인피자] {이름}님, 밀키트는 맛있게 드셨나요? 소중한 후기 한 줄이 큰 힘이 됩니다. 감사합니다!'}
+];
+let mkSmsTemplates = DB.load('mkSmsTemplates', MK_SMS_TPL_DEFAULTS);
 // 세트 할인 시뮬레이션: {ruleId:{extra:추가할인원, qty:예상수량}}
 let mkSetSim = DB.load('mkSetSim', {});
 // 로젠 대량등록 설정 (보내는 분 정보는 이 기기에만 저장 — 공개 소스/동기화에 넣지 않음)
@@ -7045,8 +7059,8 @@ const MK_SMS_SCOPES=[
 ];
 let _mkSmsScope='all', _mkSmsSel=new Set(), _mkSmsNoPhone=0;
 
-function openMkSmsModal(){
-  _mkSmsScope='all'; _mkSmsSel=new Set();
+function openMkSmsModal(initScope){
+  _mkSmsScope=initScope||'all'; _mkSmsSel=new Set();
   document.getElementById('mk-sms-scope').innerHTML=MK_SMS_SCOPES.map(s=>
     `<button type="button" class="sms-chip${s.k===_mkSmsScope?' on':''}" data-k="${s.k}" onclick="mkSmsPickScope('${s.k}')">${s.label}</button>`).join('');
   const dates=[...new Set(milkitOrders.map(o=>o.orderDate).filter(Boolean))].sort().reverse();
@@ -7055,9 +7069,58 @@ function openMkSmsModal(){
     : `<option value="">주문일 없음</option>`;
   document.getElementById('mk-sms-date-wrap').style.display='none';
   document.getElementById('mk-sms-body').value='';
+  mkSmsRenderTplOptions();
   mkSmsCountBytes();
   mkSmsScopeChanged();
   openModal('mk-sms-modal');
+}
+/* 배송완료 감사 문자 바로가기 — 대상=배송완료, 첫 문구 자동 로드 */
+function openMkThanksSms(){
+  openMkSmsModal('배송완료');
+  const sel=document.getElementById('mk-sms-tpl');
+  if(sel && mkSmsTemplates.length){ sel.value=mkSmsTemplates[0].id; mkSmsLoadTpl(mkSmsTemplates[0].id); }
+}
+/* ===== 저장 문구(템플릿) 관리 ===== */
+function mkSmsRenderTplOptions(){
+  const sel=document.getElementById('mk-sms-tpl'); if(!sel) return;
+  sel.innerHTML=`<option value="">저장된 문구 선택…</option>`+
+    mkSmsTemplates.map(t=>`<option value="${t.id}">${(t.name||'(이름없음)').replace(/</g,'&lt;')}</option>`).join('');
+}
+function mkSmsLoadTpl(id){
+  if(!id) return;
+  const t=mkSmsTemplates.find(x=>x.id===id); if(!t) return;
+  document.getElementById('mk-sms-body').value=t.body||'';
+  mkSmsCountBytes();
+}
+function mkSmsSaveTpl(){
+  const body=(document.getElementById('mk-sms-body').value||'').trim();
+  if(!body){ alert('저장할 메시지 내용을 먼저 입력하세요.'); return; }
+  const sel=document.getElementById('mk-sms-tpl');
+  const cur=sel && sel.value ? mkSmsTemplates.find(t=>t.id===sel.value) : null;
+  const defName=cur?cur.name:'';
+  const name=(prompt('문구 이름을 입력하세요 (예: 배송완료 감사)', defName)||'').trim();
+  if(!name) return;
+  if(cur && cur.name===name){ cur.body=body; }                 // 같은 문구 갱신
+  else { const id='tpl_'+uid(); mkSmsTemplates.push({id, name, body}); if(sel) sel.value=id; }
+  DB.save('mkSmsTemplates', mkSmsTemplates);
+  mkSmsRenderTplOptions();
+  if(sel && !cur){ sel.value=mkSmsTemplates[mkSmsTemplates.length-1].id; }
+  alert('문구를 저장했습니다.');
+}
+function mkSmsDeleteTpl(){
+  const sel=document.getElementById('mk-sms-tpl'); if(!sel||!sel.value){ alert('삭제할 문구를 먼저 선택하세요.'); return; }
+  const t=mkSmsTemplates.find(x=>x.id===sel.value); if(!t) return;
+  if(!confirm(`'${t.name}' 문구를 삭제할까요?`)) return;
+  mkSmsTemplates=mkSmsTemplates.filter(x=>x.id!==sel.value);
+  DB.save('mkSmsTemplates', mkSmsTemplates);
+  mkSmsRenderTplOptions();
+}
+/* 수신자별 개인화 — {이름}{상품} 치환 */
+function mkSmsPersonalize(body, r){
+  let items=''; if(r && r.sampleOrderId){ const o=milkitOrders.find(x=>x.id===r.sampleOrderId); if(o) items=mkOrderItemsText(o.qty); }
+  return String(body||'')
+    .replace(/\{이름\}/g, (r&&r.name)||'고객')
+    .replace(/\{상품\}/g, items);
 }
 function mkSmsFmtDate(d){
   const dt=new Date(d+'T00:00:00'); if(isNaN(dt)) return d;
@@ -7083,7 +7146,7 @@ function mkSmsRecipients(){
     const digits=String(o.phone||'').replace(/\D/g,'');
     if(!digits){ noPhone++; return; }
     if(map.has(digits)) map.get(digits).count++;
-    else map.set(digits,{digits, phone:formatPhone(o.phone), name:o.customer||'(이름없음)', count:1});
+    else map.set(digits,{digits, phone:formatPhone(o.phone), name:o.customer||'(이름없음)', count:1, sampleOrderId:o.id});
   });
   _mkSmsNoPhone=noPhone;
   return [...map.values()];
@@ -7155,8 +7218,8 @@ let _mkSmsSendList=[], _mkSmsSent2=new Set(), _mkSmsSendBody='';
 function mkSmsOpenApp(){
   const sel=mkSmsSelected(); if(!sel.length){ alert('선택된 수신자가 없습니다.'); return; }
   _mkSmsSendBody=document.getElementById('mk-sms-body').value;
-  // 한 명이면 바로 문자 앱 열기
-  if(sel.length===1){ window.location.href=mkSmsLink(sel[0].digits,_mkSmsSendBody); return; }
+  // 한 명이면 바로 문자 앱 열기 (이름·상품 치환)
+  if(sel.length===1){ window.location.href=mkSmsLink(sel[0].digits, mkSmsPersonalize(_mkSmsSendBody, sel[0])); return; }
   // 여러 명: 아이폰은 URL로 여러 명 미리채우기가 안 되므로 한 명씩 개별 발송
   _mkSmsSendList=sel.slice(); _mkSmsSent2=new Set();
   mkSmsRenderSendList();
@@ -7178,7 +7241,7 @@ function mkSmsSendOne(digits){
   const row=document.getElementById('smssend-'+digits);
   if(row){ row.classList.add('sent'); const b=row.querySelector('.shr-send'); if(b) b.textContent='다시'; }
   document.getElementById('mk-sms-send-count').textContent=`받는 사람 ${_mkSmsSendList.length}명 · 보낸 사람 ${_mkSmsSent2.size}명`;
-  window.location.href=mkSmsLink(digits,_mkSmsSendBody);
+  window.location.href=mkSmsLink(digits, mkSmsPersonalize(_mkSmsSendBody, r));
 }
 
 /* ===== 발송 안내 문자 (배송중 전환 반자동) =====
