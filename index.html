@@ -219,7 +219,8 @@ td{padding:11px 14px;border-bottom:1px solid var(--border);vertical-align:middle
 tr:last-child td{border-bottom:none;}
 tr:hover td{background:var(--bg2);}
 /* buttons */
-.btn{padding:9px 18px;border:none;border-radius:var(--r-sm);cursor:pointer;font-size:12.5px;font-weight:600;font-family:inherit;transition:background .15s,color .15s,border-color .15s,transform .1s,box-shadow .15s;letter-spacing:.05em;white-space:nowrap;flex-shrink:0;}
+.btn{padding:9px 18px;border:none;border-radius:var(--r-sm);cursor:pointer;font-size:12.5px;font-weight:600;font-family:inherit;transition:background .15s,color .15s,border-color .15s,transform .1s,box-shadow .15s;letter-spacing:.05em;white-space:nowrap;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;gap:5px;}
+.btn svg{width:15px;height:15px;flex-shrink:0;}
 .page-hdr>div{flex-wrap:wrap;}
 .btn:not(.btn-sm):not(.btn-icon):hover{transform:translateY(-1px);box-shadow:var(--shadow-sm);}
 .btn:active{transform:translateY(0)!important;}
@@ -1440,16 +1441,16 @@ img{max-width:100%;height:auto;}
       <div class="page-hdr" style="border-bottom:none;margin-bottom:10px;padding-bottom:0;">
         <h3 style="font-size:14px;">주문 내역</h3>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <button class="btn btn-acc btn-sm" onclick="openMilkitOrderModal()">+ 주문 등록</button>
+          <button class="btn btn-acc btn-sm" onclick="openMilkitOrderModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>주문 등록</button>
           <div class="mk-menu">
-            <button class="btn btn-out btn-sm" onclick="mkToggleMenu(this)">➕ 간편등록 ▾</button>
+            <button class="btn btn-out btn-sm" onclick="mkToggleMenu(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h10M4 17h13"/></svg>간편등록 ▾</button>
             <div class="mk-menu-list">
               <button onclick="closeMkMenus();openMkOcrModal()">📷 사진/텍스트로 등록</button>
               <button onclick="closeMkMenus();document.getElementById('mk-order-import-file').click()">📤 엑셀 업로드</button>
             </div>
           </div>
           <div class="mk-menu">
-            <button class="btn btn-out btn-sm" onclick="mkToggleMenu(this)">📨 문자 ▾</button>
+            <button class="btn btn-out btn-sm" onclick="mkToggleMenu(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16v10H8l-4 3z"/></svg>문자 ▾</button>
             <div class="mk-menu-list">
               <button onclick="closeMkMenus();openMkSmsModal()">📨 단체 문자</button>
               <button onclick="closeMkMenus();openMkShipSmsModal()">🚚 발송 안내 문자</button>
@@ -1457,7 +1458,7 @@ img{max-width:100%;height:auto;}
             </div>
           </div>
           <div class="mk-menu">
-            <button class="btn btn-out btn-sm" onclick="mkToggleMenu(this)">📦 배송·출력 ▾</button>
+            <button class="btn btn-out btn-sm" onclick="mkToggleMenu(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h11v9H3z"/><path d="M14 10.5h4l3 3V16h-7z"/><circle cx="7" cy="18" r="1.5"/><circle cx="17.5" cy="18" r="1.5"/></svg>배송·출력 ▾</button>
             <div class="mk-menu-list">
               <button onclick="closeMkMenus();openMkLogenModal()">📦 로젠 대량등록</button>
               <button onclick="closeMkMenus();document.getElementById('mk-trk-import-file').click()">📥 송장번호 가져오기</button>
@@ -1544,7 +1545,7 @@ img{max-width:100%;height:auto;}
       <div id="mko-seltools" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;justify-content:space-between;">
         <button type="button" class="btn btn-out btn-sm mk-hidedone-mini" id="mk-order-shiptoday-btn" onclick="mkToggleShipToday()" title="오늘 발송해야 하는 주문만 보기(희망일 도래·미발송)">📦 오늘 발송</button>
         <button type="button" class="btn btn-out btn-sm mk-hidedone-mini" id="mk-order-hidedone-btn" onclick="mkQuickToggleHideDone()" title="배송완료 주문 숨기기/보이기">🚚 배송완료 숨김</button>
-        <button class="btn btn-out btn-sm" id="mk-select-enter" onclick="mkSetSelectMode(true)">☑️ 선택</button>
+        <button class="btn btn-out btn-sm" id="mk-select-enter" onclick="mkSetSelectMode(true)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3.5"/><path d="M8 12l3 3 5-6"/></svg>선택</button>
         <label id="mk-selall-wrap" style="display:none;font-size:13px;color:var(--sub);align-items:center;gap:7px;cursor:pointer;">
           <input type="checkbox" id="mk-order-select-all" onchange="toggleMkOrderSelectAll(this)" style="width:20px;height:20px;"> 전체 선택
         </label>
