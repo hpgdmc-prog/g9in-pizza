@@ -17,6 +17,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Noto+Serif+KR:wght@400;500;600&family=Pretendard:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
@@ -57,7 +59,7 @@
   --shadow-md:0 4px 16px rgba(30,26,23,.08);
   --shadow-lg:0 12px 36px rgba(30,26,23,.11);
   --serif:'Playfair Display','Noto Serif KR',Georgia,serif;
-  --sans:'Pretendard',-apple-system,'Apple SD Gothic Neo','맑은 고딕',sans-serif;
+  --sans:'Pretendard Variable','Pretendard',-apple-system,'Apple SD Gothic Neo','맑은 고딕',sans-serif;
   --sai-top:env(safe-area-inset-top,0px);
   --sai-bottom:env(safe-area-inset-bottom,0px);
   --sai-left:env(safe-area-inset-left,0px);
@@ -65,7 +67,7 @@
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 html,body{max-width:100%;overflow-x:hidden;}
-body{font-family:var(--sans);background:var(--bg);color:var(--text);font-size:14px;-webkit-font-smoothing:antialiased;word-break:keep-all;overflow-wrap:break-word;}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);font-size:14px;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;font-feature-settings:"tnum" 1;word-break:keep-all;overflow-wrap:break-word;}
 body.modal-open{overflow:hidden;}
 h1,h2,h3,h4{font-family:var(--sans);letter-spacing:-.01em;}
 /* ===LAYOUT=== */
@@ -11036,7 +11038,7 @@ const APP_PALETTES = [
      '--green':'#059E73','--red':'#EF4444','--orange':'#F59E0B',
      '--r-sm':'10px','--r-md':'14px','--r-lg':'18px',
      '--shadow-sm':'0 1px 2px rgba(16,24,32,.05)','--shadow-md':'0 6px 20px -8px rgba(16,24,32,.14)','--shadow-lg':'0 12px 40px -12px rgba(16,24,32,.20)',
-     '--serif':"'Pretendard',-apple-system,'Apple SD Gothic Neo','맑은 고딕',sans-serif",
+     '--serif':"'Pretendard Variable','Pretendard',-apple-system,'Apple SD Gothic Neo','맑은 고딕',sans-serif",
      '--topbar-bg':'rgba(255,255,255,.9)'}},
   {id:'terracotta', name:'테라코타 (따뜻한 기본)', desc:'따뜻한 샌드 배경 · 흰 카드가 또렷 · serif 제목',
    sw:['#EFE7DB','#FFFFFF','#D94F2B'],
