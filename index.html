@@ -1742,6 +1742,7 @@ img{max-width:100%;height:auto;}
         <h3 style="font-size:15px;">🧾 구매 상세 내역</h3>
         <button class="btn btn-out btn-sm" onclick="exportMkSalesLog()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M12 15l-4-4M12 15l4-4"/><path d="M4 19h16"/></svg>엑셀</button>
       </div>
+      <input type="text" id="mk-salelog-search" placeholder="🔎 고객 · 지역 · 상품 · 연락처 검색…" oninput="renderMkSaleLog()" style="width:100%;padding:11px 13px;border:1px solid var(--border);border-radius:var(--r-md);font-family:inherit;font-size:14px;background:var(--card);color:var(--text);box-sizing:border-box;margin-bottom:8px;">
       <div id="mk-salelog-filterinfo" style="display:none;font-size:12px;color:var(--acc-dark);background:var(--acc-pale);border-radius:8px;padding:8px 11px;margin-bottom:8px;"></div>
       <div id="mk-salelog-body" style="margin-bottom:22px;"></div>
 
@@ -9972,6 +9973,7 @@ function renderMilkitCustomerSales(sales){
   renderMkSaleLog(sales);
 }
 function renderMkSaleLog(sales){
+  if(!sales) sales=getStatsScopedOrders().filter(mkIsSale);   // 검색창 입력 등 인자 없이 호출될 때
   let list=sales.slice();
   const info=document.getElementById('mk-salelog-filterinfo');
   if(_mkSaleLogCust){
@@ -9979,6 +9981,16 @@ function renderMkSaleLog(sales){
     const nm=list[0]?list[0].customer:'';
     if(info){ info.style.display=''; info.innerHTML=`🔎 <b>${nm}</b> 고객만 보기 · ${list.length}건 <button onclick="mkSaleLogFilter('')" style="margin-left:6px;background:none;border:none;color:var(--acc-dark);text-decoration:underline;cursor:pointer;font-size:12px;">전체 보기</button>`; }
   } else if(info){ info.style.display='none'; info.innerHTML=''; }
+  // 검색어(고객·지역·상품·연락처·받는분)
+  const q=(document.getElementById('mk-salelog-search')?.value||'').toLowerCase().trim();
+  if(q){
+    const qd=q.replace(/\D/g,'');
+    list=list.filter(o=>{
+      const hay=[(o.customer||''),(o.recipient||''),mkOrderRegion(o),mkFullAddr(o),mkOrderItemsText(o.qty)].join(' ').toLowerCase();
+      const phoneHit = qd && String(o.phone||'').replace(/\D/g,'').includes(qd);
+      return hay.includes(q) || phoneHit;
+    });
+  }
   list.sort((a,b)=>(b.orderDate||'').localeCompare(a.orderDate||'')||((b.no||0)-(a.no||0)));
   const wd=['일','월','화','수','목','금','토'];
   const fmtFull=d=>{ const m=String(d||'').match(/^(\d{4})-(\d{2})-(\d{2})$/); if(!m) return d||'-'; const dt=new Date(+m[1],+m[2]-1,+m[3]); return `${+m[2]}월 ${+m[3]}일(${wd[dt.getDay()]})`; };
