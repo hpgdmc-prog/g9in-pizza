@@ -162,6 +162,14 @@ h1,h2,h3,h4{font-family:var(--sans);letter-spacing:-.01em;}
 .stat-card .s-val{font-family:var(--sans);font-size:28px;font-weight:800;color:var(--dark);letter-spacing:-.03em;line-height:1.08;font-variant-numeric:tabular-nums;}
 .stat-card .s-sub{font-size:11px;color:var(--sub2);margin-top:8px;}
 .stat-card.acc-border{border-top:3px solid var(--acc);}
+/* 요약 정보 그룹(매출·수익/결제/배송 등) */
+.mk-sumgrp{margin-top:16px;}
+.mk-sumgrp:first-child{margin-top:0;}
+.mk-sumgrp-h{font-size:12px;font-weight:700;color:var(--sub);margin:0 2px 8px;display:flex;align-items:center;gap:5px;}
+.mk-mini-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:8px;}
+.mk-mini{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:11px 13px;box-shadow:var(--shadow-sm);}
+.mk-mini .m-label{font-size:11.5px;color:var(--sub);margin-bottom:4px;}
+.mk-mini .m-val{font-size:20px;font-weight:800;color:var(--text);letter-spacing:-.02em;}
 /* ===== 가계부 스타일(minimal look) — 요약 카드: 분리된 둥근 카드 · 큰 숫자 · 넉넉한 여백 ===== */
 [data-look="minimal"] .stat-grid{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;background:transparent;border:none;border-radius:0;overflow:visible;}
 [data-look="minimal"] .stat-card{background:var(--card);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);padding:18px 18px 16px;}
@@ -1801,7 +1809,7 @@ img{max-width:100%;height:auto;}
       <div class="page-hdr" style="border-bottom:none;margin-bottom:10px;padding-bottom:0;">
         <h3 style="font-size:14px;">주문 현황 요약</h3>
       </div>
-      <div class="stat-grid" id="mk-summary-stats"></div>
+      <div id="mk-summary-stats"></div>
     </div>
 
     <!-- 원가 · 수익 분석 -->
@@ -10052,19 +10060,42 @@ function renderMilkitSalesStats(){
   const profitRate=totalRevenue>0?scopedProfit/totalRevenue:0;
   const pcol=scopedProfit>=0?'var(--green)':'var(--red)';
   const cnt=(field,val)=>scoped.filter(o=>(o[field]||'')===val).length;
+  const mini=(label,val,color)=>`<div class="mk-mini"><div class="m-label">${label}</div><div class="m-val"${color?` style="color:${color}"`:''}>${comma(val)}</div></div>`;
+  const orange='var(--orange)';
   document.getElementById('mk-summary-stats').innerHTML=`
-    <div class="stat-card"><div class="s-label">${scopeLabel} 주문 건수</div><div class="s-val num">${total}</div></div>
-    <div class="stat-card"><div class="s-label">${scopeLabel} 매출 합계</div><div class="s-val num">${comma(totalRevenue)}</div></div>
-    <div class="stat-card"><div class="s-label">${scopeLabel} 총원가·수수료</div><div class="s-val num">${comma(Math.round(scopedCost))}</div></div>
-    <div class="stat-card acc-border"><div class="s-label">${scopeLabel} 순수익</div><div class="s-val num" style="color:${pcol};">${comma(Math.round(scopedProfit))}</div><div class="s-sub">수익률 ${pct(profitRate)}</div></div>
-    <div class="stat-card"><div class="s-label">결제 대기</div><div class="s-val num">${cnt('payStatus','대기')}</div></div>
-    <div class="stat-card"><div class="s-label">결제 완료</div><div class="s-val num">${cnt('payStatus','완료')}</div></div>
-    <div class="stat-card"><div class="s-label">택배발송</div><div class="s-val num">${cnt('deliveryMethod','택배발송')}</div></div>
-    <div class="stat-card"><div class="s-label">직접배송</div><div class="s-val num">${cnt('deliveryMethod','직접배송')}</div></div>
-    <div class="stat-card"><div class="s-label">직접수령</div><div class="s-val num">${cnt('deliveryMethod','직접수령')}</div></div>
-    <div class="stat-card"><div class="s-label">배송 준비중</div><div class="s-val num">${cnt('deliveryStatus','준비중')}</div></div>
-    <div class="stat-card"><div class="s-label">배송중</div><div class="s-val num">${cnt('deliveryStatus','배송중')}</div></div>
-    <div class="stat-card"><div class="s-label">배송완료</div><div class="s-val num">${cnt('deliveryStatus','배송완료')}</div></div>
+    <div class="mk-sumgrp">
+      <div class="mk-sumgrp-h">💰 매출 · 수익 <span style="font-weight:500;color:var(--sub2);">(${scopeLabel})</span></div>
+      <div class="stat-grid" style="margin-bottom:0;">
+        <div class="stat-card"><div class="s-label">주문 건수</div><div class="s-val num">${total}</div></div>
+        <div class="stat-card"><div class="s-label">매출 합계</div><div class="s-val num">${comma(totalRevenue)}</div></div>
+        <div class="stat-card"><div class="s-label">총원가 · 수수료</div><div class="s-val num">${comma(Math.round(scopedCost))}</div></div>
+        <div class="stat-card acc-border"><div class="s-label">순수익</div><div class="s-val num" style="color:${pcol};">${comma(Math.round(scopedProfit))}</div><div class="s-sub">수익률 ${pct(profitRate)}</div></div>
+      </div>
+    </div>
+    <div class="mk-sumgrp">
+      <div class="mk-sumgrp-h">💳 결제</div>
+      <div class="mk-mini-grid">
+        ${mini('결제 완료', cnt('payStatus','완료'))}
+        ${mini('결제 대기', cnt('payStatus','대기'), cnt('payStatus','대기')>0?orange:'')}
+      </div>
+    </div>
+    <div class="mk-sumgrp">
+      <div class="mk-sumgrp-h">📦 배송 방법</div>
+      <div class="mk-mini-grid">
+        ${mini('택배발송', cnt('deliveryMethod','택배발송'))}
+        ${mini('직접배송', cnt('deliveryMethod','직접배송'))}
+        ${mini('직접수령', cnt('deliveryMethod','직접수령'))}
+      </div>
+    </div>
+    <div class="mk-sumgrp">
+      <div class="mk-sumgrp-h">🚚 배송 상태</div>
+      <div class="mk-mini-grid">
+        ${mini('배송 준비중', cnt('deliveryStatus','준비중'), cnt('deliveryStatus','준비중')>0?orange:'')}
+        ${mini('배송중', cnt('deliveryStatus','배송중'))}
+        ${mini('배송완료', cnt('deliveryStatus','배송완료'))}
+        ${cnt('deliveryStatus','반품')>0?mini('반품', cnt('deliveryStatus','반품'), 'var(--red)'):''}
+      </div>
+    </div>
   `;
 }
 
@@ -11516,7 +11547,7 @@ function registerServiceWorker(){
    배포될 때마다 index.html의 ETag/Last-Modified(또는 APP_BUILD)가 바뀌는 걸 감지해,
    "새 버전이 나왔어요" 배너를 띄우고 누르면 캐시를 비우고 새로고침한다.
    ============================ */
-const APP_BUILD='2026-08-23-5';   // ⚠️ 배포할 때마다 이 값을 새로 바꿔야 새 버전 배너가 뜹니다
+const APP_BUILD='2026-08-23-6';   // ⚠️ 배포할 때마다 이 값을 새로 바꿔야 새 버전 배너가 뜹니다
 let _updShown=false;
 /* 서버에 배포된 index.html의 APP_BUILD 값을 읽어온다 */
 async function _updRemoteBuild(){
