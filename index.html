@@ -1586,10 +1586,10 @@ img{max-width:100%;height:auto;}
             </optgroup>
           </select>
           <button class="btn btn-out btn-sm" onclick="mkBulkTracking()">📮 송장 입력</button>
-          <button class="btn btn-del btn-sm" onclick="bulkDeleteMkOrders()">🗑 삭제</button>
+          <button class="btn btn-del" id="mk-bulk-delete-btn" onclick="bulkDeleteMkOrders()" style="font-weight:700;font-size:13.5px;padding:10px 16px;">🗑 선택 삭제</button>
         </div>
       </div>
-      <div class="list-hint" id="mk-order-hint"><span class="hover-only">💡 행 클릭=수정 · 우클릭=선택 · ⠿ 끌어=순서변경</span><span class="swipe-only">💡 행 탭=수정 · 길게 눌러=선택 · ⠿ 끌어=순서변경 · 왼쪽으로 밀어=삭제</span></div>
+      <div class="list-hint" id="mk-order-hint"><span class="hover-only">💡 행 클릭=수정(삭제는 수정창 안에서) · 우클릭/☑️선택=여러 건 관리 · ⠿ 끌어=순서변경</span><span class="swipe-only">💡 행 탭=수정(삭제는 수정창 안에서) · 길게 눌러=선택 · ⠿ 끌어=순서변경</span></div>
       <div class="mlist" id="mk-order-list"></div>
     </div>
 
@@ -1758,6 +1758,12 @@ img{max-width:100%;height:auto;}
         <div style="padding:4px 14px 14px;">
           <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
             <button class="btn btn-out btn-sm" onclick="exportMkSalesLog()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M12 15l-4-4M12 15l4-4"/><path d="M4 19h16"/></svg>엑셀 내보내기</button>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
+            <select id="mk-salelog-product" onchange="renderMkSaleLog()" style="flex:1;min-width:120px;padding:10px 11px;border:1px solid var(--border);border-radius:var(--r-md);font-family:inherit;font-size:13.5px;background:var(--card);color:var(--text);"><option value="">🍽 전체 메뉴</option></select>
+            <select id="mk-salelog-sort" onchange="renderMkSaleLog()" style="flex:1;min-width:110px;padding:10px 11px;border:1px solid var(--border);border-radius:var(--r-md);font-family:inherit;font-size:13.5px;background:var(--card);color:var(--text);">
+              <option value="dateDesc">최신순</option><option value="dateAsc">오래된순</option><option value="amtDesc">금액 높은순</option><option value="amtAsc">금액 낮은순</option>
+            </select>
           </div>
           <input type="text" id="mk-salelog-search" placeholder="🔎 고객 · 지역 · 상품 · 연락처 검색…" oninput="renderMkSaleLog()" style="width:100%;padding:11px 13px;border:1px solid var(--border);border-radius:var(--r-md);font-family:inherit;font-size:14px;background:var(--card);color:var(--text);box-sizing:border-box;margin-bottom:8px;">
           <div id="mk-salelog-filterinfo" style="display:none;font-size:12px;color:var(--acc-dark);background:var(--acc-pale);border-radius:8px;padding:8px 11px;margin-bottom:8px;"></div>
@@ -2722,6 +2728,7 @@ img{max-width:100%;height:auto;}
     </div>
     <div class="modal-error" id="mk-order-error"></div>
     <div class="modal-footer-lg">
+      <button class="btn btn-del" id="mk-order-delete-btn" style="display:none;flex:0 0 auto;min-width:0;" onclick="deleteCurrentMilkitOrder()">🗑 삭제</button>
       <button class="btn btn-out" onclick="closeModal('mk-order-modal')">취소</button>
       <button class="btn btn-acc" onclick="saveMilkitOrder()">💾 저장</button>
     </div>
@@ -6393,7 +6400,7 @@ function renderMilkitOrders(){
       </div>
     </div>`;
   }).join('');
-  if(!mkSelectMode) attachSwipe('mk-order-list');   // 선택 모드에서는 스와이프 삭제 비활성
+  // 주문 목록은 스와이프 삭제를 쓰지 않음(실수 방지) → 삭제는 '주문 열기 → 삭제' 또는 '선택 → 삭제'로만
   // 꾹 눌러 끌어서 순서 변경 (번호 정렬 + 선택 모드 아닐 때만)
   if(reorderable) mkInitOrderDrag();
   mkInitOrderLongPress();   // 길게 눌러 선택 모드 켜기/끄기 (양쪽 모드에서 동작)
@@ -7482,6 +7489,7 @@ function mkSetChannel(ch, autofill){
 function openMilkitOrderModal(id){
   mkEditId=id||null;
   document.getElementById('mk-order-modal-title').textContent=id?'주문 수정':'주문 등록';
+  const _delBtn=document.getElementById('mk-order-delete-btn'); if(_delBtn) _delBtn.style.display = id ? '' : 'none';
   mkClearOrderErrors();
   const _sg=document.getElementById('mk-customer-suggest'); if(_sg){ _sg.classList.remove('open'); _sg.innerHTML=''; }
   const setSel=document.getElementById('mk-order-settype');
@@ -7911,6 +7919,20 @@ function mkDupCancel(){
 function mkRenumberOrders(){
   [...milkitOrders].sort((a,b)=>(Number(a.no)||0)-(Number(b.no)||0))
     .forEach((o,i)=>{ o.no=i+1; });
+}
+/* 주문 수정 화면에서 그 주문을 바로 삭제 */
+function deleteCurrentMilkitOrder(){
+  if(!mkEditId) return;
+  const o=milkitOrders.find(x=>x.id===mkEditId);
+  const label=o?`No.${o.no||''} ${o.customer||''} 주문`:'이 주문';
+  if(!confirm(`${label}을(를) 삭제할까요?\n삭제하면 되돌릴 수 없습니다.`)) return;
+  milkitOrders=milkitOrders.filter(x=>x.id!==mkEditId);
+  mkRenumberOrders();
+  DB.save('milkitOrders',milkitOrders);
+  closeModal('mk-order-modal');
+  renderMilkitStats();
+  renderMilkitOrders();
+  appToast('삭제되었습니다');
 }
 function deleteMilkitOrder(id){
   if(!confirm('이 주문을 삭제하시겠습니까?')) return;
@@ -10028,6 +10050,11 @@ function renderMilkitCustomerSales(sales){
 }
 function renderMkSaleLog(sales){
   if(!sales) sales=getStatsScopedOrders().filter(mkIsSale);   // 검색창 입력 등 인자 없이 호출될 때
+  // 메뉴(상품) 드롭다운 채우기(선택값 유지)
+  const prodSel=document.getElementById('mk-salelog-product');
+  if(prodSel && prodSel.options.length<=1){
+    prodSel.innerHTML='<option value="">🍽 전체 메뉴</option>'+milkitProducts.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+  }
   let list=sales.slice();
   const info=document.getElementById('mk-salelog-filterinfo');
   if(_mkSaleLogCust){
@@ -10045,7 +10072,16 @@ function renderMkSaleLog(sales){
       return hay.includes(q) || phoneHit;
     });
   }
-  list.sort((a,b)=>(b.orderDate||'').localeCompare(a.orderDate||'')||((b.no||0)-(a.no||0)));
+  // 메뉴(상품)별 필터
+  const prodF=document.getElementById('mk-salelog-product')?.value||'';
+  if(prodF) list=list.filter(o=>mkEffQty(o,prodF)>0);
+  // 정렬
+  const sortF=document.getElementById('mk-salelog-sort')?.value||'dateDesc';
+  const byDate=(a,b)=>(a.orderDate||'').localeCompare(b.orderDate||'')||((a.no||0)-(b.no||0));
+  if(sortF==='dateAsc') list.sort(byDate);
+  else if(sortF==='amtDesc') list.sort((a,b)=>(Number(b.payTotal)||0)-(Number(a.payTotal)||0));
+  else if(sortF==='amtAsc') list.sort((a,b)=>(Number(a.payTotal)||0)-(Number(b.payTotal)||0));
+  else list.sort((a,b)=>byDate(b,a));   // dateDesc 기본
   const wd=['일','월','화','수','목','금','토'];
   const fmtFull=d=>{ const m=String(d||'').match(/^(\d{4})-(\d{2})-(\d{2})$/); if(!m) return d||'-'; const dt=new Date(+m[1],+m[2]-1,+m[3]); return `${+m[2]}월 ${+m[3]}일(${wd[dt.getDay()]})`; };
   const body=document.getElementById('mk-salelog-body'); if(!body) return;
@@ -10062,7 +10098,7 @@ function renderMkSaleLog(sales){
     </div>`;
   }).join('') || `<div class="empty-state"><div class="empty-icon">🧾</div><p>이 기간에 판매 기록이 없습니다</p></div>`;
   const cntEl=document.getElementById('mk-salelog-count'); if(cntEl) cntEl.textContent=list.length?`${comma(list.length)}건`:'';
-  const det=document.getElementById('mk-salelog-details'); if(det && (_mkSaleLogCust||q)) det.open=true;   // 필터·검색 중이면 자동으로 펼침
+  const det=document.getElementById('mk-salelog-details'); if(det && (_mkSaleLogCust||q||prodF)) det.open=true;   // 필터·검색 중이면 자동으로 펼침
 }
 function mkSaleLogFilter(key){
   _mkSaleLogCust = (_mkSaleLogCust===key) ? '' : key;
@@ -11426,7 +11462,7 @@ function registerServiceWorker(){
    배포될 때마다 index.html의 ETag/Last-Modified(또는 APP_BUILD)가 바뀌는 걸 감지해,
    "새 버전이 나왔어요" 배너를 띄우고 누르면 캐시를 비우고 새로고침한다.
    ============================ */
-const APP_BUILD='2026-08-23-3';   // ⚠️ 배포할 때마다 이 값을 새로 바꿔야 새 버전 배너가 뜹니다
+const APP_BUILD='2026-08-23-4';   // ⚠️ 배포할 때마다 이 값을 새로 바꿔야 새 버전 배너가 뜹니다
 let _updShown=false;
 /* 서버에 배포된 index.html의 APP_BUILD 값을 읽어온다 */
 async function _updRemoteBuild(){
