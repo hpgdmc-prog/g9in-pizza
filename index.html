@@ -1733,19 +1733,21 @@ img{max-width:100%;height:auto;}
         </table>
       </div>
 
-      <!-- 고객별 구매 현황 — 누가·어디서·얼마나 -->
-      <div class="page-hdr" style="border-bottom:none;margin-bottom:8px;padding-bottom:0;">
-        <h3 style="font-size:15px;">👤 고객별 구매 현황</h3>
-        <span style="font-size:11.5px;color:var(--sub2);">누가 · 어디서 · 얼마나 샀는지</span>
-      </div>
-      <div class="mk-inv-card" style="margin-bottom:20px;">
-        <table class="mk-inv-tbl" id="mk-custsales-tbl">
-          <colgroup><col style="width:26%"><col style="width:28%"><col style="width:14%"><col style="width:20%"><col style="width:12%"></colgroup>
-          <thead><tr><th>고객</th><th>지역</th><th>구매</th><th>금액</th><th>최근</th></tr></thead>
-          <tbody id="mk-custsales-rows"></tbody>
-        </table>
-        <div style="font-size:11px;color:var(--sub2);margin-top:8px;line-height:1.6;">고객을 누르면 아래 상세 내역이 그 고객만 필터됩니다. 금액 높은 순.</div>
-      </div>
+      <!-- 고객별 구매 현황 — 누가·어디서·얼마나 (접이식) -->
+      <details class="mk-day-detail" id="mk-custsales-details" style="border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;margin-bottom:16px;background:var(--card);">
+        <summary style="cursor:pointer;padding:13px 15px;font-size:15px;font-weight:700;color:var(--text);list-style:none;user-select:none;display:flex;align-items:center;gap:8px;">
+          👤 고객별 구매 현황 <span id="mk-custsales-count" style="font-size:12.5px;font-weight:600;color:var(--acc-dark);"></span>
+          <span style="margin-left:auto;font-size:12px;font-weight:500;color:var(--sub2);">눌러서 열기 ▾</span>
+        </summary>
+        <div style="padding:4px 12px 12px;">
+          <table class="mk-inv-tbl" id="mk-custsales-tbl">
+            <colgroup><col style="width:26%"><col style="width:28%"><col style="width:14%"><col style="width:20%"><col style="width:12%"></colgroup>
+            <thead><tr><th>고객</th><th>지역</th><th>구매</th><th>금액</th><th>최근</th></tr></thead>
+            <tbody id="mk-custsales-rows"></tbody>
+          </table>
+          <div style="font-size:11px;color:var(--sub2);margin-top:8px;line-height:1.6;">고객을 누르면 아래 <b>구매 상세 내역</b>이 그 고객만 필터됩니다. 금액 높은 순.</div>
+        </div>
+      </details>
 
       <!-- 구매 상세 내역 — 언제·누가·무엇을·어떻게 (접이식) -->
       <details class="mk-day-detail" id="mk-salelog-details" style="border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;margin-bottom:22px;background:var(--card);">
@@ -3278,6 +3280,23 @@ function mrowClick(inner, fn, id){
   if(row && row._suppressClick){ return; }   // 방금 드래그로 순서를 바꾼 경우 편집 열지 않음
   if(typeof window[fn]==='function') window[fn](id);
 }
+/* 열린 삭제 버튼 닫기 */
+function mkCloseRevealed(except){
+  document.querySelectorAll('.mrow.revealed').forEach(function(r){ if(r!==except) r.classList.remove('revealed'); });
+}
+/* 스크롤(위아래)하거나 열린 행 바깥을 누르면 삭제 버튼 즉시 닫기 — 한 번만 바인딩 */
+var _mkRevealedGlobalBound=false;
+function mkBindRevealedGlobalClose(){
+  if(_mkRevealedGlobalBound) return; _mkRevealedGlobalBound=true;
+  window.addEventListener('scroll', function(){ if(document.querySelector('.mrow.revealed')) mkCloseRevealed(null); }, {passive:true, capture:true});
+  var outside=function(e){
+    if(!document.querySelector('.mrow.revealed')) return;
+    var inRevealed = e.target && e.target.closest && e.target.closest('.mrow.revealed');
+    if(!inRevealed) mkCloseRevealed(null);   // 열린 행 밖을 누르면 닫기(삭제 버튼 클릭은 유지)
+  };
+  document.addEventListener('touchstart', outside, {passive:true});
+  document.addEventListener('mousedown', outside);
+}
 function attachSwipe(scopeId){
   var scope=document.getElementById(scopeId);
   if(!scope) return;
@@ -3296,8 +3315,7 @@ function attachSwipe(scopeId){
     var sx=0,sy=0,dx=0,active=false,moved=false,lock=0; // lock: 0=미정, 1=가로(스와이프), 2=세로(스크롤)
     row.addEventListener('touchstart',function(e){
       var t=e.touches[0];sx=t.clientX;sy=t.clientY;dx=0;active=true;moved=false;lock=0;
-      // 다른 행이 열려 있으면 닫아서, 동시에 여러 개가 열리지 않게
-      scope.querySelectorAll('.mrow.revealed').forEach(function(r){ if(r!==row) r.classList.remove('revealed'); });
+      mkCloseRevealed(row);   // 다른 행이 열려 있으면 닫기(동시에 여러 개 방지)
     },{passive:true});
     row.addEventListener('touchmove',function(e){
       if(!active) return;
@@ -3306,11 +3324,20 @@ function attachSwipe(scopeId){
         // 12px 이상 움직인 뒤 방향 확정 (가로가 세로보다 1.4배 이상 커야 스와이프로 인정)
         if(Math.abs(dx)<12 && Math.abs(dy)<12) return;
         lock = (Math.abs(dx) > Math.abs(dy)*1.4) ? 1 : 2;
+        if(lock===2){ mkCloseRevealed(null); return; }   // 세로 스크롤로 판정되면 열린 삭제 닫기
       }
-      if(lock!==1) return;   // 세로 스크롤이면 아무 것도 안 함
+      if(lock!==1) return;
       moved=true;
-      var base=row.classList.contains('revealed')?-88:0;
-      var tx=Math.max(-88,Math.min(0,base+dx));
+      var revealed=row.classList.contains('revealed');
+      var tx;
+      if(!revealed){
+        // 여는 방향: 저항 적용 — 조금 끌면 거의 안 움직이고, 길게 끌어야 따라옴
+        if(dx>=0) tx=0;
+        else { var dist=-dx, DEAD=45; var eased = dist<=DEAD ? dist*0.18 : (DEAD*0.18 + (dist-DEAD)); tx=Math.max(-96, -eased); }
+      } else {
+        // 이미 열림: 오른쪽으로 끌면 닫는 미리보기, 더 여는 건 -88 고정
+        tx=Math.max(-88, Math.min(0, -88+dx));
+      }
       inner.style.transition='none';
       inner.style.transform='translateX('+tx+'px)';
     },{passive:true});
@@ -3320,14 +3347,19 @@ function attachSwipe(scopeId){
       inner.style.transition='';
       inner.style.transform='';
       if(lock===1 && moved){
-        if(dx<-55) row.classList.add('revealed');      // 충분히(55px+) 밀어야 열림
-        else row.classList.remove('revealed');
+        var revealed=row.classList.contains('revealed');
+        if(!revealed){
+          if(dx < -78) row.classList.add('revealed');    // 확실히 길게(78px+) 끌어야 삭제가 열림
+        } else {
+          if(dx > 28) row.classList.remove('revealed');   // 오른쪽으로 끌면 닫힘
+        }
         row.dataset.suppressClick='1';
         setTimeout(function(){ delete row.dataset.suppressClick; },120);
       }
     });
     row.addEventListener('touchcancel',function(){ active=false; inner.style.transition=''; inner.style.transform=''; });
   });
+  mkBindRevealedGlobalClose();
 }
 function expiryClass(dateStr){
   if(!dateStr) return '';
@@ -9991,6 +10023,7 @@ function renderMilkitCustomerSales(sales){
       <td class="num" style="font-weight:700;">${comma(c.total)}</td>
       <td style="color:var(--sub2);">${fmtD(c.last)}</td>
     </tr>`).join('') || `<tr><td colspan="5" style="text-align:center;color:var(--sub2);padding:14px;">판매 기록이 없습니다</td></tr>`;
+  const ccnt=document.getElementById('mk-custsales-count'); if(ccnt) ccnt.textContent=custs.length?`${comma(custs.length)}명`:'';
   renderMkSaleLog(sales);
 }
 function renderMkSaleLog(sales){
@@ -11393,7 +11426,7 @@ function registerServiceWorker(){
    배포될 때마다 index.html의 ETag/Last-Modified(또는 APP_BUILD)가 바뀌는 걸 감지해,
    "새 버전이 나왔어요" 배너를 띄우고 누르면 캐시를 비우고 새로고침한다.
    ============================ */
-const APP_BUILD='2026-08-23-2';   // ⚠️ 배포할 때마다 이 값을 새로 바꿔야 새 버전 배너가 뜹니다
+const APP_BUILD='2026-08-23-3';   // ⚠️ 배포할 때마다 이 값을 새로 바꿔야 새 버전 배너가 뜹니다
 let _updShown=false;
 /* 서버에 배포된 index.html의 APP_BUILD 값을 읽어온다 */
 async function _updRemoteBuild(){
