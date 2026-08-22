@@ -1722,6 +1722,29 @@ img{max-width:100%;height:auto;}
           <tbody id="mk-salesbreak-rows"></tbody>
         </table>
       </div>
+
+      <!-- 고객별 구매 현황 — 누가·어디서·얼마나 -->
+      <div class="page-hdr" style="border-bottom:none;margin-bottom:8px;padding-bottom:0;">
+        <h3 style="font-size:15px;">👤 고객별 구매 현황</h3>
+        <span style="font-size:11.5px;color:var(--sub2);">누가 · 어디서 · 얼마나 샀는지</span>
+      </div>
+      <div class="mk-inv-card" style="margin-bottom:20px;">
+        <table class="mk-inv-tbl" id="mk-custsales-tbl">
+          <colgroup><col style="width:26%"><col style="width:28%"><col style="width:14%"><col style="width:20%"><col style="width:12%"></colgroup>
+          <thead><tr><th>고객</th><th>지역</th><th>구매</th><th>금액</th><th>최근</th></tr></thead>
+          <tbody id="mk-custsales-rows"></tbody>
+        </table>
+        <div style="font-size:11px;color:var(--sub2);margin-top:8px;line-height:1.6;">고객을 누르면 아래 상세 내역이 그 고객만 필터됩니다. 금액 높은 순.</div>
+      </div>
+
+      <!-- 구매 상세 내역 — 언제·누가·무엇을·어떻게 (접이식) -->
+      <div class="page-hdr" style="border-bottom:none;margin-bottom:8px;padding-bottom:0;">
+        <h3 style="font-size:15px;">🧾 구매 상세 내역</h3>
+        <button class="btn btn-out btn-sm" onclick="exportMkSalesLog()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M12 15l-4-4M12 15l4-4"/><path d="M4 19h16"/></svg>엑셀</button>
+      </div>
+      <div id="mk-salelog-filterinfo" style="display:none;font-size:12px;color:var(--acc-dark);background:var(--acc-pale);border-radius:8px;padding:8px 11px;margin-bottom:8px;"></div>
+      <div id="mk-salelog-body" style="margin-bottom:22px;"></div>
+
       <div class="page-hdr" style="border-bottom:none;margin-bottom:10px;padding-bottom:0;">
         <h3 style="font-size:14px;">주문 현황 요약</h3>
       </div>
@@ -9893,6 +9916,8 @@ function renderMilkitSalesStats(){
     </tr>
   `).join('') || `<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">📊</div><p>판매 데이터가 없습니다</p></div></td></tr>`;
 
+  renderMilkitCustomerSales(salesScoped);
+
   const scopeLabel = range ? range.label : '전체';
   const total=scoped.length;
   const totalRevenue=salesScoped.reduce((s,o)=>s+(Number(o.payTotal)||0),0);
@@ -9915,6 +9940,80 @@ function renderMilkitSalesStats(){
     <div class="stat-card"><div class="s-label">배송중</div><div class="s-val num">${cnt('deliveryStatus','배송중')}</div></div>
     <div class="stat-card"><div class="s-label">배송완료</div><div class="s-val num">${cnt('deliveryStatus','배송완료')}</div></div>
   `;
+}
+
+/* 주소에서 지역(시·도 + 시·군·구) 추출 */
+function mkOrderRegion(o){
+  const a=String((o&&o.address)||'').trim(); if(!a) return '-';
+  const parts=a.split(/\s+/); return parts.slice(0,2).join(' ')||'-';
+}
+function mkSaleCustKey(o){ return (String(o.phone||'').replace(/\D/g,'')) || ('name:'+(o.customer||'?')); }
+let _mkSaleLogCust='';
+/* 고객별 구매 현황 + 구매 상세 내역 렌더 */
+function renderMilkitCustomerSales(sales){
+  const map=new Map();
+  sales.forEach(o=>{
+    const key=mkSaleCustKey(o);
+    let e=map.get(key);
+    if(!e){ e={key, name:o.customer||'(이름없음)', region:mkOrderRegion(o), count:0, total:0, last:''}; map.set(key,e); }
+    e.count++; e.total+=Number(o.payTotal)||0;
+    if((o.orderDate||'')>=e.last){ e.last=o.orderDate||''; e.region=mkOrderRegion(o); e.name=o.customer||e.name; }
+  });
+  const custs=[...map.values()].sort((a,b)=>b.total-a.total || b.count-a.count);
+  const fmtD=d=>{ const m=String(d||'').match(/^(\d{4})-(\d{2})-(\d{2})$/); return m?`${+m[2]}/${+m[3]}`:'-'; };
+  const rowsEl=document.getElementById('mk-custsales-rows'); if(!rowsEl) return;
+  rowsEl.innerHTML = custs.map(c=>`<tr style="cursor:pointer;${_mkSaleLogCust===c.key?'background:var(--acc-pale);':''}" onclick="mkSaleLogFilter('${c.key.replace(/'/g,"\\'")}')">
+      <td>${c.name}</td>
+      <td style="color:var(--sub);font-size:11px;">${c.region}</td>
+      <td>${comma(c.count)}건</td>
+      <td class="num" style="font-weight:700;">${comma(c.total)}</td>
+      <td style="color:var(--sub2);">${fmtD(c.last)}</td>
+    </tr>`).join('') || `<tr><td colspan="5" style="text-align:center;color:var(--sub2);padding:14px;">판매 기록이 없습니다</td></tr>`;
+  renderMkSaleLog(sales);
+}
+function renderMkSaleLog(sales){
+  let list=sales.slice();
+  const info=document.getElementById('mk-salelog-filterinfo');
+  if(_mkSaleLogCust){
+    list=list.filter(o=>mkSaleCustKey(o)===_mkSaleLogCust);
+    const nm=list[0]?list[0].customer:'';
+    if(info){ info.style.display=''; info.innerHTML=`🔎 <b>${nm}</b> 고객만 보기 · ${list.length}건 <button onclick="mkSaleLogFilter('')" style="margin-left:6px;background:none;border:none;color:var(--acc-dark);text-decoration:underline;cursor:pointer;font-size:12px;">전체 보기</button>`; }
+  } else if(info){ info.style.display='none'; info.innerHTML=''; }
+  list.sort((a,b)=>(b.orderDate||'').localeCompare(a.orderDate||'')||((b.no||0)-(a.no||0)));
+  const wd=['일','월','화','수','목','금','토'];
+  const fmtFull=d=>{ const m=String(d||'').match(/^(\d{4})-(\d{2})-(\d{2})$/); if(!m) return d||'-'; const dt=new Date(+m[1],+m[2]-1,+m[3]); return `${+m[2]}월 ${+m[3]}일(${wd[dt.getDay()]})`; };
+  const body=document.getElementById('mk-salelog-body'); if(!body) return;
+  body.innerHTML = list.map(o=>{
+    const recip=(o.recipient&&o.recipient!==o.customer)?` <span style="color:var(--sub2);">→ ${o.recipient}님께</span>`:'';
+    const pay=(o.payStatus==='완료')?(o.payMethod||'결제완료'):'미납';
+    return `<div style="border:1px solid var(--border);border-radius:12px;padding:11px 13px;margin-bottom:8px;background:var(--card);cursor:pointer;" onclick="openMilkitOrderModal('${o.id}')">
+      <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline;">
+        <div style="font-weight:700;min-width:0;">${o.customer||'(이름없음)'} <span style="font-size:11.5px;color:var(--sub);font-weight:400;">${mkOrderRegion(o)}</span></div>
+        <div class="num" style="font-weight:700;color:var(--acc-dark);flex-shrink:0;">${comma(Number(o.payTotal)||0)}원</div>
+      </div>
+      <div style="font-size:12.5px;color:var(--text);margin-top:3px;">${mkOrderItemsText(o.qty)}${recip}</div>
+      <div style="font-size:11.5px;color:var(--sub2);margin-top:3px;">📅 ${fmtFull(o.orderDate)} · ${pay} · ${o.deliveryMethod||''}${o.deliveryStatus?' · '+o.deliveryStatus:''}</div>
+    </div>`;
+  }).join('') || `<div class="empty-state"><div class="empty-icon">🧾</div><p>이 기간에 판매 기록이 없습니다</p></div>`;
+}
+function mkSaleLogFilter(key){
+  _mkSaleLogCust = (_mkSaleLogCust===key) ? '' : key;
+  renderMilkitSalesStats();
+  const el=document.getElementById('mk-salelog-body'); if(el && _mkSaleLogCust) el.scrollIntoView({block:'nearest'});
+}
+function exportMkSalesLog(){
+  let list=getStatsScopedOrders().filter(mkIsSale);
+  if(_mkSaleLogCust) list=list.filter(o=>mkSaleCustKey(o)===_mkSaleLogCust);
+  if(!list.length){ alert('내보낼 판매 내역이 없습니다.'); return; }
+  list.sort((a,b)=>(b.orderDate||'').localeCompare(a.orderDate||''));
+  const ws=XLSX.utils.json_to_sheet(list.map(o=>({
+    주문일:o.orderDate, 고객명:o.customer, 지역:mkOrderRegion(o), 연락처:formatPhone(o.phone),
+    상품:mkOrderItemsText(o.qty), 받는분:(o.recipient&&o.recipient!==o.customer)?o.recipient:'',
+    결제금액:Number(o.payTotal)||0, 결제상태:o.payStatus, 결제방법:o.payMethod||'',
+    배송방법:o.deliveryMethod||'', 배송상태:o.deliveryStatus||'', 주소:mkFullAddr(o)
+  })));
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'구매상세내역');
+  XLSX.writeFile(wb,'지구인피자_구매상세내역.xlsx');
 }
 
 /* --- 상품별 레시피(재료 구성) --- */
