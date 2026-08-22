@@ -104,6 +104,7 @@ h1,h2,h3,h4{font-family:var(--sans);letter-spacing:-.01em;}
 #app-update-banner.show{display:flex;opacity:1;transform:translateX(-50%) translateY(0);}
 #app-update-banner .upd-go{background:#fff;color:var(--acc-dark);border:none;border-radius:9px;padding:7px 13px;font-weight:700;font-size:13px;font-family:inherit;cursor:pointer;flex-shrink:0;}
 #app-update-banner .upd-x{background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;width:26px;height:26px;font-size:13px;cursor:pointer;flex-shrink:0;line-height:1;}
+#float-date{display:none;}   /* 데스크톱은 상단바에 날짜가 있으므로 숨김, 모바일에서만 표시 */
 /* 모바일 하단 탭바 (minimal look 전용) */
 #bottom-nav{display:none;}
 #bottom-nav button{flex:1;background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:7px 2px calc(6px + var(--sai-bottom));color:var(--sub2);font-size:10.5px;font-weight:600;font-family:inherit;transition:color .15s,transform .1s;}
@@ -116,9 +117,9 @@ h1,h2,h3,h4{font-family:var(--sans);letter-spacing:-.01em;}
   #menu-fab{display:none!important;}
   /* 모바일: 상단바 제거(본문 제목과 중복) → 하단 탭바가 내비게이션, 날짜는 우측 상단 칩으로 상시 표시 */
   #topbar{display:none!important;}
-  #main{padding-top:calc(6px + var(--sai-top));}
-  #float-date{display:block;position:fixed;top:calc(9px + var(--sai-top));right:calc(12px + var(--sai-right));z-index:55;font-size:11.5px;font-weight:600;color:var(--sub2);background:var(--topbar-bg);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);padding:5px 11px;border-radius:999px;border:1px solid var(--border);pointer-events:none;}
-  #app-update-banner{top:calc(46px + var(--sai-top));}
+  #main{padding-top:var(--sai-top);}
+  #float-date{display:inline-block;font-size:11.5px;font-weight:600;color:var(--sub2);white-space:nowrap;flex-shrink:0;margin-left:auto;padding-left:12px;align-self:center;}
+  #app-update-banner{top:calc(14px + var(--sai-top));}
 }
 #app-toast{position:fixed;left:50%;bottom:calc(30px + var(--sai-bottom));transform:translateX(-50%);background:var(--dark);color:#fff;padding:11px 18px;border-radius:22px;font-size:13.5px;font-weight:600;z-index:9999;opacity:0;transition:opacity .2s;pointer-events:none;box-shadow:0 6px 22px rgba(0,0,0,.32);max-width:88vw;text-align:center;}
 #app-toast.show{opacity:1;}
@@ -991,14 +992,13 @@ img{max-width:100%;height:auto;}
 <div id="sidebar-overlay" onclick="closeSidebar()"></div>
 <button id="menu-fab" onclick="toggleSidebar()" aria-label="메뉴 열기" title="메뉴"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
 <div id="app-toast"></div>
-<div id="float-date"></div>
 
 <!-- 모바일 하단 탭바 (가계부 스타일 · 민트 테마·모바일에서만 표시) -->
 <nav id="bottom-nav" aria-label="하단 메뉴">
   <button data-nav="dashboard" onclick="navigate('dashboard')" aria-label="홈"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg><span>홈</span></button>
-  <button data-nav="orders" onclick="navigate('orders')" aria-label="발주"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h11v9H3z"/><path d="M14 10.5h4l3 3V16h-7z"/><circle cx="7" cy="18" r="1.7"/><circle cx="17.5" cy="18" r="1.7"/></svg><span>발주</span></button>
+  <button data-nav="ingredients" onclick="navigate('ingredients')" aria-label="원부자재 관리"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 3 7.5 12 12l9-4.5z"/><path d="M3 12l9 4.5 9-4.5M3 16.5 12 21l9-4.5"/></svg><span>재료</span></button>
   <button data-nav="milkit" onclick="navigate('milkit')" aria-label="밀키트"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg><span>밀키트</span></button>
-  <button data-nav="settlement" onclick="navigate('settlement')" aria-label="정산"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V11M10 20V5M16 20v-6M22 20H2"/></svg><span>정산</span></button>
+  <button data-nav="recipes" onclick="navigate('recipes')" aria-label="레시피 관리"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></svg><span>레시피</span></button>
   <button data-nav="__menu" onclick="toggleSidebar()" aria-label="전체 메뉴"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="7" height="7" rx="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.6"/></svg><span>전체</span></button>
 </nav>
 
@@ -1014,6 +1014,7 @@ img{max-width:100%;height:auto;}
       <span id="topbar-date" style="font-size:12px;color:var(--sub2);"></span>
     </div>
   </div>
+  <div id="float-date"></div>
 
   <!-- ===DASHBOARD=== -->
   <div class="section active" id="sec-dashboard">
@@ -3414,6 +3415,9 @@ function navigate(name, fromHistory){
   });
   document.getElementById('topbar-title').textContent = SECTIONS[name]||name;
   document.querySelectorAll('#bottom-nav button').forEach(b=>b.classList.toggle('active', b.dataset.nav===name));
+  // 모바일: 날짜를 현재 섹션 제목줄(우측)에 붙임 → 상단 빈 줄 없이 제목과 한 줄로
+  const _fd=document.getElementById('float-date'); const _hdr=document.getElementById('sec-'+name)?.querySelector('.page-hdr');
+  if(_fd && _hdr) _hdr.appendChild(_fd);
   closeSidebar();
   if(name==='dashboard') renderDashboard();
   if(name==='ingredients') renderIngredients();
