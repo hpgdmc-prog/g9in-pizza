@@ -114,8 +114,11 @@ h1,h2,h3,h4{font-family:var(--sans);letter-spacing:-.01em;}
   #bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:70;display:flex;background:var(--topbar-bg);backdrop-filter:saturate(180%) blur(16px);-webkit-backdrop-filter:saturate(180%) blur(16px);border-top:1px solid var(--border);}
   #main{padding-bottom:calc(62px + var(--sai-bottom));}
   #menu-fab{display:none!important;}
-  #menu-btn{display:none!important;}   /* 하단 탭바가 메뉴 접근을 담당 → 상단 ☰ 중복 제거 */
-  #topbar{padding-left:20px;}
+  /* 모바일: 상단바 제거(본문 제목과 중복) → 하단 탭바가 내비게이션, 날짜는 우측 상단 칩으로 상시 표시 */
+  #topbar{display:none!important;}
+  #main{padding-top:calc(6px + var(--sai-top));}
+  #float-date{display:block;position:fixed;top:calc(9px + var(--sai-top));right:calc(12px + var(--sai-right));z-index:55;font-size:11.5px;font-weight:600;color:var(--sub2);background:var(--topbar-bg);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);padding:5px 11px;border-radius:999px;border:1px solid var(--border);pointer-events:none;}
+  #app-update-banner{top:calc(46px + var(--sai-top));}
 }
 #app-toast{position:fixed;left:50%;bottom:calc(30px + var(--sai-bottom));transform:translateX(-50%);background:var(--dark);color:#fff;padding:11px 18px;border-radius:22px;font-size:13.5px;font-weight:600;z-index:9999;opacity:0;transition:opacity .2s;pointer-events:none;box-shadow:0 6px 22px rgba(0,0,0,.32);max-width:88vw;text-align:center;}
 #app-toast.show{opacity:1;}
@@ -988,6 +991,7 @@ img{max-width:100%;height:auto;}
 <div id="sidebar-overlay" onclick="closeSidebar()"></div>
 <button id="menu-fab" onclick="toggleSidebar()" aria-label="메뉴 열기" title="메뉴"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
 <div id="app-toast"></div>
+<div id="float-date"></div>
 
 <!-- 모바일 하단 탭바 (가계부 스타일 · 민트 테마·모바일에서만 표시) -->
 <nav id="bottom-nav" aria-label="하단 메뉴">
@@ -11699,7 +11703,7 @@ function initSyncOnBoot(){
 /* ============================
    INIT
    ============================ */
-document.getElementById('topbar-date').textContent=new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric',weekday:'short'});
+(function(){ var d=new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric',weekday:'short'}); var t=document.getElementById('topbar-date'); if(t)t.textContent=d; var f=document.getElementById('float-date'); if(f)f.textContent=d; })();
 applyAppTheme(appTheme);
 try{ mkFixSetTotals(); }catch(_){}
 renderDashboard();
