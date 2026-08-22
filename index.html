@@ -105,6 +105,24 @@ h1,h2,h3,h4{font-family:var(--sans);letter-spacing:-.01em;}
 #app-update-banner .upd-go{background:#fff;color:var(--acc-dark);border:none;border-radius:9px;padding:7px 13px;font-weight:700;font-size:13px;font-family:inherit;cursor:pointer;flex-shrink:0;}
 #app-update-banner .upd-x{background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;width:26px;height:26px;font-size:13px;cursor:pointer;flex-shrink:0;line-height:1;}
 #float-date{display:none;}   /* 데스크톱은 상단바에 날짜가 있으므로 숨김, 모바일에서만 표시 */
+/* 전체 메뉴 바텀시트 (모바일 · 최신 트렌드: 아래에서 올라오는 시트 + 아이콘 타일 그리드) */
+#mm-backdrop{position:fixed;inset:0;background:rgba(8,10,14,.44);z-index:110;opacity:0;pointer-events:none;transition:opacity .25s;}
+#mm-backdrop.open{opacity:1;pointer-events:auto;}
+#mm-sheet{position:fixed;left:0;right:0;bottom:0;z-index:111;background:var(--card);border-radius:24px 24px 0 0;box-shadow:var(--shadow-lg);transform:translateY(101%);transition:transform .32s cubic-bezier(.32,.72,0,1);max-height:86vh;display:flex;flex-direction:column;}
+#mm-sheet.open{transform:translateY(0);}
+#mm-sheet .mm-head{padding:12px 18px 6px;flex-shrink:0;}
+#mm-sheet .mm-handle{width:40px;height:5px;border-radius:3px;background:var(--border-strong);margin:0 auto 12px;}
+#mm-sheet .mm-titlebar{display:flex;align-items:center;justify-content:space-between;}
+#mm-sheet .mm-title{font-size:17px;font-weight:700;color:var(--text);}
+#mm-sheet .mm-close{width:32px;height:32px;border:none;background:var(--bg2);border-radius:50%;color:var(--sub);cursor:pointer;display:flex;align-items:center;justify-content:center;}
+#mm-grid{overflow-y:auto;padding:8px 14px calc(20px + var(--sai-bottom));display:grid;grid-template-columns:repeat(3,1fr);gap:9px;}
+.mm-group{grid-column:1/-1;font-size:11px;font-weight:700;color:var(--sub2);letter-spacing:.03em;margin:12px 3px 1px;}
+.mm-group:first-child{margin-top:2px;}
+.mm-tile{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:8px;padding:15px 6px 12px;border:1px solid var(--border);border-radius:16px;background:var(--bg2);cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;color:var(--text);text-align:center;line-height:1.25;min-height:82px;transition:transform .1s,background .15s,border-color .15s;}
+.mm-tile svg{width:24px;height:24px;color:var(--sub);flex-shrink:0;}
+.mm-tile.active{border-color:var(--acc);background:var(--acc-pale);color:var(--acc-dark);}
+.mm-tile.active svg{color:var(--acc);}
+.mm-tile:active{transform:scale(.94);}
 /* 모바일 하단 탭바 (minimal look 전용) */
 #bottom-nav{display:none;}
 #bottom-nav button{flex:1;background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:7px 2px calc(6px + var(--sai-bottom));color:var(--sub2);font-size:10.5px;font-weight:600;font-family:inherit;transition:color .15s,transform .1s;}
@@ -999,8 +1017,17 @@ img{max-width:100%;height:auto;}
   <button data-nav="ingredients" onclick="navigate('ingredients')" aria-label="원부자재 관리"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 3 7.5 12 12l9-4.5z"/><path d="M3 12l9 4.5 9-4.5M3 16.5 12 21l9-4.5"/></svg><span>재료</span></button>
   <button data-nav="milkit" onclick="navigate('milkit')" aria-label="밀키트"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg><span>밀키트</span></button>
   <button data-nav="recipes" onclick="navigate('recipes')" aria-label="레시피 관리"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></svg><span>레시피</span></button>
-  <button data-nav="__menu" onclick="toggleSidebar()" aria-label="전체 메뉴"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="7" height="7" rx="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.6"/></svg><span>전체</span></button>
+  <button data-nav="__menu" onclick="openMobileMenu()" aria-label="전체 메뉴"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="7" height="7" rx="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.6"/></svg><span>전체</span></button>
 </nav>
+<!-- 전체 메뉴 바텀시트 (모바일) -->
+<div id="mm-backdrop" onclick="closeMobileMenu()"></div>
+<div id="mm-sheet" role="dialog" aria-label="전체 메뉴">
+  <div class="mm-head">
+    <div class="mm-handle"></div>
+    <div class="mm-titlebar"><div class="mm-title">전체 메뉴</div><button class="mm-close" onclick="closeMobileMenu()" aria-label="닫기"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  </div>
+  <div id="mm-grid"></div>
+</div>
 
 <!-- ===MAIN=== -->
 <main id="main">
@@ -1734,7 +1761,7 @@ img{max-width:100%;height:auto;}
       </div>
 
       <!-- 고객별 구매 현황 — 누가·어디서·얼마나 (접이식) -->
-      <details class="mk-day-detail" id="mk-custsales-details" style="border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;margin-bottom:16px;background:var(--card);">
+      <details class="mk-day-detail" id="mk-custsales-details" ontoggle="mkCustSalesToggled(this)" style="border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;margin-bottom:16px;background:var(--card);">
         <summary style="cursor:pointer;padding:13px 15px;font-size:15px;font-weight:700;color:var(--text);list-style:none;user-select:none;display:flex;align-items:center;gap:8px;">
           👤 고객별 구매 현황 <span id="mk-custsales-count" style="font-size:12.5px;font-weight:600;color:var(--acc-dark);"></span>
           <span style="margin-left:auto;font-size:12px;font-weight:500;color:var(--sub2);">눌러서 열기 ▾</span>
@@ -3286,6 +3313,29 @@ function mrowClick(inner, fn, id){
   if(row && row.dataset.suppressClick){ return; }
   if(row && row._suppressClick){ return; }   // 방금 드래그로 순서를 바꾼 경우 편집 열지 않음
   if(typeof window[fn]==='function') window[fn](id);
+}
+/* 전체 메뉴 바텀시트 — 사이드바 항목(아이콘·라벨·이동)을 그대로 타일 그리드로 */
+function openMobileMenu(){
+  const nav=document.getElementById('sidebar-nav'); const grid=document.getElementById('mm-grid');
+  if(!nav||!grid) return;
+  const cur=(currentAppView&&currentAppView().sec)||'';
+  let html='';
+  [...nav.children].forEach(el=>{
+    if(el.classList.contains('nav-label')){ html+=`<div class="mm-group">${el.textContent.trim()}</div>`; return; }
+    if(!el.classList.contains('nav-item')) return;
+    const m=(el.getAttribute('onclick')||'').match(/navigate\('([^']+)'\)/); if(!m) return;
+    const sec=m[1]; const icon=el.querySelector('.nav-icon')?el.querySelector('.nav-icon').innerHTML:''; const label=el.textContent.trim();
+    html+=`<button class="mm-tile${sec===cur?' active':''}" onclick="navigate('${sec}');closeMobileMenu()">${icon}<span>${label}</span></button>`;
+  });
+  grid.innerHTML=html;
+  document.getElementById('mm-backdrop').classList.add('open');
+  document.getElementById('mm-sheet').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeMobileMenu(){
+  document.getElementById('mm-backdrop').classList.remove('open');
+  document.getElementById('mm-sheet').classList.remove('open');
+  document.body.style.overflow='';
 }
 /* 열린 삭제 버튼 닫기 */
 function mkCloseRevealed(except){
@@ -10100,6 +10150,10 @@ function renderMkSaleLog(sales){
   const cntEl=document.getElementById('mk-salelog-count'); if(cntEl) cntEl.textContent=list.length?`${comma(list.length)}건`:'';
   const det=document.getElementById('mk-salelog-details'); if(det && (_mkSaleLogCust||q||prodF)) det.open=true;   // 필터·검색 중이면 자동으로 펼침
 }
+/* 고객별 구매 현황을 닫으면 구매 상세의 고객 필터도 해제(전체로 복귀) */
+function mkCustSalesToggled(det){
+  if(!det.open && _mkSaleLogCust){ _mkSaleLogCust=''; renderMkSaleLog(); }
+}
 function mkSaleLogFilter(key){
   _mkSaleLogCust = (_mkSaleLogCust===key) ? '' : key;
   renderMilkitSalesStats();
@@ -11462,7 +11516,7 @@ function registerServiceWorker(){
    배포될 때마다 index.html의 ETag/Last-Modified(또는 APP_BUILD)가 바뀌는 걸 감지해,
    "새 버전이 나왔어요" 배너를 띄우고 누르면 캐시를 비우고 새로고침한다.
    ============================ */
-const APP_BUILD='2026-08-23-4';   // ⚠️ 배포할 때마다 이 값을 새로 바꿔야 새 버전 배너가 뜹니다
+const APP_BUILD='2026-08-23-5';   // ⚠️ 배포할 때마다 이 값을 새로 바꿔야 새 버전 배너가 뜹니다
 let _updShown=false;
 /* 서버에 배포된 index.html의 APP_BUILD 값을 읽어온다 */
 async function _updRemoteBuild(){
