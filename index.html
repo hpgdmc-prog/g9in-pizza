@@ -10994,7 +10994,17 @@ function stlImportPlatform(pid, input){ _stlSingle(input, pid); }
 
 /* 각 테마는 배경·카드·테두리·강조색을 함께 바꿔 대비를 준다 (sw: 미리보기 [배경, 카드, 강조]) */
 const APP_PALETTES = [
-  {id:'terracotta', name:'테라코타 (기본)', desc:'따뜻한 샌드 배경 · 흰 카드가 또렷',
+  {id:'mint', name:'미니멀 민트 (기본)', desc:'쿨한 화이트 배경 · 민트 포인트 · 둥근 카드 (가계부 스타일)',
+   sw:['#F7F8F8','#FFFFFF','#10B981'],
+   vars:{'--bg':'#F7F8F8','--bg2':'#F1F2F3','--bg3':'#E7E9EA','--card':'#FFFFFF','--border':'#E7E9EA','--border-strong':'#D8DBDD',
+     '--acc':'#10B981','--acc-soft':'#34D399','--acc-pale':'#E6F7F0','--acc-dark':'#059E73',
+     '--text':'#16181C','--sub':'#6B7178','--sub2':'#9AA0A6','--dark':'#16181C','--p':'#16181C','--p2':'#3A3F46',
+     '--green':'#059E73','--red':'#EF4444','--orange':'#F59E0B',
+     '--r-sm':'10px','--r-md':'14px','--r-lg':'18px',
+     '--shadow-sm':'0 1px 2px rgba(16,24,32,.05)','--shadow-md':'0 6px 20px -8px rgba(16,24,32,.14)','--shadow-lg':'0 12px 40px -12px rgba(16,24,32,.20)',
+     '--serif':"'Pretendard',-apple-system,'Apple SD Gothic Neo','맑은 고딕',sans-serif",
+     '--topbar-bg':'rgba(255,255,255,.9)'}},
+  {id:'terracotta', name:'테라코타 (따뜻한 기본)', desc:'따뜻한 샌드 배경 · 흰 카드가 또렷 · serif 제목',
    sw:['#EFE7DB','#FFFFFF','#D94F2B'],
    vars:{'--bg':'#EFE7DB','--bg2':'#E6DBCB','--bg3':'#DACDB9','--card':'#FFFFFF','--border':'#DFD3C1','--border-strong':'#CDBEA8',
      '--acc':'#D94F2B','--acc-soft':'#F0823A','--acc-pale':'#FBEDE5','--acc-dark':'#B83C1E'}},
@@ -11020,22 +11030,37 @@ const APP_PALETTES = [
      '--acc':'#4A4A4A','--acc-soft':'#6E6E6E','--acc-pale':'#ECECEA','--acc-dark':'#2A2A2A'}},
 ];
 const SIDEBAR_TONES = [
-  {id:'dark', name:'다크 (기본)', desc:'짙은 차콜 사이드바',
+  {id:'mist', name:'미스트 (밝은 쿨)', desc:'화이트·그레이 사이드바 · 민트 강조',
+   preview:{bg:'#FFFFFF', item:'#ECEFF1'},
+   vars:{'--sidebar-bg':'#FFFFFF','--sidebar-text':'#16181C','--sidebar-text-sub':'#9AA0A6','--sidebar-active-bg':'#E6F7F0','--sidebar-hover-bg':'#F2F3F4','--sidebar-border':'#E7E9EA'}},
+  {id:'dark', name:'다크', desc:'짙은 차콜 사이드바',
    preview:{bg:'#1E1A17', item:'rgba(255,255,255,.18)'},
    vars:{'--sidebar-bg':'#1E1A17','--sidebar-text':'#F5EFE8','--sidebar-text-sub':'rgba(245,239,232,.5)','--sidebar-active-bg':'rgba(217,79,43,.16)','--sidebar-hover-bg':'rgba(255,255,255,.05)','--sidebar-border':'rgba(217,79,43,.2)'}},
   {id:'cream', name:'크림 라이트', desc:'밝은 크림톤 사이드바',
    preview:{bg:'#FAF8F5', item:'#E8E0D4'},
    vars:{'--sidebar-bg':'#FAF8F5','--sidebar-text':'#2A2420','--sidebar-text-sub':'#8C7E72','--sidebar-active-bg':'#FDF0E8','--sidebar-hover-bg':'#F4EFE7','--sidebar-border':'#E8E0D4'}},
 ];
-const APP_THEME_DEFAULT = {palette:'terracotta', sidebar:'dark'};
+const APP_THEME_DEFAULT = {palette:'mint', sidebar:'mist'};
 let appTheme = DB.load('appTheme', APP_THEME_DEFAULT);
+// 1회 마이그레이션: 기존 기본(테라코타·다크)만 쓰던 사용자를 새 기본(민트)으로 올려줌(직접 고른 테마는 유지)
+if(!DB.load('jgp_themeMintMigrated', false)){
+  if(appTheme && appTheme.palette==='terracotta' && appTheme.sidebar==='dark'){
+    appTheme = {palette:'mint', sidebar:'mist'}; DB.save('appTheme', appTheme);
+  }
+  DB.save('jgp_themeMintMigrated', true);
+}
 
 function applyAppTheme(theme){
   const root=document.documentElement;
   const pal = APP_PALETTES.find(p=>p.id===theme.palette)||APP_PALETTES[0];
   const side = SIDEBAR_TONES.find(s=>s.id===theme.sidebar)||SIDEBAR_TONES[0];
+  // 이전 팔레트가 남긴 인라인 변수(둥근 모서리·그림자·serif 등)를 모두 지우고 새로 적용 → 테마 전환 시 이전 룩이 남지 않음
+  const allKeys=new Set(); APP_PALETTES.forEach(p=>Object.keys(p.vars).forEach(k=>allKeys.add(k)));
+  SIDEBAR_TONES.forEach(s=>Object.keys(s.vars).forEach(k=>allKeys.add(k)));
+  allKeys.forEach(k=>root.style.removeProperty(k));
   Object.entries(pal.vars).forEach(([k,v])=>root.style.setProperty(k,v));
   Object.entries(side.vars).forEach(([k,v])=>root.style.setProperty(k,v));
+  const tc=document.querySelector('meta[name="theme-color"]'); if(tc) tc.setAttribute('content', theme.palette==='mint' ? '#FFFFFF' : '#1E1A17');
 }
 function setAppTheme(key, val){
   appTheme = Object.assign({}, appTheme, {[key]:val});
