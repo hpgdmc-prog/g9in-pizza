@@ -11393,26 +11393,24 @@ function registerServiceWorker(){
    배포될 때마다 index.html의 ETag/Last-Modified(또는 APP_BUILD)가 바뀌는 걸 감지해,
    "새 버전이 나왔어요" 배너를 띄우고 누르면 캐시를 비우고 새로고침한다.
    ============================ */
-const APP_BUILD='2026-08-23-1';   // 강제 알림이 필요할 때 이 값을 바꾸면 즉시 배너
-let _updBaseline=null, _updShown=false;
-async function _updSignature(){
+const APP_BUILD='2026-08-23-2';   // ⚠️ 배포할 때마다 이 값을 새로 바꿔야 새 버전 배너가 뜹니다
+let _updShown=false;
+/* 서버에 배포된 index.html의 APP_BUILD 값을 읽어온다 */
+async function _updRemoteBuild(){
   try{
     const base=location.pathname.replace(/[^/]*$/,'') || '/';
     const res=await fetch(base+'index.html?_u='+Date.now(), {cache:'no-store'});
     if(!res || !res.ok) return null;
-    const tag=res.headers.get('etag')||res.headers.get('last-modified')||'';
-    let build='';
-    try{ const t=await res.text(); const m=t.match(/APP_BUILD='([^']+)'/); build=m?m[1]:''; }catch(_){}
-    const sig=tag+'|'+build;
-    return sig==='|' ? null : sig;   // 시그니처가 전혀 없으면 감지 불가로 간주
+    const t=await res.text();
+    const m=t.match(/APP_BUILD='([^']+)'/);   // 파일 첫 등장 = 상수 정의값
+    return m ? m[1] : null;
   }catch(_){ return null; }
 }
+/* 지금 실행 중인 버전(APP_BUILD)과 서버 배포 버전이 다르면 배너 */
 async function _updCheck(){
   if(_updShown || document.hidden) return;
-  const sig=await _updSignature();
-  if(sig==null) return;
-  if(_updBaseline==null){ _updBaseline=sig; return; }   // 첫 확인은 기준값만 저장
-  if(sig!==_updBaseline) showUpdateBanner();
+  const remote=await _updRemoteBuild();
+  if(remote && remote!==APP_BUILD) showUpdateBanner();
 }
 function showUpdateBanner(){
   if(_updShown) return; _updShown=true;
@@ -11433,9 +11431,11 @@ function appApplyUpdate(btn){
 }
 function initUpdateCheck(){
   if(!location.protocol.startsWith('http')) return;   // file:// 로컬 열람 등은 제외
-  _updCheck();
-  setInterval(_updCheck, 60000);   // 1분마다
+  setTimeout(_updCheck, 3000);       // 로드 직후 한 번(캐시로 옛 버전이 떠 있으면 바로 알림)
+  setInterval(_updCheck, 60000);     // 1분마다
   document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) _updCheck(); });
+  window.addEventListener('focus', _updCheck);   // 앱으로 돌아올 때
+  window.addEventListener('pageshow', _updCheck); // PWA 복귀·뒤로가기 복원 시
 }
 
 /* ============================
