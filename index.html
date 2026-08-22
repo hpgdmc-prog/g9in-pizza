@@ -119,6 +119,15 @@ h1,h2,h3,h4{font-family:var(--sans);letter-spacing:-.01em;}
 .stat-card .s-val{font-family:var(--sans);font-size:28px;font-weight:800;color:var(--dark);letter-spacing:-.03em;line-height:1.08;font-variant-numeric:tabular-nums;}
 .stat-card .s-sub{font-size:11px;color:var(--sub2);margin-top:8px;}
 .stat-card.acc-border{border-top:3px solid var(--acc);}
+/* ===== 가계부 스타일(minimal look) — 요약 카드: 분리된 둥근 카드 · 큰 숫자 · 넉넉한 여백 ===== */
+[data-look="minimal"] .stat-grid{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;background:transparent;border:none;border-radius:0;overflow:visible;}
+[data-look="minimal"] .stat-card{background:var(--card);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);padding:18px 18px 16px;}
+[data-look="minimal"] .stat-card:hover{background:var(--card);}
+[data-look="minimal"] .stat-card.acc-border{border-top:none;}
+[data-look="minimal"] .stat-card .s-label{font-size:12.5px;color:var(--sub);margin-bottom:9px;letter-spacing:0;text-transform:none;font-weight:600;}
+[data-look="minimal"] .stat-card .s-val{font-size:31px;font-weight:800;color:var(--text);letter-spacing:-.035em;}
+[data-look="minimal"] .stat-card .s-sub{font-size:12px;color:var(--sub2);margin-top:9px;}
+@media(max-width:640px){[data-look="minimal"] .stat-grid{grid-template-columns:1fr 1fr;gap:10px;}[data-look="minimal"] .stat-card .s-val{font-size:27px;}}
 /* page header */
 .page-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:10px;padding-bottom:14px;border-bottom:1px solid var(--border);}
 .page-hdr h3{font-family:var(--serif);font-size:20px;color:var(--dark);font-weight:700;letter-spacing:.04em;}
@@ -10998,7 +11007,7 @@ function stlImportPlatform(pid, input){ _stlSingle(input, pid); }
 /* 각 테마는 배경·카드·테두리·강조색을 함께 바꿔 대비를 준다 (sw: 미리보기 [배경, 카드, 강조]) */
 const APP_PALETTES = [
   {id:'mint', name:'미니멀 민트 (기본)', desc:'쿨한 화이트 배경 · 민트 포인트 · 둥근 카드 (가계부 스타일)',
-   sw:['#F7F8F8','#FFFFFF','#10B981'],
+   sw:['#F7F8F8','#FFFFFF','#10B981'], look:'minimal',
    vars:{'--bg':'#F7F8F8','--bg2':'#F1F2F3','--bg3':'#E7E9EA','--card':'#FFFFFF','--border':'#E7E9EA','--border-strong':'#D8DBDD',
      '--acc':'#10B981','--acc-soft':'#34D399','--acc-pale':'#E6F7F0','--acc-dark':'#059E73',
      '--text':'#16181C','--sub':'#6B7178','--sub2':'#9AA0A6','--dark':'#16181C','--p':'#16181C','--p2':'#3A3F46',
@@ -11063,6 +11072,7 @@ function applyAppTheme(theme){
   allKeys.forEach(k=>root.style.removeProperty(k));
   Object.entries(pal.vars).forEach(([k,v])=>root.style.setProperty(k,v));
   Object.entries(side.vars).forEach(([k,v])=>root.style.setProperty(k,v));
+  root.dataset.look = pal.look || 'classic';   // 'minimal'이면 가계부 스타일 레이아웃 적용
   const tc=document.querySelector('meta[name="theme-color"]'); if(tc) tc.setAttribute('content', theme.palette==='mint' ? '#FFFFFF' : '#1E1A17');
 }
 function setAppTheme(key, val){
