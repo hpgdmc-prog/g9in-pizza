@@ -180,6 +180,8 @@ h1,h2,h3,h4{font-family:var(--sans);letter-spacing:-.01em;}
 .mk-inv-tbl th:last-child,.mk-inv-tbl td:last-child{text-align:center;padding-right:8px;}
 .mk-inv-tbl tbody tr{border-top:1px solid var(--border);}
 .mk-inv-tbl .st-mini{font-size:12.5px;font-weight:700;}
+/* 상품별 재고 현황 — 눈에 띄게 구분되는 카드 */
+.mk-inv-card{background:var(--card);border:1px solid var(--border);border-top:3px solid var(--acc);border-radius:var(--r-lg);padding:14px 15px 16px;margin-bottom:24px;box-shadow:var(--shadow-sm);}
 @media(max-width:400px){ .mk-inv-tbl th,.mk-inv-tbl td{font-size:11px;padding:7px 1px;} .mk-inv-tbl thead th{font-size:9.5px;} }
 #mk-pane-orders{position:relative;border-radius:var(--r-lg);transition:background .15s;}
 #mk-pane-orders.mk-drop-active{background:var(--acc-pale);outline:2px dashed var(--acc);outline-offset:-2px;}
@@ -1609,6 +1611,9 @@ img{max-width:100%;height:auto;}
     <div id="mk-pane-inventory" style="display:none;">
       <div style="font-size:12px;color:var(--sub);margin-bottom:16px;line-height:1.6;">만들어 놓은 <b>생산 수량</b>에서 주문 배송이 나간 <b>출고 수량</b>을 빼서 현재 재고를 계산합니다. 출고는 배송상태가 <b>배송중·배송완료</b>인 주문에서 자동 집계되고, 주문을 <b>반품</b>으로 바꾸면 재고가 자동으로 복구됩니다. 아래 <b>재고 이동 이력</b>에서 언제 누구에게 판매·반품됐는지까지 모든 이동을 볼 수 있어요.</div>
       <div class="stat-grid" id="mk-inv-stats" style="margin-bottom:16px;"></div>
+      <button class="btn btn-acc" style="width:100%;padding:15px;font-size:15.5px;font-weight:700;margin-bottom:18px;box-shadow:var(--shadow-sm);display:flex;align-items:center;justify-content:center;gap:8px;" onclick="openMkProductionModal()">
+        <span style="font-size:19px;">🏭</span> 생산 등록 <span style="font-weight:500;opacity:.92;font-size:13px;">— 오늘 만든 수량 기록</span>
+      </button>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px;">
         <label style="font-size:12.5px;color:var(--sub);font-weight:600;">📅 특정 날짜 기준 재고</label>
         <button class="btn btn-out btn-sm" style="min-width:34px;" onclick="mkInvShiftDay(-1)" title="전날">◀</button>
@@ -1617,22 +1622,21 @@ img{max-width:100%;height:auto;}
         <button class="btn btn-out btn-sm" onclick="var e=document.getElementById('mk-inv-asof');e.value='';renderMilkitInventory();">오늘(현재고)로</button>
       </div>
       <div id="mk-inv-asof-result" style="display:none;margin-bottom:20px;"></div>
-      <div class="page-hdr" style="border-bottom:none;margin-bottom:10px;padding-bottom:0;">
-        <h3 style="font-size:14px;">상품별 재고 현황 <span id="mk-inv-now-tag" class="badge badge-green" style="font-weight:700;">📍 현재</span></h3>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <button class="btn btn-out btn-sm" onclick="previewMilkitInventoryPrint()">🖨️ 인쇄</button>
-          <button class="btn btn-out btn-sm" onclick="exportMkInventoryLedger()">📥 대조용 엑셀</button>
-          <button class="btn btn-out btn-sm" onclick="openMkStockEditModal()">📝 재고 수정</button>
-          <button class="btn btn-acc btn-sm" onclick="openMkProductionModal()">+ 생산 등록</button>
+      <div class="mk-inv-card">
+        <div class="page-hdr" style="border-bottom:1px solid var(--border);margin-bottom:12px;padding-bottom:10px;">
+          <h3 style="font-size:15px;">📦 상품별 재고 현황 <span id="mk-inv-now-tag" class="badge badge-green" style="font-weight:700;">📍 현재</span></h3>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-out btn-sm" onclick="openMkStockEditModal()">📝 재고 수정</button>
+            <button class="btn btn-out btn-sm" onclick="previewMilkitInventoryPrint()">🖨️ 인쇄</button>
+            <button class="btn btn-out btn-sm" onclick="exportMkInventoryLedger()">📥 엑셀</button>
+          </div>
         </div>
-      </div>
-      <div style="margin-bottom:24px;">
         <table class="mk-inv-tbl">
           <colgroup><col style="width:28%"><col style="width:12%"><col style="width:12%"><col style="width:14%"><col style="width:11%"><col style="width:11%"><col style="width:12%"></colgroup>
           <thead><tr><th>상품명</th><th>생산</th><th>출고</th><th>현재고</th><th>대기</th><th>여유</th><th>상태</th></tr></thead>
           <tbody id="mk-inv-rows"></tbody>
         </table>
-        <div style="font-size:11px;color:var(--sub2);margin-top:6px;line-height:1.6;">상태 <span style="color:var(--green);font-weight:700;">✓</span> 충분 · <span style="color:#c47f16;font-weight:700;">△</span> 여유없음 · <span style="color:#c0392b;font-weight:700;">⚠️</span> 부족 · – 없음 &nbsp;|&nbsp; 행을 누르면 상세 내역</div>
+        <div style="font-size:11px;color:var(--sub2);margin-top:8px;line-height:1.6;">상태 <span style="color:var(--green);font-weight:700;">✓</span> 충분 · <span style="color:#c47f16;font-weight:700;">△</span> 여유없음 · <span style="color:#c0392b;font-weight:700;">⚠️</span> 부족 · – 없음 &nbsp;|&nbsp; 행을 누르면 상세 내역</div>
       </div>
       <div class="page-hdr" style="border-bottom:none;margin-bottom:6px;padding-bottom:0;">
         <h3 style="font-size:14px;">재고 이동 이력</h3>
