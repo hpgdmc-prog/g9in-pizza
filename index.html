@@ -4948,9 +4948,13 @@ function renderCosts(){
           <span class="num" style="font-weight:700;">${comma(Math.round(c.total))}원 (${pct(totalRatio)})</span>
         </div>
         <div class="cost-bar"><div class="cost-bar-fill ${barCls}" style="width:${Math.min(totalRatio*100,100)}%;"></div></div>
-        <div style="display:flex;justify-content:space-between;margin-top:10px;padding:10px 14px;border-radius:var(--r-sm);background:${c.margin>0?'#EAF2EA':'#F5E6E6'};">
-          <span style="font-size:13px;font-weight:600;">순 마진</span>
-          <span class="num" style="font-size:16px;font-weight:700;color:${c.margin>0?'var(--green)':'var(--red)'};">${c.margin>0?'+':''}${comma(Math.round(c.margin))}원 (${pct(c.marginRate)})</span>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:10px;">
+          <span style="font-size:12.5px;color:var(--sub);">마진 <span style="font-size:11px;color:var(--sub2);">(재료비만 뺀 1차 이익)</span></span>
+          <span class="num" style="font-weight:700;color:var(--text);">${(price-c.matCost)>=0?'+':''}${comma(Math.round(price-c.matCost))}원 (${pct(price>0?(price-c.matCost)/price:0)})</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding:11px 14px;border-radius:var(--r-sm);background:${c.margin>0?'#EAF2EA':'#F5E6E6'};">
+          <span style="font-size:13px;font-weight:700;">순수익 <span style="font-size:10.5px;font-weight:400;color:var(--sub);">모든 비용 뺀 실제 이익</span></span>
+          <span class="num" style="font-size:16px;font-weight:800;color:${c.margin>0?'var(--green)':'var(--red)'};">${c.margin>0?'+':''}${comma(Math.round(c.margin))}원 (${pct(c.marginRate)})</span>
         </div>
       </div>
     </div>`;
@@ -10654,9 +10658,13 @@ function renderMilkitCosts(){
           <span class="num" style="font-weight:700;">${comma(Math.round(c.total))}원 (${pct(totalRatio)})</span>
         </div>
         <div class="cost-bar"><div class="cost-bar-fill ${barCls}" style="width:${Math.min(totalRatio*100,100)}%;"></div></div>
-        <div style="display:flex;justify-content:space-between;margin-top:10px;padding:10px 14px;border-radius:var(--r-sm);background:${c.margin>0?'#EAF2EA':'#F5E6E6'};">
-          <span style="font-size:13px;font-weight:600;">순 마진</span>
-          <span class="num" style="font-size:16px;font-weight:700;color:${c.margin>0?'var(--green)':'var(--red)'};">${c.margin>0?'+':''}${comma(Math.round(c.margin))}원 (${pct(c.marginRate)})</span>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:10px;">
+          <span style="font-size:12.5px;color:var(--sub);">마진 <span style="font-size:11px;color:var(--sub2);">(재료비만 뺀 1차 이익)</span></span>
+          <span class="num" style="font-weight:700;color:var(--text);">${(price-c.matCost)>=0?'+':''}${comma(Math.round(price-c.matCost))}원 (${pct(price>0?(price-c.matCost)/price:0)})</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding:11px 14px;border-radius:var(--r-sm);background:${c.margin>0?'#EAF2EA':'#F5E6E6'};">
+          <span style="font-size:13px;font-weight:700;">순수익 <span style="font-size:10.5px;font-weight:400;color:var(--sub);">모든 비용 뺀 실제 이익</span></span>
+          <span class="num" style="font-size:16px;font-weight:800;color:${c.margin>0?'var(--green)':'var(--red)'};">${c.margin>0?'+':''}${comma(Math.round(c.margin))}원 (${pct(c.marginRate)})</span>
         </div>
       </div>
     </div>`;
@@ -11581,7 +11589,7 @@ function registerServiceWorker(){
    배포될 때마다 index.html의 ETag/Last-Modified(또는 APP_BUILD)가 바뀌는 걸 감지해,
    "새 버전이 나왔어요" 배너를 띄우고 누르면 캐시를 비우고 새로고침한다.
    ============================ */
-const APP_BUILD='2026-08-23-8';   // ⚠️ 배포할 때마다 이 값을 새로 바꿔야 새 버전 배너가 뜹니다
+const APP_BUILD='2026-08-23-9';   // ⚠️ 배포할 때마다 이 값을 새로 바꿔야 새 버전 배너가 뜹니다
 let _updShown=false;
 /* 서버에 배포된 index.html의 APP_BUILD 값을 읽어온다 */
 async function _updRemoteBuild(){
