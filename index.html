@@ -447,6 +447,8 @@ tr:hover td{background:var(--bg2);}
 .mk-prod-date-sum{font-size:11.5px;font-weight:400;color:var(--sub2);}
 /* 주문 일괄 처리 바 */
 .mk-bulkbar{background:var(--acc-pale);border:1px solid var(--acc);border-radius:var(--r-md);padding:10px 12px;margin-bottom:10px;}
+/* PC: 선택 액션바를 화면 하단에 고정 → 아래 항목을 선택해도 스크롤 없이 일괄 변경/삭제 사용 (overflow-x:hidden 때문에 sticky 대신 fixed) */
+@media(min-width:769px){ .mk-bulkbar{position:fixed;left:calc(var(--sidebar) + 24px);right:24px;bottom:20px;margin-bottom:0;z-index:60;box-shadow:0 10px 30px rgba(30,26,23,.22);} }
 .mk-bulkbar-title{font-size:12.5px;color:var(--acc-dark);margin-bottom:8px;}
 .mk-bulkbar-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
 .mk-bulkbar-actions select{flex:1;min-width:150px;padding:8px 10px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:13px;font-family:inherit;background:#fff;color:var(--text);}
@@ -11589,7 +11591,7 @@ function registerServiceWorker(){
    배포될 때마다 index.html의 ETag/Last-Modified(또는 APP_BUILD)가 바뀌는 걸 감지해,
    "새 버전이 나왔어요" 배너를 띄우고 누르면 캐시를 비우고 새로고침한다.
    ============================ */
-const APP_BUILD='2026-08-23-9';   // ⚠️ 배포할 때마다 이 값을 새로 바꿔야 새 버전 배너가 뜹니다
+const APP_BUILD='2026-08-23-10';   // ⚠️ 배포할 때마다 이 값을 새로 바꿔야 새 버전 배너가 뜹니다
 let _updShown=false;
 /* 서버에 배포된 index.html의 APP_BUILD 값을 읽어온다 */
 async function _updRemoteBuild(){
