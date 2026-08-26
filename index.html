@@ -1632,6 +1632,7 @@ img{max-width:100%;height:auto;}
               <option value="deliveryMethod:직접수령">직접수령</option>
             </optgroup>
           </select>
+          <label style="display:inline-flex;align-items:center;gap:5px;font-size:12.5px;color:var(--acc-dark);white-space:nowrap;">📅 발송일 <input type="date" id="mk-bulk-shipdate" onchange="mkBulkSetShipDate(this.value)" style="padding:7px 9px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:13px;font-family:inherit;background:#fff;color:var(--text);"></label>
           <button class="btn btn-out btn-sm" onclick="mkBulkTracking()">📮 송장 입력</button>
           <button class="btn btn-del" id="mk-bulk-delete-btn" onclick="bulkDeleteMkOrders()" style="font-weight:700;font-size:13.5px;padding:10px 16px;">🗑 선택 삭제</button>
         </div>
@@ -6309,6 +6310,25 @@ function bulkDeleteMkOrders(){
   DB.save('milkitOrders',milkitOrders);
   renderMilkitStats();
   renderMilkitOrders();
+}
+/* 선택한 여러 주문의 발송일을 한 번에 지정 (재고 차감·발송 기준일) */
+function mkBulkSetShipDate(dateStr){
+  const inp=document.getElementById('mk-bulk-shipdate');
+  if(!dateStr){ return; }
+  if(!mkSelectedOrderIds.size){ alert('먼저 주문을 선택하세요.'); if(inp)inp.value=''; return; }
+  if(!confirm(`선택한 ${mkSelectedOrderIds.size}건의 발송일을 ${dateStr}로 지정할까요?\n(미발송(준비중) 건은 '배송중'으로 함께 바뀝니다)`)){ if(inp)inp.value=''; return; }
+  let n=0, shipChanged=[];
+  milkitOrders.forEach(o=>{
+    if(!mkSelectedOrderIds.has(o.id)) return;
+    o.shippedDate=dateStr;
+    if((o.deliveryStatus||'준비중')==='준비중'){ o.deliveryStatus='배송중'; shipChanged.push(o.id); }
+    n++;
+  });
+  DB.save('milkitOrders',milkitOrders);
+  if(inp)inp.value='';
+  renderMilkitStats(); renderMilkitOrders();
+  if(shipChanged.length) mkShipSmsAfterTransition(shipChanged);   // 배송중 전환 시 발송 안내 문자(자동 옵션이면)
+  appToast(`${n}건 발송일을 ${dateStr}로 지정했습니다`);
 }
 /* 선택한 여러 주문의 한 필드를 한꺼번에 변경 (배송상태/결제상태/배송방법) */
 function mkBulkApply(selEl){
@@ -11614,7 +11634,7 @@ function registerServiceWorker(){
    배포될 때마다 index.html의 ETag/Last-Modified(또는 APP_BUILD)가 바뀌는 걸 감지해,
    "새 버전이 나왔어요" 배너를 띄우고 누르면 캐시를 비우고 새로고침한다.
    ============================ */
-const APP_BUILD='2026-08-23-12';   // ⚠️ 배포할 때마다 이 값을 새로 바꿔야 새 버전 배너가 뜹니다
+const APP_BUILD='2026-08-23-13';   // ⚠️ 배포할 때마다 이 값을 새로 바꿔야 새 버전 배너가 뜹니다
 let _updShown=false;
 /* 서버에 배포된 index.html의 APP_BUILD 값을 읽어온다 */
 async function _updRemoteBuild(){
