@@ -479,6 +479,8 @@ tr:hover td{background:var(--bg2);}
 .mk-sp-step button{width:30px;height:30px;border-radius:8px;border:1px solid var(--border-strong);background:#fff;font-size:18px;font-weight:700;color:var(--acc-dark);cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center;padding:0;}
 .mk-sp-step button:disabled{opacity:.32;cursor:default;}
 .mk-sp-step b{min-width:16px;text-align:center;font-size:15px;}
+.mk-sp-step .mk-sp-val{width:42px;flex:0 0 auto;height:30px;text-align:center;font-size:15px;font-weight:700;color:var(--text);border:1px solid var(--border);border-radius:8px;background:#fff;font-family:inherit;padding:0;box-sizing:border-box;-moz-appearance:textfield;}
+.mk-sp-step .mk-sp-val:focus{border-color:var(--acc);outline:none;}
 .mko-ship{margin-top:6px;font-size:12px;color:var(--acc-dark);background:var(--acc-pale);border-radius:6px;padding:5px 9px;line-height:1.4;}
 .mko-ship.urgent{color:#9E2828;background:#F7E4E4;font-weight:600;}
 /* 주문 액션 드롭다운 메뉴 */
@@ -7199,10 +7201,13 @@ function renderMilkitOrderQtyRows(qtyMap){
   qtyMap = qtyMap||{};
   const el=document.getElementById('mk-order-qty-rows');
   const rowHtml=p=>`
-    <div class="recipe-item-row" style="display:grid;grid-template-columns:minmax(0,1fr) 70px 74px;align-items:center;gap:10px;min-width:0;width:100%;box-sizing:border-box;">
-      <span style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.name}</span>
-      <span style="color:var(--sub2);font-size:12px;white-space:nowrap;text-align:right;">${comma(p.price)}원</span>
-      <input type="text" id="mk-qty-${p.id}" value="${Number(qtyMap[p.id])||''}" placeholder="0" inputmode="numeric" style="width:100%;text-align:center;box-sizing:border-box;" oninput="qtyInputFilter(this);mkAutoApplySet();mkUpdateOrderTotals()">
+    <div class="recipe-item-row" style="display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px;min-width:0;width:100%;box-sizing:border-box;">
+      <span style="min-width:0;overflow:hidden;"><b style="font-weight:600;">${p.name}</b> <span style="color:var(--sub2);font-size:12px;white-space:nowrap;">· ${comma(p.price)}원</span></span>
+      <span class="mk-sp-step">
+        <button type="button" onclick="mkOrderQtyStep('${p.id}',-1)" aria-label="빼기">−</button>
+        <input type="text" id="mk-qty-${p.id}" class="mk-sp-val" value="${Number(qtyMap[p.id])||''}" placeholder="0" inputmode="numeric" oninput="qtyInputFilter(this);mkAutoApplySet();mkUpdateOrderTotals()">
+        <button type="button" onclick="mkOrderQtyStep('${p.id}',1)" aria-label="더하기">+</button>
+      </span>
     </div>`;
   // 피자와 추가품목(소스팩 등)을 항상 분리해서 표시 (숨김 상품은 제외)
   const pizzas=milkitProducts.filter(p=>p.category==='피자' && !p.hidden);
@@ -7213,6 +7218,15 @@ function renderMilkitOrderQtyRows(qtyMap){
     html += extras.map(rowHtml).join('');
   }
   el.innerHTML=html;
+}
+// 구성 상품 수량 −/+ 스텝퍼
+function mkOrderQtyStep(id, delta){
+  const inp=document.getElementById('mk-qty-'+id);
+  if(!inp) return;
+  const cur=unComma(inp.value)||0;
+  const next=Math.max(0, cur+delta);
+  inp.value = next>0 ? String(next) : '';
+  mkAutoApplySet(); mkUpdateOrderTotals();
 }
 
 /* 피자 수량에 따라 세트 할인을 자동 적용
@@ -11662,7 +11676,7 @@ function registerServiceWorker(){
    배포될 때마다 index.html의 ETag/Last-Modified(또는 APP_BUILD)가 바뀌는 걸 감지해,
    "새 버전이 나왔어요" 배너를 띄우고 누르면 캐시를 비우고 새로고침한다.
    ============================ */
-const APP_BUILD='2026-08-23-18';   // ⚠️ 배포할 때마다 이 값을 새로 바꿔야 새 버전 배너가 뜹니다
+const APP_BUILD='2026-08-23-19';   // ⚠️ 배포할 때마다 이 값을 새로 바꿔야 새 버전 배너가 뜹니다
 let _updShown=false;
 /* 서버에 배포된 index.html의 APP_BUILD 값을 읽어온다 */
 async function _updRemoteBuild(){
