@@ -470,14 +470,15 @@ tr:hover td{background:var(--bg2);}
 .mko-set-chip{font-size:12.5px;font-weight:800;background:var(--acc-pale);border:1px solid var(--acc);color:var(--acc-dark);border-radius:8px;padding:3px 11px;white-space:nowrap;}
 .mko-meta{margin-top:7px;font-size:11.5px;color:var(--sub2);}
 /* 세트 메뉴 선택 버튼 */
-.mk-setpick-btn{display:flex;flex-direction:column;align-items:flex-start;gap:2px;position:relative;
-  padding:12px 12px 10px;border:1.5px solid var(--border);border-radius:var(--r-md);background:#fff;
-  font-family:inherit;font-size:13.5px;font-weight:600;color:var(--text);cursor:pointer;text-align:left;}
+.mk-setpick-btn{display:flex;flex-direction:row;align-items:center;justify-content:space-between;gap:10px;
+  padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--r-md);background:#fff;
+  font-family:inherit;font-size:13.5px;font-weight:600;color:var(--text);text-align:left;}
 .mk-setpick-btn.on{border-color:var(--acc);background:var(--acc-pale);}
-.mk-setpick-btn .sp-check{position:absolute;top:8px;right:9px;width:20px;height:20px;border-radius:5px;
-  border:1.5px solid var(--border-strong);display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff;}
-.mk-setpick-btn.on .sp-check{background:var(--acc);border-color:var(--acc);}
 .mk-setpick-btn .sp-price{font-size:11px;font-weight:400;color:var(--sub2);}
+.mk-sp-step{display:inline-flex;align-items:center;gap:9px;flex-shrink:0;}
+.mk-sp-step button{width:30px;height:30px;border-radius:8px;border:1px solid var(--border-strong);background:#fff;font-size:18px;font-weight:700;color:var(--acc-dark);cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center;padding:0;}
+.mk-sp-step button:disabled{opacity:.32;cursor:default;}
+.mk-sp-step b{min-width:16px;text-align:center;font-size:15px;}
 .mko-ship{margin-top:6px;font-size:12px;color:var(--acc-dark);background:var(--acc-pale);border-radius:6px;padding:5px 9px;line-height:1.4;}
 .mko-ship.urgent{color:#9E2828;background:#F7E4E4;font-weight:600;}
 /* 주문 액션 드롭다운 메뉴 */
@@ -1470,8 +1471,6 @@ img{max-width:100%;height:auto;}
     <div class="page-hdr">
       <h3>밀키트 판매 관리</h3>
     </div>
-    <div class="stat-grid" id="mk-stats"></div>
-    <div class="stat-grid" id="mk-inv-summary" style="margin-top:12px;"></div>
     <div class="mk-groupnav">
       <button class="mk-group active" data-g="sales" onclick="mkSelectGroup('sales')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h2l2.2 11.5a1.5 1.5 0 0 0 1.5 1.2h8a1.5 1.5 0 0 0 1.5-1.2L21 8H6"/><circle cx="9" cy="20" r="1.3"/><circle cx="18" cy="20" r="1.3"/></svg>판매 · 운영<span class="mk-group-sub">주문 · 재고 · 판매현황</span></button>
       <button class="mk-group" data-g="manage" onclick="mkSelectGroup('manage')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5 5l2.1 2.1M16.9 16.9 19 19M19 5l-2.1 2.1M7.1 16.9 5 19"/></svg>관리 · 설정<span class="mk-group-sub">메뉴가격 · 고객 · 원가</span></button>
@@ -1750,6 +1749,11 @@ img{max-width:100%;height:auto;}
     </div>
 
     <div id="mk-pane-stats" style="display:none;">
+      <div class="page-hdr" style="border-bottom:none;margin-bottom:8px;padding-bottom:0;">
+        <h3 style="font-size:15px;">📊 매출 · 수익 요약</h3>
+      </div>
+      <div class="stat-grid" id="mk-stats" style="margin-bottom:12px;"></div>
+      <div class="stat-grid" id="mk-inv-summary" style="margin-bottom:22px;"></div>
       <div class="page-hdr" style="border-bottom:none;margin-bottom:10px;padding-bottom:0;">
         <h3 style="font-size:14px;">제품별 판매 현황</h3>
         <button class="btn btn-out btn-sm" onclick="previewMilkitStatsPrint()">🖨️ 인쇄</button>
@@ -2794,7 +2798,7 @@ img{max-width:100%;height:auto;}
     </div>
     <div class="modal-body">
       <div id="mk-setpick-hint" style="font-size:12.5px;color:var(--sub);margin-bottom:12px;line-height:1.5;"></div>
-      <div id="mk-setpick-list" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;"></div>
+      <div id="mk-setpick-list" style="display:grid;grid-template-columns:1fr;gap:8px;"></div>
     </div>
     <div class="modal-footer-lg">
       <button class="btn btn-out" onclick="mkSetPickCancel()">취소</button>
@@ -6059,7 +6063,7 @@ function showMilkitTab(tab, fromHistory){
   if(tab==='customers') renderMilkitCustomers();
   if(tab==='products') renderMilkitProductSettings();
   if(tab==='inventory') renderMilkitInventory();
-  if(tab==='stats') renderMilkitSalesStats();
+  if(tab==='stats'){ renderMilkitStats(); renderMilkitSalesStats(); }   // 판매 현황 상단 요약(매출·수익)도 갱신
   if(tab==='costs') renderMilkitCosts();
   if(!fromHistory) pushAppHistory();
   mkSaveLastView();
@@ -7248,7 +7252,8 @@ function mkUpdateOrderTotals(){
 
 /* ===== 세트 구성유형 선택 → 메뉴 고르기 팝업 =====
    2종세트를 고르면 피자 2가지, 4종세트를 고르면 4가지를 선택하게 하고 자동으로 수량을 채운다 */
-let _mkSetPickRule='', _mkSetPickSize=0, _mkSetPickSel=new Set();
+let _mkSetPickRule='', _mkSetPickSize=0, _mkSetPickCounts={};
+function mkSetPickTotal(){ return Object.values(_mkSetPickCounts).reduce((s,n)=>s+(Number(n)||0),0); }
 function mkSetTypeChanged(){
   const v=document.getElementById('mk-order-settype').value;
   const rule=milkitSetRules.find(r=>r.name===v);
@@ -7272,36 +7277,40 @@ function openMkSetPicker(ruleName, size){
     mkAutoApplySet(); mkUpdateOrderTotals();
     return;
   }
-  _mkSetPickRule=ruleName; _mkSetPickSize=size; _mkSetPickSel=new Set();
-  // 이미 수량이 있는 피자를 우선 선택 (size 이하)
-  pizzas.forEach(p=>{ if(_mkSetPickSel.size<size && numVal('mk-qty-'+p.id)>0) _mkSetPickSel.add(p.id); });
-  document.getElementById('mk-setpick-title').textContent=`${ruleName} — 피자 ${size}가지 선택`;
+  _mkSetPickRule=ruleName; _mkSetPickSize=size; _mkSetPickCounts={};
+  // 이미 입력된 피자 수량을 세트 크기 한도 내에서 채워 넣음
+  let tot=0;
+  pizzas.forEach(p=>{ const q=numVal('mk-qty-'+p.id); if(q>0 && tot<size){ const take=Math.min(q, size-tot); _mkSetPickCounts[p.id]=take; tot+=take; } });
+  document.getElementById('mk-setpick-title').textContent=`${ruleName} — 피자 ${size}개 담기`;
   renderMkSetPicker();
   openModal('mk-setpick-modal');
 }
 function renderMkSetPicker(){
   const pizzas=milkitProducts.filter(p=>p.category==='피자');
+  const total=mkSetPickTotal();
   const hint=document.getElementById('mk-setpick-hint');
-  if(hint) hint.innerHTML=`서로 다른 피자 <b>${_mkSetPickSize}가지</b>를 선택하세요. (현재 ${_mkSetPickSel.size}/${_mkSetPickSize})`;
+  if(hint) hint.innerHTML=`피자 <b>${_mkSetPickSize}개</b>를 담으세요 <span style="color:var(--sub2);">— 같은 메뉴를 여러 개 담아도 됩니다.</span> (현재 <b>${total}</b>/${_mkSetPickSize})`;
   document.getElementById('mk-setpick-list').innerHTML=pizzas.map(p=>{
-    const on=_mkSetPickSel.has(p.id);
-    return `<button type="button" class="mk-setpick-btn${on?' on':''}" onclick="mkSetPickToggle('${p.id}')">
-      <span class="sp-check">${on?'✓':''}</span>${p.name}<span class="sp-price">${comma(p.price)}원</span></button>`;
+    const c=_mkSetPickCounts[p.id]||0;
+    return `<div class="mk-setpick-btn${c>0?' on':''}">
+      <span style="min-width:0;flex:1;">${p.name}<span class="sp-price"> · ${comma(p.price)}원</span></span>
+      <span class="mk-sp-step">
+        <button type="button" onclick="mkSetPickSub('${p.id}')" ${c<=0?'disabled':''} aria-label="빼기">−</button>
+        <b>${c}</b>
+        <button type="button" onclick="mkSetPickAdd('${p.id}')" ${total>=_mkSetPickSize?'disabled':''} aria-label="더하기">+</button>
+      </span>
+    </div>`;
   }).join('');
   const ok=document.getElementById('mk-setpick-ok');
-  if(ok) ok.disabled = _mkSetPickSel.size!==_mkSetPickSize;
+  if(ok) ok.disabled = total!==_mkSetPickSize;
 }
-function mkSetPickToggle(id){
-  if(_mkSetPickSel.has(id)) _mkSetPickSel.delete(id);
-  else { if(_mkSetPickSel.size>=_mkSetPickSize){ return; } _mkSetPickSel.add(id); }
-  renderMkSetPicker();
-}
+function mkSetPickAdd(id){ if(mkSetPickTotal()>=_mkSetPickSize) return; _mkSetPickCounts[id]=(_mkSetPickCounts[id]||0)+1; renderMkSetPicker(); }
+function mkSetPickSub(id){ if(!_mkSetPickCounts[id]) return; _mkSetPickCounts[id]--; if(_mkSetPickCounts[id]<=0) delete _mkSetPickCounts[id]; renderMkSetPicker(); }
 function mkSetPickConfirm(){
-  if(_mkSetPickSel.size!==_mkSetPickSize) return;
-  // 피자 수량 초기화 후 선택한 것만 1개씩
+  if(mkSetPickTotal()!==_mkSetPickSize) return;
   milkitProducts.filter(p=>p.category==='피자').forEach(p=>{
     const el=document.getElementById('mk-qty-'+p.id);
-    if(el) el.value = _mkSetPickSel.has(p.id) ? '1' : '';
+    if(el){ const c=_mkSetPickCounts[p.id]||0; el.value = c>0 ? String(c) : ''; }
   });
   document.getElementById('mk-order-settype').value=_mkSetPickRule;
   document.getElementById('mk-order-setqty').value=1;
@@ -11633,7 +11642,7 @@ function registerServiceWorker(){
    배포될 때마다 index.html의 ETag/Last-Modified(또는 APP_BUILD)가 바뀌는 걸 감지해,
    "새 버전이 나왔어요" 배너를 띄우고 누르면 캐시를 비우고 새로고침한다.
    ============================ */
-const APP_BUILD='2026-08-23-16';   // ⚠️ 배포할 때마다 이 값을 새로 바꿔야 새 버전 배너가 뜹니다
+const APP_BUILD='2026-08-23-17';   // ⚠️ 배포할 때마다 이 값을 새로 바꿔야 새 버전 배너가 뜹니다
 let _updShown=false;
 /* 서버에 배포된 index.html의 APP_BUILD 값을 읽어온다 */
 async function _updRemoteBuild(){
