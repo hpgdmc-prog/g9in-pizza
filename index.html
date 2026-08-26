@@ -7202,7 +7202,7 @@ function renderMilkitOrderQtyRows(qtyMap){
   const el=document.getElementById('mk-order-qty-rows');
   const rowHtml=p=>`
     <div class="recipe-item-row" style="display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px;min-width:0;width:100%;box-sizing:border-box;">
-      <span style="min-width:0;overflow:hidden;"><b style="font-weight:600;">${p.name}</b> <span style="color:var(--sub2);font-size:12px;white-space:nowrap;">· ${comma(p.price)}원</span></span>
+      <span style="min-width:0;overflow:hidden;display:flex;flex-direction:column;gap:2px;line-height:1.3;"><b style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.name}</b><span style="color:var(--sub2);font-size:12px;">${comma(p.price)}원</span></span>
       <span class="mk-sp-step">
         <button type="button" onclick="mkOrderQtyStep('${p.id}',-1)" aria-label="빼기">−</button>
         <input type="text" id="mk-qty-${p.id}" class="mk-sp-val" value="${Number(qtyMap[p.id])||''}" placeholder="0" inputmode="numeric" oninput="qtyInputFilter(this);mkAutoApplySet();mkUpdateOrderTotals()">
@@ -11676,7 +11676,7 @@ function registerServiceWorker(){
    배포될 때마다 index.html의 ETag/Last-Modified(또는 APP_BUILD)가 바뀌는 걸 감지해,
    "새 버전이 나왔어요" 배너를 띄우고 누르면 캐시를 비우고 새로고침한다.
    ============================ */
-const APP_BUILD='2026-08-23-19';   // ⚠️ 배포할 때마다 이 값을 새로 바꿔야 새 버전 배너가 뜹니다
+const APP_BUILD='2026-08-23-20';   // ⚠️ 배포할 때마다 이 값을 새로 바꿔야 새 버전 배너가 뜹니다
 let _updShown=false;
 /* 서버에 배포된 index.html의 APP_BUILD 값을 읽어온다 */
 async function _updRemoteBuild(){
