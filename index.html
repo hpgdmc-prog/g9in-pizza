@@ -2641,7 +2641,7 @@ img{max-width:100%;height:auto;}
             </div>
           </div>
           <div class="form-row" id="mk-row-phone">
-            <label>연락처 <span class="req-note">(배송 시 필수)</span></label>
+            <label>연락처 <span class="req-note">(택배발송 시 필수)</span></label>
             <input type="tel" id="mk-order-phone" placeholder="010-0000-0000" oninput="this.value=formatPhone(this.value);mkSyncRecipientPh();this.classList.remove('input-invalid')">
           </div>
         </div>
@@ -2692,7 +2692,7 @@ img{max-width:100%;height:auto;}
         </div>
         <div style="font-size:11.5px;color:var(--sub);margin:-2px 0 10px;line-height:1.5;">💡 선물·대리주문 등 <b>받는 분이 다르면</b> 이름을 입력하세요. 비워두면 주문자와 동일하게 처리됩니다.</div>
         <div class="form-row">
-          <label>배송주소 (도로명) <span class="req-note">(배송 시 필수)</span></label>
+          <label>배송주소 (도로명) <span class="req-note">(택배발송 시 필수)</span></label>
           <div style="display:flex;gap:6px;">
             <input type="text" id="mk-order-address" placeholder="🔍 주소검색으로 도로명 주소 입력" style="flex:1;min-width:0;" oninput="this.classList.remove('input-invalid')">
             <button type="button" class="btn btn-out btn-sm" style="flex:0 0 auto;" onclick="openAddressSearch('mk-order-address','mk-order-address-detail')">🔍 주소검색</button>
@@ -7828,7 +7828,7 @@ function saveMilkitOrder(){
   const qty={}; let itemCount=0;
   milkitProducts.forEach(p=>{ const q=numVal('mk-qty-'+p.id); qty[p.id]=q; itemCount+=q; });
   // ── 필수입력 검증 ──
-  const needDeliv = (delMethod==='택배발송' || delMethod==='직접배송');
+  const needDeliv = (delMethod==='택배발송');   // 택배발송만 연락처·주소 필수 (직접배송·직접수령은 선택 — 직접 오시거나 전달)
   const recipPhoneRaw=(document.getElementById('mk-order-recipient-phone').value||'').replace(/\D/g,'');
   const miss=[];
   if(!orderDate) miss.push({id:'mk-order-date', label:'주문일자'});
@@ -11591,7 +11591,7 @@ function registerServiceWorker(){
    배포될 때마다 index.html의 ETag/Last-Modified(또는 APP_BUILD)가 바뀌는 걸 감지해,
    "새 버전이 나왔어요" 배너를 띄우고 누르면 캐시를 비우고 새로고침한다.
    ============================ */
-const APP_BUILD='2026-08-23-10';   // ⚠️ 배포할 때마다 이 값을 새로 바꿔야 새 버전 배너가 뜹니다
+const APP_BUILD='2026-08-23-11';   // ⚠️ 배포할 때마다 이 값을 새로 바꿔야 새 버전 배너가 뜹니다
 let _updShown=false;
 /* 서버에 배포된 index.html의 APP_BUILD 값을 읽어온다 */
 async function _updRemoteBuild(){
