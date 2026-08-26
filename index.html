@@ -7935,9 +7935,12 @@ function commitMilkitOrder(obj){
     const idx=milkitOrders.findIndex(x=>x.id===mkEditId);
     const old=milkitOrders[idx];
     shipNow = obj.deliveryStatus==='배송중' && (!old || old.deliveryStatus!=='배송중');
-    if(old && old.shippedDate && !obj.shippedDate) obj.shippedDate = old.shippedDate; // 기존 발송일 보존
-    if(old && old.returnedDate && !obj.returnedDate) obj.returnedDate = old.returnedDate; // 기존 반품일 보존
-    mkStampShip(obj);
+    if(old && old.returnedDate && !obj.returnedDate) obj.returnedDate = old.returnedDate; // 반품일은 폼에 칸이 없으므로 보존
+    // 발송일은 수정 폼 입력값을 그대로 존중(비우면 비워짐). 단, '새로' 발송상태가 됐는데 비어 있으면 오늘로 기록
+    const wasShipped = old && (old.deliveryStatus==='배송중' || old.deliveryStatus==='배송완료');
+    const nowShipped = (obj.deliveryStatus==='배송중' || obj.deliveryStatus==='배송완료');
+    if(nowShipped && !wasShipped && !obj.shippedDate) obj.shippedDate = todayStr();
+    if(obj.deliveryStatus==='반품' && !(old && old.deliveryStatus==='반품') && !obj.returnedDate) obj.returnedDate = todayStr();
     milkitOrders[idx]=obj;
   }
   else { shipNow = obj.deliveryStatus==='배송중'; mkStampShip(obj); milkitOrders.push(obj); }
@@ -11634,7 +11637,7 @@ function registerServiceWorker(){
    배포될 때마다 index.html의 ETag/Last-Modified(또는 APP_BUILD)가 바뀌는 걸 감지해,
    "새 버전이 나왔어요" 배너를 띄우고 누르면 캐시를 비우고 새로고침한다.
    ============================ */
-const APP_BUILD='2026-08-23-13';   // ⚠️ 배포할 때마다 이 값을 새로 바꿔야 새 버전 배너가 뜹니다
+const APP_BUILD='2026-08-23-14';   // ⚠️ 배포할 때마다 이 값을 새로 바꿔야 새 버전 배너가 뜹니다
 let _updShown=false;
 /* 서버에 배포된 index.html의 APP_BUILD 값을 읽어온다 */
 async function _updRemoteBuild(){
