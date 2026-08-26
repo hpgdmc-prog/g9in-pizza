@@ -1561,6 +1561,15 @@ img{max-width:100%;height:auto;}
             </select>
           </div>
           <div class="f-field">
+            <label>배송방법</label>
+            <select id="mk-order-delmethod-filter" onchange="renderMilkitOrders()">
+              <option value="">전체</option>
+              <option value="택배발송">택배발송</option>
+              <option value="직접배송">직접배송</option>
+              <option value="직접수령">직접수령</option>
+            </select>
+          </div>
+          <div class="f-field">
             <label>정렬</label>
             <select id="mk-order-sort" onchange="renderMilkitOrders()">
               <option value="noDesc">번호순 (최신 위)</option>
@@ -6144,7 +6153,7 @@ function syncMkOrderFilterUi(){
   });
   let n=0;
   if(period) n++;
-  ['mk-order-product-filter','mk-order-paystatus-filter','mk-order-delstatus-filter'].forEach(id=>{
+  ['mk-order-product-filter','mk-order-paystatus-filter','mk-order-delstatus-filter','mk-order-delmethod-filter'].forEach(id=>{
     if((document.getElementById(id)?.value||'')) n++;
   });
   if((document.getElementById('mk-order-sort')?.value||'noDesc')!=='noDesc') n++;
@@ -6192,6 +6201,7 @@ function getFilteredMilkitOrders(){
   const q=(document.getElementById('mk-order-search')?.value||'').toLowerCase().trim();
   const payF=document.getElementById('mk-order-paystatus-filter')?.value||'';
   const delF=document.getElementById('mk-order-delstatus-filter')?.value||'';
+  const methodF=document.getElementById('mk-order-delmethod-filter')?.value||'';
   const prodF=document.getElementById('mk-order-product-filter')?.value||'';
   const sort=document.getElementById('mk-order-sort')?.value||'noDesc';
   const range=mkOrderPeriodRange();
@@ -6209,6 +6219,7 @@ function getFilteredMilkitOrders(){
   if(prodF) list=list.filter(o=>Number(o.qty&&o.qty[prodF])>0);
   if(payF) list=list.filter(o=>(o.payStatus||'대기')===payF);
   if(delF) list=list.filter(o=>(o.deliveryStatus||'준비중')===delF);
+  if(methodF) list=list.filter(o=>(o.deliveryMethod||'')===methodF);
   if(document.getElementById('mk-order-hidedone')?.checked)
     list=list.filter(o=>(o.deliveryStatus||'준비중')!=='배송완료');
   if(mkShipTodayOnly) list=list.filter(mkIsShipToday);
@@ -6233,11 +6244,13 @@ function mkOrderFilterLabel(){
   const prodF=document.getElementById('mk-order-product-filter')?.value||'';
   const payF=document.getElementById('mk-order-paystatus-filter')?.value||'';
   const delF=document.getElementById('mk-order-delstatus-filter')?.value||'';
+  const methodF=document.getElementById('mk-order-delmethod-filter')?.value||'';
   if(range) parts.push('기간: '+range.label);
   if(q) parts.push('검색: '+q);
   if(prodF){ const p=milkitProducts.find(x=>x.id===prodF); if(p) parts.push('상품: '+p.name); }
   if(payF) parts.push('결제: '+payF);
   if(delF) parts.push('배송: '+delF);
+  if(methodF) parts.push('배송방법: '+methodF);
   if(mkShipTodayOnly) parts.push('오늘 발송 예정');
   return parts.join(' · ');
 }
@@ -6246,7 +6259,7 @@ function resetMkOrderFilters(){
   ['mk-order-search','mk-order-from','mk-order-to'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.value='';
   });
-  ['mk-order-period','mk-order-product-filter','mk-order-paystatus-filter','mk-order-delstatus-filter'].forEach(id=>{
+  ['mk-order-period','mk-order-product-filter','mk-order-paystatus-filter','mk-order-delstatus-filter','mk-order-delmethod-filter'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.value='';
   });
   const sort=document.getElementById('mk-order-sort'); if(sort) sort.value='noDesc';
@@ -6380,20 +6393,30 @@ function mkShipDisplay(o){
   return `<div class="mko-line mko-dim">📮 발송일 미기록</div>`;
 }
 function mkOrderShipLine(o){
-  if(o.deliveryMethod!=='택배발송' || !o.desiredDate) return '';
-  if((o.deliveryStatus||'준비중')!=='준비중') return '';   // 이미 발송했으면 안내 불필요
+  if(!o.desiredDate) return '';
+  if((o.deliveryStatus||'준비중')!=='준비중') return '';   // 이미 처리했으면 안내 불필요
   const wd=['일','월','화','수','목','금','토'];
   const fmt=dt=>`${dt.getMonth()+1}월 ${dt.getDate()}일(${wd[dt.getDay()]})`;
   const recv=new Date(o.desiredDate+'T00:00:00');
   if(isNaN(recv)) return '';
-  const ship=new Date(recv); ship.setDate(ship.getDate()-1);
-  // 발송 권장일이 지났거나 임박하면 강조
   const today=new Date(); today.setHours(0,0,0,0);
-  const diff=Math.round((ship-today)/86400000);
+  // 임박/지남 태그 (기준 날짜와 today 차이)
+  const urg=d=>{ if(d<0) return {tag:' · ⚠️ 지남', urgent:true}; if(d===0) return {tag:' · 🔴 오늘', urgent:true}; if(d===1) return {tag:' · 내일', urgent:false}; return {tag:'', urgent:false}; };
+  if(o.deliveryMethod==='직접수령'){
+    const d=Math.round((recv-today)/86400000); const u=urg(d);
+    return `<div class="mko-ship${u.urgent?' urgent':''}">🏪 방문 수령 예정 <b>${fmt(recv)}</b>${u.tag}</div>`;
+  }
+  if(o.deliveryMethod==='직접배송'){
+    const d=Math.round((recv-today)/86400000); const u=urg(d);
+    return `<div class="mko-ship${u.urgent?' urgent':''}">🚗 직접 배송 예정 <b>${fmt(recv)}</b>${u.tag}</div>`;
+  }
+  // 택배발송: 하루 전 발송 권장
+  const ship=new Date(recv); ship.setDate(ship.getDate()-1);
+  const d=Math.round((ship-today)/86400000);
   let tag='', cls='mko-ship';
-  if(diff<0){ tag=' · ⚠️ 발송일 지남'; cls='mko-ship urgent'; }
-  else if(diff===0){ tag=' · 🔴 오늘 발송'; cls='mko-ship urgent'; }
-  else if(diff===1){ tag=' · 내일 발송'; }
+  if(d<0){ tag=' · ⚠️ 발송일 지남'; cls='mko-ship urgent'; }
+  else if(d===0){ tag=' · 🔴 오늘 발송'; cls='mko-ship urgent'; }
+  else if(d===1){ tag=' · 내일 발송'; }
   return `<div class="${cls}">🚚 발송 권장 <b>${fmt(ship)}</b> <span class="mko-dim">(수령 ${fmt(recv)})</span>${tag}</div>`;
 }
 
@@ -11591,7 +11614,7 @@ function registerServiceWorker(){
    배포될 때마다 index.html의 ETag/Last-Modified(또는 APP_BUILD)가 바뀌는 걸 감지해,
    "새 버전이 나왔어요" 배너를 띄우고 누르면 캐시를 비우고 새로고침한다.
    ============================ */
-const APP_BUILD='2026-08-23-11';   // ⚠️ 배포할 때마다 이 값을 새로 바꿔야 새 버전 배너가 뜹니다
+const APP_BUILD='2026-08-23-12';   // ⚠️ 배포할 때마다 이 값을 새로 바꿔야 새 버전 배너가 뜹니다
 let _updShown=false;
 /* 서버에 배포된 index.html의 APP_BUILD 값을 읽어온다 */
 async function _updRemoteBuild(){
