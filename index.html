@@ -2688,7 +2688,13 @@ img{max-width:100%;height:auto;}
           <span style="display:none;">배송비(낱개) <b class="num" style="color:var(--acc-dark);" id="mk-order-shipfee">0원</b></span>
           <span>결제금액 <b class="num" style="color:var(--acc-dark);font-size:15px;" id="mk-order-paytotal">0원</b></span>
         </div>
-        <div id="mk-order-nodiscount" style="display:none;font-size:11.5px;color:var(--red);margin:-2px 2px 8px;line-height:1.5;">⚠️ 이 2종 구성은 2,000원 할인 대상이 아니에요. <span style="color:var(--sub2);">(같은 피자 2개는 고르곤졸라·허니리얼치즈만 할인)</span></div>
+        <div id="mk-order-nodiscount" style="display:none;font-size:11.5px;color:var(--sub);margin:-2px 2px 8px;line-height:1.5;">ℹ️ 정해진 세트 구성이 아니어서 <b>자동 할인이 없어요.</b> 필요하면 아래 <b>직접 할인</b>에 금액을 넣으세요.</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;background:var(--bg2);border-radius:var(--r-md);margin-bottom:8px;flex-wrap:wrap;">
+          <span style="font-size:12.5px;font-weight:600;">✏️ 직접 할인 조정 <span class="req-note">(＋추가 / －축소)</span></span>
+          <span style="display:inline-flex;align-items:center;gap:6px;font-size:13px;">
+            <input type="text" id="mk-order-manual-discount" inputmode="numeric" placeholder="0" value="" oninput="mkManualDiscountInput(this)" style="width:110px;text-align:right;padding:7px 9px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;box-sizing:border-box;">원
+          </span>
+        </div>
         <label style="display:flex;align-items:flex-start;gap:9px;font-size:12.5px;color:var(--txt);cursor:pointer;padding:8px 2px;line-height:1.55;">
           <input type="checkbox" id="mk-order-promo" style="width:17px;height:17px;flex:0 0 auto;margin-top:1px;">
           <span style="flex:1;min-width:0;">🎁 홍보용 무료 발송 — <b>매출·수익에서 제외</b> <span class="req-note">(출고·택배는 그대로)</span></span>
@@ -6025,7 +6031,24 @@ function mk2SetDiscountOK(qtyMap){
   if(picks[0]===picks[1]) return MK_2SET_SAME_OK.includes(picks[0]);  // 같은 피자 2개
   return true;                                       // 서로 다른 두 피자 → 항상 할인
 }
-function mkCalcTotals(qtyMap, setType, setQty, deliveryMethod){
+// 4종세트 자동 할인 적용 가능 여부 — 서로 다른 4가지 피자 각 1개씩(정해진 구성)만 할인.
+function mk4SetDiscountOK(qtyMap){
+  const picks=[];
+  milkitProducts.filter(p=>p.category==='피자').forEach(p=>{
+    const q=Number(qtyMap[p.id])||0;
+    for(let i=0;i<q;i++) picks.push(p.name);
+  });
+  if(picks.length!==4) return true;      // 정확히 피자 4개인 '한 세트'만 판정
+  return new Set(picks).size===4;        // 서로 다른 4가지 → 정해진 구성만 할인
+}
+// 세트 자동 할인(정해진 구성) 적용 가능 여부
+function mkSetAutoDiscountOK(qtyMap, rule){
+  const size = rule ? mkSetRuleSize(rule) : 0;
+  if(size===2) return mk2SetDiscountOK(qtyMap);
+  if(size===4) return mk4SetDiscountOK(qtyMap);
+  return true;   // 그 외 세트는 기존대로 할인
+}
+function mkCalcTotals(qtyMap, setType, setQty, deliveryMethod, manualDiscount){
   const rule = milkitSetRules.find(r=>r.name===setType);
   const isSet = !!rule && mkSetRuleSize(rule) >= 2;   // 2종/4종 등 실제 세트만
   const n = Math.max(1, Number(setQty)||1);           // 세트 수 (몇 세트 구입)
@@ -6038,14 +6061,17 @@ function mkCalcTotals(qtyMap, setType, setQty, deliveryMethod){
   });
   // 세트: 피자 정가 × 세트수량 (+ 추가품목은 입력 수량 그대로), 할인 = 세트할인 × 세트수량
   const listTotal = isSet ? (pizzaBase * n + extraBase) : (pizzaBase + extraBase);
-  // 2종세트는 허용된 조합만 할인 적용(동일피자 2개는 고르곤졸라·허니리얼치즈만)
-  const discountOK = !(isSet && mkSetRuleSize(rule)===2 && !mk2SetDiscountOK(qtyMap));
-  const discount  = (isSet && discountOK) ? ((Number(rule.discount)||0) * n) : 0;
+  // 정해진 세트 구성만 자동 할인(2종·4종). 별도 구성은 자동 할인 0.
+  const autoOK = !isSet ? false : mkSetAutoDiscountOK(qtyMap, rule);
+  const autoDiscount = (isSet && autoOK) ? ((Number(rule.discount)||0) * n) : 0;
+  // 직접 할인 조정(+ 추가 / − 축소) — 자동 할인과 합산, 최종 할인은 음수 방지
+  const manual = Math.round(Number(manualDiscount)||0);
+  const discount = Math.max(0, autoDiscount + manual);
   // 배송비: 피자가 딱 1개(단품)일 때만 3,000원, 2개 이상이면 무료 (세트든 낱개든 총 2개 이상이면 무료)
   const totalPizza = isSet ? pizzaCount * n : pizzaCount;
   const shippingFee = (deliveryMethod==='택배발송' && totalPizza===1) ? (Number(milkitFees.shippingCost)||0) : 0;
   const payTotal  = Math.max(listTotal - discount, 0) + shippingFee;
-  return {listTotal, discount, shippingFee, payTotal};
+  return {listTotal, autoDiscount, manualDiscount:manual, discount, shippingFee, payTotal, autoOK};
 }
 // 🔢 주문의 '제품별 실제 수량' — 세트수량 반영 (재고 출고·판매통계·원가 등 모든 합산의 기준)
 //    세트 주문이고 qty가 '한 세트' 구성(피자수 ≤ 세트크기)이면 피자 수량 × 세트수량,
@@ -6474,7 +6500,7 @@ function mkFixSetTotals(){
     if(size<2 || n<=1) return;
     const pizzaCount=pizzas.reduce((s,p)=>s+(Number(o.qty&&o.qty[p.id])||0),0);
     if(pizzaCount>size) return; // 총수량 직접입력분 → 이미 정가 반영, 건드리지 않음
-    const t=mkCalcTotals(o.qty||{}, o.setType, n);
+    const t=mkCalcTotals(o.qty||{}, o.setType, n, o.deliveryMethod, o.manualDiscount);
     if(Number(o.listTotal)!==t.listTotal || Number(o.discount)!==t.discount || Number(o.payTotal)!==t.payTotal){
       o.listTotal=t.listTotal; o.discount=t.discount; o.payTotal=t.payTotal; changed++;
     }
@@ -7272,16 +7298,31 @@ function mkUpdateOrderTotals(){
   const setType=document.getElementById('mk-order-settype').value;
   const setQty=Number(document.getElementById('mk-order-setqty').value)||1;
   const delMethod=(document.getElementById('mk-order-delmethod')||{}).value||'';
-  const {listTotal,discount,shippingFee,payTotal}=mkCalcTotals(qtyMap,setType,setQty,delMethod);
+  const manual=mkManualDiscountVal();
+  const {listTotal,discount,shippingFee,payTotal,autoOK}=mkCalcTotals(qtyMap,setType,setQty,delMethod,manual);
   document.getElementById('mk-order-listtotal').textContent=comma(listTotal)+'원';
   document.getElementById('mk-order-discount').textContent=comma(discount)+'원';
   document.getElementById('mk-order-paytotal').textContent=comma(payTotal)+'원';
   const shipEl=document.getElementById('mk-order-shipfee');
   if(shipEl){ shipEl.parentElement.style.display = shippingFee>0 ? '' : 'none'; shipEl.textContent='+'+comma(shippingFee)+'원'; }
-  // 2종세트인데 할인 대상이 아닌 구성이면 안내 표시
+  // 세트인데 정해진 구성이 아니어서 자동 할인이 없을 때 안내 표시
   const ndEl=document.getElementById('mk-order-nodiscount');
-  if(ndEl){ const rule=milkitSetRules.find(r=>r.name===setType); const is2=rule&&mkSetRuleSize(rule)===2; ndEl.style.display = (is2 && !mk2SetDiscountOK(qtyMap)) ? '' : 'none'; }
+  if(ndEl){ const rule=milkitSetRules.find(r=>r.name===setType); const isSet=rule&&mkSetRuleSize(rule)>=2; ndEl.style.display = (isSet && !autoOK) ? '' : 'none'; }
   if(listTotal>0){ const qr=document.getElementById('mk-order-qty-rows'); if(qr) qr.classList.remove('input-invalid'); }
+}
+// 직접 할인 조정 입력(＋추가 / －축소) — 부호(선행 −)와 천단위 콤마 허용
+function mkManualDiscountInput(el){
+  const neg=/^\s*-/.test(el.value);
+  const digits=el.value.replace(/[^\d]/g,'');
+  el.value = (neg?'-':'') + (digits ? Number(digits).toLocaleString('en-US') : '');
+  mkUpdateOrderTotals();
+}
+function mkManualDiscountVal(){
+  const el=document.getElementById('mk-order-manual-discount');
+  if(!el) return 0;
+  const neg=/^\s*-/.test(el.value);
+  const d=el.value.replace(/[^\d]/g,'');
+  return (neg?-1:1)*(Number(d)||0);
 }
 
 /* ===== 세트 구성유형 선택 → 메뉴 고르기 팝업 =====
@@ -7698,11 +7739,12 @@ function openMilkitOrderModal(id){
     document.getElementById('mk-order-shipped').value=o.shippedDate||'';
     document.getElementById('mk-order-tracking').value=o.tracking||'';
     document.getElementById('mk-order-note').value=o.note||'';
+    { const md=Number(o.manualDiscount)||0; document.getElementById('mk-order-manual-discount').value = md ? md.toLocaleString('en-US') : ''; }
   } else {
     const now=new Date();
     document.getElementById('mk-order-date').value=todayStr();
     document.getElementById('mk-order-time').value=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
-    ['mk-order-customer','mk-order-phone','mk-order-desired','mk-order-address','mk-order-address-detail','mk-order-shipped','mk-order-tracking','mk-order-note','mk-order-recipient','mk-order-recipient-phone'].forEach(f=>document.getElementById(f).value='');
+    ['mk-order-customer','mk-order-phone','mk-order-desired','mk-order-address','mk-order-address-detail','mk-order-shipped','mk-order-tracking','mk-order-note','mk-order-recipient','mk-order-recipient-phone','mk-order-manual-discount'].forEach(f=>document.getElementById(f).value='');
     mkSyncRecipientPh();
     renderMilkitOrderQtyRows({});
     setSel.value='낱개';
@@ -7931,7 +7973,8 @@ function saveMilkitOrder(){
   const setType=document.getElementById('mk-order-settype').value;
   const setQty=Number(document.getElementById('mk-order-setqty').value)||1;
   const delMethodForCalc=document.getElementById('mk-order-delmethod').value;
-  const {listTotal,discount,payTotal}=mkCalcTotals(qty,setType,setQty,delMethodForCalc);
+  const manualDiscount=mkManualDiscountVal();
+  const {listTotal,discount,payTotal}=mkCalcTotals(qty,setType,setQty,delMethodForCalc,manualDiscount);
   const phone=formatPhone(document.getElementById('mk-order-phone').value);
   const address=document.getElementById('mk-order-address').value.trim();
   const addressDetail=document.getElementById('mk-order-address-detail').value.trim();
@@ -7949,7 +7992,7 @@ function saveMilkitOrder(){
     orderTime:document.getElementById('mk-order-time').value||'',
     customer:custName, phone, address, addressDetail, recipient, recipientPhone, qty,
     promo:document.getElementById('mk-order-promo').checked,
-    setType, setQty, listTotal, discount, payTotal,
+    setType, setQty, listTotal, discount, payTotal, manualDiscount,
     payMethod:document.getElementById('mk-order-paymethod').value,
     payStatus:document.getElementById('mk-order-paystatus').value,
     desiredDate:document.getElementById('mk-order-desired').value,
@@ -8051,8 +8094,8 @@ function mkDupMerge(){
   merged.qty=qty;
   const setType=merged.setType||mkDupCand.setType||'';
   const setQty=Number(merged.setQty)||1;
-  const t=mkCalcTotals(qty,setType,setQty,merged.deliveryMethod||mkDupCand.deliveryMethod||'');
-  merged.listTotal=t.listTotal; merged.discount=t.discount; merged.payTotal=t.payTotal;
+  const t=mkCalcTotals(qty,setType,setQty,merged.deliveryMethod||mkDupCand.deliveryMethod||'',merged.manualDiscount);
+  merged.listTotal=t.listTotal; merged.discount=t.discount; merged.payTotal=t.payTotal; merged.manualDiscount=t.manualDiscount;
   // 비어 있던 정보는 새 주문 값으로 채움
   ['phone','address','desiredDate','tracking'].forEach(k=>{ if(!merged[k] && mkDupCand[k]) merged[k]=mkDupCand[k]; });
   if(mkDupCand.note) merged.note=(merged.note?merged.note+' / ':'')+mkDupCand.note;
@@ -11676,7 +11719,7 @@ function registerServiceWorker(){
    배포될 때마다 index.html의 ETag/Last-Modified(또는 APP_BUILD)가 바뀌는 걸 감지해,
    "새 버전이 나왔어요" 배너를 띄우고 누르면 캐시를 비우고 새로고침한다.
    ============================ */
-const APP_BUILD='2026-08-23-20';   // ⚠️ 배포할 때마다 이 값을 새로 바꿔야 새 버전 배너가 뜹니다
+const APP_BUILD='2026-08-23-21';   // ⚠️ 배포할 때마다 이 값을 새로 바꿔야 새 버전 배너가 뜹니다
 let _updShown=false;
 /* 서버에 배포된 index.html의 APP_BUILD 값을 읽어온다 */
 async function _updRemoteBuild(){
