@@ -482,6 +482,19 @@ tr:hover td{background:var(--bg2);}
 .mk-sp-step b{min-width:16px;text-align:center;font-size:15px;}
 .mk-sp-step .mk-sp-val{width:42px;flex:0 0 auto;height:30px;text-align:center;font-size:15px;font-weight:700;color:var(--text);border:1px solid var(--border);border-radius:8px;background:#fff;font-family:inherit;padding:0;box-sizing:border-box;-moz-appearance:textfield;}
 .mk-sp-step .mk-sp-val:focus{border-color:var(--acc);outline:none;}
+/* 주문 등록 장바구니 목록 */
+.mk-cart-list{display:flex;flex-direction:column;gap:8px;margin-bottom:10px;}
+.mk-cart-empty{font-size:12px;color:var(--sub2);background:var(--bg2);border-radius:var(--r-md);padding:14px;text-align:center;line-height:1.5;}
+.mk-cart-item{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--border);border-radius:var(--r-md);padding:10px 12px;}
+.mk-cart-item .mkc-body{flex:1;min-width:0;}
+.mk-cart-item .mkc-title{font-size:13px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.mk-cart-item .mkc-set{font-size:10.5px;font-weight:700;color:var(--acc-dark);background:var(--acc-pale);border-radius:6px;padding:2px 7px;}
+.mk-cart-item .mkc-sub{font-size:11.5px;color:var(--sub2);margin-top:3px;line-height:1.4;word-break:break-all;}
+.mk-cart-item .mkc-amt{text-align:right;font-size:13px;font-weight:700;white-space:nowrap;flex-shrink:0;}
+.mk-cart-item .mkc-disc{display:block;font-size:10.5px;font-weight:600;color:var(--red);}
+.mk-cart-item .mkc-acts{display:flex;flex-direction:column;gap:4px;flex-shrink:0;}
+.mk-cart-item .mkc-acts button{border:1px solid var(--border);background:#fff;border-radius:7px;font-family:inherit;font-size:11px;padding:5px 8px;cursor:pointer;color:var(--sub);white-space:nowrap;}
+.mk-cart-item .mkc-acts button.mkc-del{color:var(--red);border-color:#F0C9C9;}
 .mko-ship{margin-top:6px;font-size:12px;color:var(--acc-dark);background:var(--acc-pale);border-radius:6px;padding:5px 9px;line-height:1.4;}
 .mko-ship.urgent{color:#9E2828;background:#F7E4E4;font-weight:600;}
 /* 주문 액션 드롭다운 메뉴 */
@@ -2678,16 +2691,10 @@ img{max-width:100%;height:auto;}
             <input type="number" id="mk-order-setqty" value="1" min="1" oninput="mkUpdateOrderTotals()">
           </div>
         </div>
-        <div style="font-size:11px;color:var(--sub2);margin:2px 0 8px;line-height:1.6;">💡 <b>세트를 먼저 고르면</b> 아래 구성 상품이 자동으로 채워집니다. <b>여러 세트</b>를 구입하면 「세트수량」을 늘리세요 — 정가·할인이 세트 수만큼 곱해집니다. <span style="color:var(--sub);">낱개 판매나 특별 구성은 아래에서 수량을 직접 조정하세요.</span></div>
+        <div style="font-size:11px;color:var(--sub2);margin:2px 0 8px;line-height:1.6;">💡 <b>세트를 먼저 고르면</b> 아래 구성 상품이 자동으로 채워집니다. 한 구성을 만든 뒤 <b>「담기」</b>를 누르면 장바구니에 쌓이고, <b>여러 세트·낱개를 함께</b> 담아 한 번에 결제할 수 있어요.</div>
         <div class="form-row">
           <label>구성 상품 수량 <span class="req">*</span> <span class="req-note">(세트 선택 시 자동)</span></label>
           <div class="recipe-items-list" id="mk-order-qty-rows"></div>
-        </div>
-        <div style="background:var(--bg2);border-radius:var(--r-md);padding:12px 16px;margin-bottom:8px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;font-size:13px;">
-          <span>정가합계 <b class="num" id="mk-order-listtotal">0원</b></span>
-          <span>할인금액 <b class="num" style="color:var(--red);" id="mk-order-discount">0원</b></span>
-          <span style="display:none;">배송비(낱개) <b class="num" style="color:var(--acc-dark);" id="mk-order-shipfee">0원</b></span>
-          <span>결제금액 <b class="num" style="color:var(--acc-dark);font-size:15px;" id="mk-order-paytotal">0원</b></span>
         </div>
         <div id="mk-order-nodiscount" style="display:none;font-size:11.5px;color:var(--sub);margin:-2px 2px 8px;line-height:1.5;">ℹ️ 정해진 세트 구성이 아니어서 <b>자동 할인이 없어요.</b> 필요하면 아래 <b>직접 할인</b>에 금액을 넣으세요.</div>
         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;background:var(--bg2);border-radius:var(--r-md);margin-bottom:8px;flex-wrap:wrap;">
@@ -2695,6 +2702,14 @@ img{max-width:100%;height:auto;}
           <span style="display:inline-flex;align-items:center;gap:6px;font-size:13px;">
             <input type="text" id="mk-order-manual-discount" inputmode="numeric" placeholder="0" value="" oninput="mkManualDiscountInput(this)" style="width:110px;text-align:right;padding:7px 9px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;box-sizing:border-box;">원
           </span>
+        </div>
+        <button type="button" id="mk-cart-add-btn" onclick="mkCartAdd()" style="width:100%;margin-bottom:12px;padding:12px;border:1.5px dashed var(--acc);border-radius:var(--r-md);background:var(--acc-pale);color:var(--acc-dark);font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;">🛒 이 구성 담기</button>
+        <div id="mk-cart-list" class="mk-cart-list"></div>
+        <div style="background:var(--bg2);border-radius:var(--r-md);padding:12px 16px;margin-bottom:8px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;font-size:13px;">
+          <span>정가합계 <b class="num" id="mk-order-listtotal">0원</b></span>
+          <span>할인금액 <b class="num" style="color:var(--red);" id="mk-order-discount">0원</b></span>
+          <span style="display:none;">배송비(낱개) <b class="num" style="color:var(--acc-dark);" id="mk-order-shipfee">0원</b></span>
+          <span>결제금액 <b class="num" style="color:var(--acc-dark);font-size:15px;" id="mk-order-paytotal">0원</b></span>
         </div>
         <label style="display:flex;align-items:flex-start;gap:9px;font-size:12.5px;color:var(--txt);cursor:pointer;padding:8px 2px;line-height:1.55;">
           <input type="checkbox" id="mk-order-promo" style="width:17px;height:17px;flex:0 0 auto;margin-top:1px;">
@@ -6075,10 +6090,74 @@ function mkCalcTotals(qtyMap, setType, setQty, deliveryMethod, manualDiscount){
   const payTotal  = Math.max(listTotal - discount, 0) + shippingFee;
   return {listTotal, autoDiscount, manualDiscount:manual, discount, shippingFee, payTotal, autoOK};
 }
+
+/* ===== 장바구니(여러 구성) 계산 =====
+   한 주문에 여러 '구성(line)'을 담아 각 세트에 개별 할인을 적용하고 종합 결제한다.
+   line = {setType, setQty, qty:{pid:낱개수량}, manualDiscount} */
+// 한 구성의 제품별 실수량(세트수량 반영) — mkEffQty의 line 버전
+function mkLineEffQty(line, pid){
+  const base=Number(line && line.qty && line.qty[pid])||0;
+  if(base<=0) return 0;
+  const rule=milkitSetRules.find(r=>r.name===line.setType);
+  const size=rule?mkSetRuleSize(rule):0;
+  const n=Math.max(1,Number(line.setQty)||1);
+  if(!rule||size<2||n<=1) return base;
+  const prod=milkitProducts.find(p=>p.id===pid);
+  if(prod && prod.category!=='피자') return base;
+  const pizzaCount=milkitProducts.filter(p=>p.category==='피자')
+    .reduce((s,p)=>s+(Number(line.qty&&line.qty[p.id])||0),0);
+  return (pizzaCount<=size)?base*n:base;
+}
+// 여러 구성 → 제품별 실수량 합산 맵
+function mkLinesEffMap(lines){
+  const map={};
+  (lines||[]).forEach(ln=>{ milkitProducts.forEach(p=>{ const q=mkLineEffQty(ln,p.id); if(q) map[p.id]=(map[p.id]||0)+q; }); });
+  return map;
+}
+// 한 구성의 금액(배송비 제외)
+function mkLineTotals(line){
+  const t=mkCalcTotals(line.qty, line.setType, line.setQty, '', line.manualDiscount);
+  return {listTotal:t.listTotal, discount:t.discount, autoOK:t.autoOK, autoDiscount:t.autoDiscount,
+          manualDiscount:t.manualDiscount, payTotal:Math.max(t.listTotal-t.discount,0)};
+}
+// 주문 전체(여러 구성) 합계 + 배송비(주문 1건당 1회)
+function mkCartTotals(lines, deliveryMethod){
+  let listTotal=0, discount=0, manualTotal=0;
+  (lines||[]).forEach(ln=>{ const t=mkLineTotals(ln); listTotal+=t.listTotal; discount+=t.discount; manualTotal+=t.manualDiscount; });
+  const effMap=mkLinesEffMap(lines);
+  const totalPizza=milkitProducts.filter(p=>p.category==='피자').reduce((s,p)=>s+(effMap[p.id]||0),0);
+  const shippingFee=(deliveryMethod==='택배발송' && totalPizza===1)?(Number(milkitFees.shippingCost)||0):0;
+  const payTotal=Math.max(listTotal-discount,0)+shippingFee;
+  return {listTotal, discount, manualTotal, shippingFee, payTotal, effMap, totalPizza};
+}
+// 주문을 구성(line) 배열로 정규화 — lines 없으면 기존 단일 주문을 1개 구성으로 변환(하위호환)
+function mkOrderLines(o){
+  if(o && Array.isArray(o.lines) && o.lines.length) return o.lines;
+  return [{ setType:o&&o.setType||'낱개', setQty:Number(o&&o.setQty)||1,
+            qty:Object.assign({}, o&&o.qty), manualDiscount:Number(o&&o.manualDiscount)||0 }];
+}
+// 구성 배열 → 세트 요약 문자열(카드·목록 표시용)
+function mkLinesSetSummary(lines){
+  const sets=(lines||[]).filter(ln=>{ const r=milkitSetRules.find(x=>x.name===ln.setType); return r&&mkSetRuleSize(r)>=2; });
+  const loose=(lines||[]).length - sets.length;
+  if(!lines || !lines.length) return '낱개';
+  if(lines.length===1){ const r=milkitSetRules.find(x=>x.name===lines[0].setType); const isSet=r&&mkSetRuleSize(r)>=2;
+    return isSet ? (lines[0].setType + (Number(lines[0].setQty)>1?` ×${lines[0].setQty}`:'')) : '낱개'; }
+  return '혼합구성';
+}
+// 한 구성의 담긴 피자 이름 요약 (예: 고르곤졸라+허니리얼치즈)
+function mkLineItemsLabel(line){
+  const parts=[];
+  milkitProducts.forEach(p=>{ const q=Number(line.qty&&line.qty[p.id])||0; if(q>0) parts.push(q>1?`${p.name}×${q}`:p.name); });
+  return parts.join(' + ');
+}
+
 // 🔢 주문의 '제품별 실제 수량' — 세트수량 반영 (재고 출고·판매통계·원가 등 모든 합산의 기준)
 //    세트 주문이고 qty가 '한 세트' 구성(피자수 ≤ 세트크기)이면 피자 수량 × 세트수량,
 //    추가품목(소스팩)·낱개·총량직접입력분(피자수 > 세트크기)은 입력 수량 그대로 (가격 계산과 동일 규칙)
 function mkEffQty(o, pid){
+  // 장바구니(여러 구성) 주문은 o.qty에 이미 실수량 합산맵이 저장됨 → 그대로 사용
+  if(o && Array.isArray(o.lines) && o.lines.length) return Number(o.qty && o.qty[pid])||0;
   const base = Number(o && o.qty && o.qty[pid]) || 0;
   if(base<=0) return 0;
   const rule = milkitSetRules.find(r=>r.name===o.setType);
@@ -6495,6 +6574,7 @@ function mkFixSetTotals(){
   const pizzas=milkitProducts.filter(p=>p.category==='피자');
   let changed=0;
   milkitOrders.forEach(o=>{
+    if(Array.isArray(o.lines) && o.lines.length) return;   // 장바구니 주문은 금액이 이미 확정됨
     const rule=milkitSetRules.find(r=>r.name===o.setType);
     if(!rule) return;
     const size=mkSetRuleSize(rule);
@@ -6544,13 +6624,22 @@ function renderMilkitOrders(){
   el.innerHTML=list.map((o)=>{
     const items = milkitProducts.filter(p=>Number(o.qty?.[p.id])>0)
       .map(p=>`<span class="mko-item-chip">${p.name} <b>×${o.qty[p.id]}</b></span>`).join('');
-    // 세트 유형·수량을 눈에 띄는 칩으로 앞에 표시
-    const _setRule=milkitSetRules.find(r=>r.name===o.setType);
-    const _isSet=!!_setRule && mkSetRuleSize(_setRule)>=2;
-    const _setQtyN=Number(o.setQty)||1;
-    const setChip = _isSet
-      ? `<span class="mko-set-chip">${o.setType} ×${_setQtyN}</span>`
-      : `<span class="mko-item-chip" style="font-weight:700;">낱개</span>`;
+    // 세트 유형·수량을 눈에 띄는 칩으로 앞에 표시 (장바구니 주문은 구성 요약)
+    let setChip;
+    if(Array.isArray(o.lines) && o.lines.length){
+      const setCnt=o.lines.filter(ln=>{ const r=milkitSetRules.find(x=>x.name===ln.setType); return r&&mkSetRuleSize(r)>=2; }).length;
+      const label = o.lines.length>1 ? `🧩 ${o.lines.length}개 구성${setCnt?` (세트 ${setCnt})`:''}` : mkLinesSetSummary(o.lines);
+      setChip = (setCnt>0 || o.lines.length>1)
+        ? `<span class="mko-set-chip">${label}</span>`
+        : `<span class="mko-item-chip" style="font-weight:700;">낱개</span>`;
+    } else {
+      const _setRule=milkitSetRules.find(r=>r.name===o.setType);
+      const _isSet=!!_setRule && mkSetRuleSize(_setRule)>=2;
+      const _setQtyN=Number(o.setQty)||1;
+      setChip = _isSet
+        ? `<span class="mko-set-chip">${o.setType} ×${_setQtyN}</span>`
+        : `<span class="mko-item-chip" style="font-weight:700;">낱개</span>`;
+    }
     const dt = (o.orderDate||'') + (o.orderTime?' '+o.orderTime:'');
     const recip = (o.recipient && o.recipient!==o.customer)
       ? `<div class="mko-line" style="color:var(--acc-dark);">🎁 받는 분 ${o.recipient}${o.recipientPhone?' · '+formatPhone(o.recipientPhone):''}</div>` : '';
@@ -7312,22 +7401,88 @@ function mkAutoApplySet(){
   }
 }
 
+// 주문 등록 장바구니 상태(현재 편집 중인 주문의 담긴 구성들)
+let _mkCart=[];
+// 현재 입력칸(스테이징)을 구성(line)으로 — 담긴 상품이 없으면 null
+function mkStagingLine(){
+  const qty={}; let has=false;
+  milkitProducts.forEach(p=>{ const q=numVal('mk-qty-'+p.id); if(q>0){ qty[p.id]=q; has=true; } });
+  if(!has) return null;
+  return { setType:document.getElementById('mk-order-settype').value,
+           setQty:Number(document.getElementById('mk-order-setqty').value)||1,
+           qty, manualDiscount:mkManualDiscountVal() };
+}
+// 입력칸 초기화(다음 구성 담기 준비)
+function mkResetStaging(){
+  milkitProducts.forEach(p=>{ const el=document.getElementById('mk-qty-'+p.id); if(el) el.value=''; });
+  const st=document.getElementById('mk-order-settype'); if(st) st.value='낱개';
+  const sq=document.getElementById('mk-order-setqty'); if(sq) sq.value=1;
+  const md=document.getElementById('mk-order-manual-discount'); if(md) md.value='';
+}
+// 현재 구성 담기
+function mkCartAdd(){
+  const ln=mkStagingLine();
+  if(!ln){ if(typeof appToast==='function') appToast('담을 상품 수량을 먼저 입력하세요'); else alert('담을 상품 수량을 먼저 입력하세요'); return; }
+  _mkCart.push(ln);
+  mkResetStaging();
+  mkRenderCart();
+  mkUpdateOrderTotals();
+  const qr=document.getElementById('mk-order-qty-rows'); if(qr) qr.classList.remove('input-invalid');
+}
+// 장바구니 구성 수정 — 다시 입력칸으로 불러오고 목록에서 제거
+function mkCartEdit(i){
+  const ln=_mkCart[i]; if(!ln) return;
+  renderMilkitOrderQtyRows(ln.qty);
+  document.getElementById('mk-order-settype').value=ln.setType||'낱개';
+  document.getElementById('mk-order-setqty').value=ln.setQty||1;
+  const md=Number(ln.manualDiscount)||0;
+  document.getElementById('mk-order-manual-discount').value = md ? md.toLocaleString('en-US') : '';
+  _mkCart.splice(i,1);
+  mkRenderCart();
+  mkUpdateOrderTotals();
+  document.getElementById('mk-order-qty-rows').scrollIntoView({block:'center',behavior:'smooth'});
+}
+function mkCartRemove(i){
+  _mkCart.splice(i,1);
+  mkRenderCart();
+  mkUpdateOrderTotals();
+}
+// 장바구니 목록 렌더
+function mkRenderCart(){
+  const box=document.getElementById('mk-cart-list'); if(!box) return;
+  if(!_mkCart.length){ box.innerHTML='<div class="mk-cart-empty">🛒 담은 구성이 없습니다. 위에서 구성을 만든 뒤 <b>「이 구성 담기」</b>를 누르세요. <span style="color:var(--sub);">(구성 없이 저장하면 현재 입력한 내용이 자동으로 담깁니다.)</span></div>'; return; }
+  box.innerHTML=_mkCart.map((ln,i)=>{
+    const t=mkLineTotals(ln);
+    const items=mkLineItemsLabel(ln)||'상품 없음';
+    const setLabel=mkLinesSetSummary([ln]);
+    return `<div class="mk-cart-item">
+      <div class="mkc-body">
+        <div class="mkc-title"><span class="mkc-set">${setLabel}</span></div>
+        <div class="mkc-sub">${items}</div>
+      </div>
+      <div class="mkc-amt">${comma(t.payTotal)}원${t.discount?`<span class="mkc-disc">할인 −${comma(t.discount)}</span>`:''}</div>
+      <div class="mkc-acts"><button type="button" onclick="mkCartEdit(${i})">수정</button><button type="button" class="mkc-del" onclick="mkCartRemove(${i})">삭제</button></div>
+    </div>`;
+  }).join('');
+}
 function mkUpdateOrderTotals(){
-  const qtyMap={};
-  milkitProducts.forEach(p=>{ qtyMap[p.id]=numVal('mk-qty-'+p.id); });
-  const setType=document.getElementById('mk-order-settype').value;
-  const setQty=Number(document.getElementById('mk-order-setqty').value)||1;
   const delMethod=(document.getElementById('mk-order-delmethod')||{}).value||'';
-  const manual=mkManualDiscountVal();
-  const {listTotal,discount,shippingFee,payTotal,autoOK}=mkCalcTotals(qtyMap,setType,setQty,delMethod,manual);
+  // 장바구니(담긴 구성) + 현재 입력 중(스테이징)을 합쳐 미리 보여줌
+  const lines=_mkCart.slice();
+  const staging=mkStagingLine(); if(staging) lines.push(staging);
+  const {listTotal,discount,shippingFee,payTotal}=mkCartTotals(lines,delMethod);
   document.getElementById('mk-order-listtotal').textContent=comma(listTotal)+'원';
   document.getElementById('mk-order-discount').textContent=comma(discount)+'원';
   document.getElementById('mk-order-paytotal').textContent=comma(payTotal)+'원';
   const shipEl=document.getElementById('mk-order-shipfee');
   if(shipEl){ shipEl.parentElement.style.display = shippingFee>0 ? '' : 'none'; shipEl.textContent='+'+comma(shippingFee)+'원'; }
-  // 세트인데 정해진 구성이 아니어서 자동 할인이 없을 때 안내 표시
+  // 현재 입력 중인 구성이 세트인데 정해진 구성이 아니면 안내 표시(스테이징 기준)
   const ndEl=document.getElementById('mk-order-nodiscount');
-  if(ndEl){ const rule=milkitSetRules.find(r=>r.name===setType); const isSet=rule&&mkSetRuleSize(rule)>=2; ndEl.style.display = (isSet && !autoOK) ? '' : 'none'; }
+  if(ndEl){
+    let show=false;
+    if(staging){ const rule=milkitSetRules.find(r=>r.name===staging.setType); if(rule&&mkSetRuleSize(rule)>=2) show=!mkSetAutoDiscountOK(staging.qty,rule); }
+    ndEl.style.display = show ? '' : 'none';
+  }
   if(listTotal>0){ const qr=document.getElementById('mk-order-qty-rows'); if(qr) qr.classList.remove('input-invalid'); }
 }
 // 직접 할인 조정 입력(＋추가 / －축소) — 부호(선행 −)와 천단위 콤마 허용
@@ -7749,9 +7904,11 @@ function openMilkitOrderModal(id){
     document.getElementById('mk-order-recipient').value=(o.recipient && o.recipient!==o.customer) ? o.recipient : '';
     document.getElementById('mk-order-recipient-phone').value=(o.recipient && o.recipient!==o.customer) ? formatPhone(o.recipientPhone||'') : '';
     mkSyncRecipientPh();
-    renderMilkitOrderQtyRows(o.qty);
-    setSel.value=o.setType||'낱개';
-    document.getElementById('mk-order-setqty').value=o.setQty||1;
+    // 담긴 구성들을 장바구니로 복원, 입력칸(스테이징)은 비움
+    _mkCart = mkOrderLines(o).map(ln=>({ setType:ln.setType||'낱개', setQty:Number(ln.setQty)||1, qty:Object.assign({},ln.qty), manualDiscount:Number(ln.manualDiscount)||0 }));
+    renderMilkitOrderQtyRows({});
+    setSel.value='낱개';
+    document.getElementById('mk-order-setqty').value=1;
     document.getElementById('mk-order-paymethod').value=o.payMethod||'';
     document.getElementById('mk-order-paystatus').value=o.payStatus||'대기';
     document.getElementById('mk-order-delmethod').value=o.deliveryMethod||'택배발송';
@@ -7759,8 +7916,9 @@ function openMilkitOrderModal(id){
     document.getElementById('mk-order-shipped').value=o.shippedDate||'';
     document.getElementById('mk-order-tracking').value=o.tracking||'';
     document.getElementById('mk-order-note').value=o.note||'';
-    { const md=Number(o.manualDiscount)||0; document.getElementById('mk-order-manual-discount').value = md ? md.toLocaleString('en-US') : ''; }
+    document.getElementById('mk-order-manual-discount').value='';   // 스테이징 비움(할인은 구성별로 장바구니에 보존)
   } else {
+    _mkCart=[];
     const now=new Date();
     document.getElementById('mk-order-date').value=todayStr();
     document.getElementById('mk-order-time').value=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
@@ -7778,6 +7936,7 @@ function openMilkitOrderModal(id){
   // 판매 유형 초기화 (로드된 값은 유지 → autofill=false)
   if(id){ const _o=milkitOrders.find(x=>x.id===id); mkSetChannel(_o && _o.channel==='store' ? 'store' : 'online', false); }
   else { mkSetChannel('online', false); }
+  mkRenderCart();
   mkUpdateOrderTotals();
   mkDeliveryHint();
   mkDelStatusChanged(false);   // 발송일 칸 표시 상태만 동기화(값은 그대로)
@@ -7985,8 +8144,11 @@ function saveMilkitOrder(){
   const phoneRaw=document.getElementById('mk-order-phone').value.trim();
   const addressRaw=document.getElementById('mk-order-address').value.trim();
   const delMethod=document.getElementById('mk-order-delmethod').value;
-  const qty={}; let itemCount=0;
-  milkitProducts.forEach(p=>{ const q=numVal('mk-qty-'+p.id); qty[p.id]=q; itemCount+=q; });
+  // 장바구니 + 현재 입력 중(스테이징)을 구성 목록으로 — 입력만 하고 담기를 안 눌러도 자동 포함
+  const lines=_mkCart.slice();
+  const staging=mkStagingLine(); if(staging) lines.push(staging);
+  const qty=mkLinesEffMap(lines);   // 제품별 실수량 합산맵(재고·통계 기준)
+  let itemCount=Object.values(qty).reduce((s,n)=>s+(Number(n)||0),0);
   // ── 필수입력 검증 ──
   const needDeliv = (delMethod==='택배발송');   // 택배발송만 연락처·주소 필수 (직접배송·직접수령은 선택 — 직접 오시거나 전달)
   const recipPhoneRaw=(document.getElementById('mk-order-recipient-phone').value||'').replace(/\D/g,'');
@@ -8006,11 +8168,11 @@ function saveMilkitOrder(){
     if(first){ first.scrollIntoView({block:'center',behavior:'smooth'}); setTimeout(()=>{ try{first.focus();}catch(e){} },160); }
     return;
   }
-  const setType=document.getElementById('mk-order-settype').value;
-  const setQty=Number(document.getElementById('mk-order-setqty').value)||1;
   const delMethodForCalc=document.getElementById('mk-order-delmethod').value;
-  const manualDiscount=mkManualDiscountVal();
-  const {listTotal,discount,payTotal}=mkCalcTotals(qty,setType,setQty,delMethodForCalc,manualDiscount);
+  const {listTotal,discount,payTotal,manualTotal}=mkCartTotals(lines,delMethodForCalc);
+  const setType=mkLinesSetSummary(lines);   // 요약(단일세트명 / '혼합구성' / '낱개')
+  const setQty=1;                            // 장바구니 주문은 구성별 수량이 line 안에 있음
+  const manualDiscount=manualTotal;
   const phone=formatPhone(document.getElementById('mk-order-phone').value);
   const address=document.getElementById('mk-order-address').value.trim();
   const addressDetail=document.getElementById('mk-order-address-detail').value.trim();
@@ -8027,6 +8189,7 @@ function saveMilkitOrder(){
     orderDate,
     orderTime:document.getElementById('mk-order-time').value||'',
     customer:custName, phone, address, addressDetail, recipient, recipientPhone, qty,
+    lines,
     promo:document.getElementById('mk-order-promo').checked,
     setType, setQty, listTotal, discount, payTotal, manualDiscount,
     payMethod:document.getElementById('mk-order-paymethod').value,
@@ -8124,15 +8287,15 @@ function mkDupMerge(){
   const target=mkDupPickedOrder();
   if(!target) return;
   const merged=Object.assign({}, target);
-  const qty=Object.assign({}, target.qty);
-  milkitProducts.forEach(p=>{
-    qty[p.id]=(Number(target.qty&&target.qty[p.id])||0)+(Number(mkDupCand.qty&&mkDupCand.qty[p.id])||0);
-  });
-  merged.qty=qty;
-  const setType=merged.setType||mkDupCand.setType||'';
-  const setQty=Number(merged.setQty)||1;
-  const t=mkCalcTotals(qty,setType,setQty,merged.deliveryMethod||mkDupCand.deliveryMethod||'',merged.manualDiscount);
-  merged.listTotal=t.listTotal; merged.discount=t.discount; merged.payTotal=t.payTotal; merged.manualDiscount=t.manualDiscount;
+  // 두 주문의 구성(line)을 이어붙여 하나의 장바구니 주문으로 합침
+  const lines=mkOrderLines(target).concat(mkOrderLines(mkDupCand));
+  const delM=merged.deliveryMethod||mkDupCand.deliveryMethod||'';
+  const t=mkCartTotals(lines, delM);
+  merged.lines=lines;
+  merged.qty=t.effMap;
+  merged.setType=mkLinesSetSummary(lines);
+  merged.setQty=1;
+  merged.listTotal=t.listTotal; merged.discount=t.discount; merged.payTotal=t.payTotal; merged.manualDiscount=t.manualTotal;
   // 비어 있던 정보는 새 주문 값으로 채움
   ['phone','address','desiredDate','tracking'].forEach(k=>{ if(!merged[k] && mkDupCand[k]) merged[k]=mkDupCand[k]; });
   if(mkDupCand.note) merged.note=(merged.note?merged.note+' / ':'')+mkDupCand.note;
@@ -11756,7 +11919,7 @@ function registerServiceWorker(){
    배포될 때마다 index.html의 ETag/Last-Modified(또는 APP_BUILD)가 바뀌는 걸 감지해,
    "새 버전이 나왔어요" 배너를 띄우고 누르면 캐시를 비우고 새로고침한다.
    ============================ */
-const APP_BUILD='2026-08-23-23';   // ⚠️ 배포할 때마다 이 값을 새로 바꿔야 새 버전 배너가 뜹니다
+const APP_BUILD='2026-08-23-24';   // ⚠️ 배포할 때마다 이 값을 새로 바꿔야 새 버전 배너가 뜹니다
 let _updShown=false;
 /* 서버에 배포된 index.html의 APP_BUILD 값을 읽어온다 */
 async function _updRemoteBuild(){
