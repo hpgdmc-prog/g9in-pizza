@@ -2120,7 +2120,11 @@ img{max-width:100%;height:auto;}
       </div>
       <div class="form-row">
         <label>주소</label>
-        <input type="text" id="sup-addr" placeholder="업체 주소">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <input type="text" id="sup-addr" placeholder="업체 주소" style="flex:1;min-width:180px;">
+          <button type="button" class="btn btn-out btn-sm" style="flex:0 0 auto;" onclick="openAddressSearch('sup-addr')">🔍 주소</button>
+          <button type="button" class="btn btn-out btn-sm" style="flex:0 0 auto;" onclick="openPlaceSearch('sup-addr')" title="상호명으로 주소 찾기">🔍 상호</button>
+        </div>
       </div>
       <div class="form-row">
         <label>메모</label>
@@ -2470,7 +2474,11 @@ img{max-width:100%;height:auto;}
       </div>
       <div class="form-row">
         <label>주소</label>
-        <input type="text" id="store-addr" placeholder="가맹점 주소">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <input type="text" id="store-addr" placeholder="가맹점 주소" style="flex:1;min-width:180px;">
+          <button type="button" class="btn btn-out btn-sm" style="flex:0 0 auto;" onclick="openAddressSearch('store-addr')">🔍 주소</button>
+          <button type="button" class="btn btn-out btn-sm" style="flex:0 0 auto;" onclick="openPlaceSearch('store-addr')" title="상호명으로 주소 찾기">🔍 상호</button>
+        </div>
       </div>
       <div class="form-row">
         <label>메모</label>
@@ -2733,9 +2741,10 @@ img{max-width:100%;height:auto;}
         <div style="font-size:11.5px;color:var(--sub);margin:-2px 0 10px;line-height:1.5;">💡 선물·대리주문 등 <b>받는 분이 다르면</b> 이름을 입력하세요. 비워두면 주문자와 동일하게 처리됩니다.</div>
         <div class="form-row">
           <label>배송주소 (도로명) <span class="req-note">(택배발송 시 필수)</span></label>
-          <div style="display:flex;gap:6px;">
-            <input type="text" id="mk-order-address" placeholder="🔍 주소검색으로 도로명 주소 입력" style="flex:1;min-width:0;" oninput="this.classList.remove('input-invalid')">
-            <button type="button" class="btn btn-out btn-sm" style="flex:0 0 auto;" onclick="openAddressSearch('mk-order-address','mk-order-address-detail')">🔍 주소검색</button>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <input type="text" id="mk-order-address" placeholder="🔍 주소검색으로 도로명 주소 입력" style="flex:1;min-width:180px;" oninput="this.classList.remove('input-invalid')">
+            <button type="button" class="btn btn-out btn-sm" style="flex:0 0 auto;" onclick="openAddressSearch('mk-order-address','mk-order-address-detail')">🔍 주소</button>
+            <button type="button" class="btn btn-out btn-sm" style="flex:0 0 auto;" onclick="openPlaceSearch('mk-order-address','mk-order-address-detail')" title="가게 상호 검색 (스타벅스 강남역점 등)">🔍 상호</button>
           </div>
         </div>
         <div class="form-grid">
@@ -8047,6 +8056,118 @@ function openAddressSearch(targetId, detailId){
   }).catch(e=>alert(e.message||'주소 검색을 열 수 없습니다.'));
 }
 
+/* ===== 🏪 카카오 로컬 상호 검색 =====
+   가게명(예: "스타벅스 강남역점")·건물명·랜드마크로 주소를 찾아 target input 에 자동 채움.
+   설정 > 카카오 REST API Key 필요 (없으면 안내 후 설정 페이지 이동). */
+let _kakaoPlaceCtx = { targetId:'', detailId:'' };
+function openPlaceSearch(targetId, detailId){
+  // 설정에서 저장된 REST API Key 읽기 (localStorage 'jgp_kakaoRestKey' 또는 window.settings)
+  let key = '';
+  try{ key = localStorage.getItem('jgp_kakaoRestKey') || ''; }catch(_){}
+  if(!key){
+    const msg = '카카오 REST API Key 가 필요합니다.\n\n5분 안에 무료 발급:\n1) developers.kakao.com 로그인\n2) 애플리케이션 추가\n3) 앱 키 → REST API 키 복사\n4) 여기 붙여넣기';
+    const input = prompt(msg + '\n\n지금 붙여넣기:');
+    if(!input) return;
+    key = input.trim();
+    try{ localStorage.setItem('jgp_kakaoRestKey', key); }catch(_){}
+  }
+  _kakaoPlaceCtx = { targetId, detailId };
+  // 오버레이 UI
+  const old = document.getElementById('__place-layer'); if(old) old.remove();
+  const layer = document.createElement('div');
+  layer.id = '__place-layer';
+  layer.style.cssText = 'position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:12px;';
+  layer.innerHTML = `
+    <div style="width:100%;max-width:520px;max-height:90vh;background:#fff;border-radius:14px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,.3);">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid #eee;">
+        <b style="font-size:15px;">🔍 상호 검색</b>
+        <button type="button" onclick="document.getElementById('__place-layer').remove()"
+          style="border:1px solid #ddd;background:#fff;border-radius:9px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">✕ 닫기</button>
+      </div>
+      <div style="padding:12px 14px;">
+        <div style="display:flex;gap:6px;">
+          <input id="__place-q" placeholder="예: 스타벅스 강남역점, 롯데월드타워" style="flex:1;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;font-family:inherit;">
+          <button type="button" onclick="doKakaoPlaceSearch()"
+            style="border:none;background:var(--acc);color:#fff;border-radius:8px;padding:0 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">검색</button>
+        </div>
+        <p style="font-size:11px;color:#888;margin:6px 0 0;line-height:1.5;">상호명·건물명·랜드마크 등을 입력하고 검색을 눌러주세요. Enter 도 됩니다.</p>
+      </div>
+      <div id="__place-results" style="flex:1;overflow-y:auto;padding:0 14px 14px;"></div>
+      <div style="padding:10px 14px;border-top:1px solid #eee;text-align:right;">
+        <button type="button" onclick="_resetKakaoKey()"
+          style="border:none;background:transparent;color:#888;font-size:11px;cursor:pointer;font-family:inherit;text-decoration:underline;">API 키 재설정</button>
+      </div>
+    </div>`;
+  layer.addEventListener('click', e => { if(e.target === layer) layer.remove(); });
+  document.body.appendChild(layer);
+  const q = document.getElementById('__place-q');
+  q.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); doKakaoPlaceSearch(); } });
+  setTimeout(() => q.focus(), 100);
+}
+
+async function doKakaoPlaceSearch(){
+  let key = '';
+  try{ key = localStorage.getItem('jgp_kakaoRestKey') || ''; }catch(_){}
+  if(!key){ alert('카카오 REST API Key 가 필요합니다.'); return; }
+  const q = (document.getElementById('__place-q')?.value || '').trim();
+  if(!q){ alert('검색어를 입력해주세요.'); return; }
+  const results = document.getElementById('__place-results');
+  if(results) results.innerHTML = `<div style="text-align:center;color:#888;padding:24px;font-size:13px;">검색 중…</div>`;
+  try{
+    const url = `https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent(q)}&size=15`;
+    const res = await fetch(url, { headers:{ 'Authorization': `KakaoAK ${key}` } });
+    if(!res.ok){
+      if(res.status === 401 || res.status === 403){
+        throw new Error('API 키 인증 실패 — REST API 키를 다시 확인하세요. 카카오 개발자 콘솔의 "플랫폼 > Web" 에 이 사이트 주소도 등록해야 합니다.');
+      }
+      throw new Error(`검색 실패 (HTTP ${res.status})`);
+    }
+    const data = await res.json();
+    const list = data.documents || [];
+    if(!list.length){
+      results.innerHTML = `<div style="text-align:center;color:#888;padding:24px;font-size:13px;">검색 결과가 없습니다.</div>`;
+      return;
+    }
+    results.innerHTML = list.map(item => {
+      const road = item.road_address_name || '';
+      const jibun = item.address_name || '';
+      const bestAddr = road || jibun;
+      const category = (item.category_name || '').split('>').pop().trim();
+      const payload = JSON.stringify({addr:bestAddr, name:item.place_name, phone:item.phone||''}).replace(/'/g,'&#39;');
+      return `
+        <div onclick='_pickKakaoPlace(${payload})'
+          style="padding:12px 4px;border-bottom:1px solid #eee;cursor:pointer;">
+          <div style="font-weight:600;font-size:14px;color:#222;margin-bottom:3px;">${_escHtml(item.place_name)}${category?` <span style="font-weight:400;color:#888;font-size:11px;">· ${_escHtml(category)}</span>`:''}</div>
+          <div style="font-size:12.5px;color:#333;">${_escHtml(bestAddr)}</div>
+          ${road && jibun && road!==jibun ? `<div style="font-size:11px;color:#888;margin-top:2px;">지번: ${_escHtml(jibun)}</div>` : ''}
+          ${item.phone ? `<div style="font-size:11px;color:var(--acc);margin-top:2px;">📞 ${_escHtml(item.phone)}</div>` : ''}
+        </div>`;
+    }).join('');
+  }catch(e){
+    console.error('카카오 검색 오류:', e);
+    if(results) results.innerHTML = `<div style="text-align:center;color:#a33;padding:20px;font-size:12.5px;line-height:1.6;">${_escHtml(e.message||'검색 오류')}</div>`;
+  }
+}
+
+function _pickKakaoPlace(info){
+  const el = document.getElementById(_kakaoPlaceCtx.targetId);
+  if(el){
+    el.value = info.addr + (info.name ? ` (${info.name})` : '');
+    el.classList.remove('input-invalid');
+    try{ el.dispatchEvent(new Event('input', {bubbles:true})); }catch(_){}
+  }
+  document.getElementById('__place-layer')?.remove();
+  const d = _kakaoPlaceCtx.detailId && document.getElementById(_kakaoPlaceCtx.detailId);
+  if(d){ d.focus(); }
+}
+function _resetKakaoKey(){
+  if(!confirm('저장된 카카오 REST API 키를 삭제할까요? (다음 검색 시 다시 입력하게 됩니다)')) return;
+  try{ localStorage.removeItem('jgp_kakaoRestKey'); }catch(_){}
+  document.getElementById('__place-layer')?.remove();
+  alert('키가 삭제되었습니다. 다음 상호 검색 시 다시 입력할 수 있어요.');
+}
+function _escHtml(s){ return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
 /* 택배발송 + 희망수령일이 있으면 전날 발송 안내 */
 function mkDeliveryHint(){
   const el=document.getElementById('mk-order-deliv-hint');
@@ -9067,14 +9188,44 @@ function mkpStripNameTail(s){
 function mkpMatchProduct(token, products){
   const t=mkpNorm(token);
   if(!t) return null;
+  // 1) 완전 일치
   let hit=products.find(p=>mkpNorm(p.name)===t);
   if(hit) return hit;
+  // 2) 상품명이 검색어 포함 (내가 상품명 안에)
   const contains=products.filter(p=>mkpNorm(p.name).includes(t));
   if(contains.length===1) return contains[0];
+  // 3) 검색어가 상품명 포함 (상품명이 내 안에)
   const rev=products.filter(p=>t.includes(mkpNorm(p.name)));
   if(rev.length===1) return rev[0];
   if(contains.length>1) return contains.sort((a,b)=>mkpNorm(b.name).length-mkpNorm(a.name).length)[0];
-  // 부분 순서(subsequence) 매칭: "허니치즈"→"허니리얼치즈" (글자가 순서대로 다 들어있으면)
+
+  // 4) 🆕 토큰 유사도 매칭 — 상품명 단어들이 검색어에 얼마나 나타나는지 (60% 이상)
+  //    예: "허니 치즈" 로 "허니 리얼 치즈피자" 매칭. subsequence 보다 안전 (관련 없는 매칭 억제)
+  const tokenize=s=>String(s||'').toLowerCase()
+    .replace(/[^\w가-힣a-z0-9]+/g,' ')
+    .split(/\s+/).filter(w=>w.length>=2);
+  const tokTokens=tokenize(token);
+  const tokJoined=tokTokens.join('');   // 공백 무시 검색용
+  if(tokTokens.length>=1){
+    let bestScore=0, bestProd=null, bestLen=0;
+    products.forEach(p=>{
+      const nameTokens=tokenize(p.name);
+      if(!nameTokens.length) return;
+      const nameJoined=nameTokens.join('');
+      // 매칭 카운트: 검색어 각 토큰이 상품명(공백 무시)에 들어있는지
+      const matched=tokTokens.filter(tk=> nameJoined.includes(tk) || tokJoined.includes(tk)).length;
+      const score=matched/Math.max(tokTokens.length, nameTokens.length);
+      if(score>=0.6 && matched>=1){
+        const nl=String(p.name||'').length;
+        if(score>bestScore || (score===bestScore && nl>bestLen)){
+          bestScore=score; bestProd=p; bestLen=nl;
+        }
+      }
+    });
+    if(bestProd) return bestProd;
+  }
+
+  // 5) 부분 순서(subsequence) 매칭: "허니치즈"→"허니리얼치즈" (최후 폴백)
   if(t.length>=2){
     const isSub=(s,l)=>{ let i=0; for(const c of l){ if(c===s[i]) i++; if(i>=s.length) break; } return i>=s.length; };
     const sub=products.filter(p=>isSub(t, mkpNorm(p.name)));
@@ -11919,7 +12070,7 @@ function registerServiceWorker(){
    배포될 때마다 index.html의 ETag/Last-Modified(또는 APP_BUILD)가 바뀌는 걸 감지해,
    "새 버전이 나왔어요" 배너를 띄우고 누르면 캐시를 비우고 새로고침한다.
    ============================ */
-const APP_BUILD='2026-08-23-24';   // ⚠️ 배포할 때마다 이 값을 새로 바꿔야 새 버전 배너가 뜹니다
+const APP_BUILD='2026-09-14-01';   // ⚠️ 배포할 때마다 이 값을 새로 바꿔야 새 버전 배너가 뜹니다
 let _updShown=false;
 /* 서버에 배포된 index.html의 APP_BUILD 값을 읽어온다 */
 async function _updRemoteBuild(){
