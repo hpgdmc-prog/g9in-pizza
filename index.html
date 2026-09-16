@@ -7098,11 +7098,33 @@ function previewMilkitRecipeCardsCompact(){
 }
 
 // 특정 고객 1명의 정보를 폼에 채움
+// 고객의 주문들(이름 또는 연락처가 일치) — 최근 주문 우선 정렬
+function mkCustomerOrders(c){
+  const cph=String(c&&c.phone||'').replace(/\D/g,'');
+  const nm=String(c&&c.name||'');
+  const list=milkitOrders.filter(o=>
+    (cph && String(o.phone||'').replace(/\D/g,'')===cph) || (nm && (o.customer||'')===nm)
+  );
+  list.sort((a,b)=> String(b.orderDate||'').localeCompare(String(a.orderDate||'')) || ((Number(b.no)||0)-(Number(a.no)||0)));
+  return list;
+}
+// 고객의 최적 연락처·주소 — 고객 레코드에 없으면 최근 주문에서 보완
+function mkCustomerBestInfo(c){
+  let phone=c&&c.phone||'', address=c&&c.address||'', detail=c&&c.addressDetail||'';
+  if(!phone || !address){
+    const orders=mkCustomerOrders(c);
+    if(!phone){ const o=orders.find(o=>o.phone); if(o) phone=o.phone; }
+    if(!address){ const o=orders.find(o=>o.address); if(o){ address=o.address; if(!detail) detail=o.addressDetail||''; } }
+  }
+  return {phone, address, addressDetail:detail, addrFull:[address,detail].filter(s=>String(s||'').trim()).join(' ')};
+}
+// 고객의 연락처·주소를 주문 폼에 채움
 function mkFillCustomerData(c){
   if(!c) return;
-  document.getElementById('mk-order-phone').value=formatPhone(c.phone||'');
-  document.getElementById('mk-order-address').value=c.address||'';
-  document.getElementById('mk-order-address-detail').value=c.addressDetail||'';
+  const info=mkCustomerBestInfo(c);
+  document.getElementById('mk-order-phone').value=formatPhone(info.phone||'');
+  document.getElementById('mk-order-address').value=info.address||'';
+  document.getElementById('mk-order-address-detail').value=info.addressDetail||'';
   mkSyncRecipientPh();
 }
 function mkAutofillCustomer(){
@@ -7159,7 +7181,8 @@ function mkCustomerSuggest(showAll){
   let head='';
   if(exactDup>=2) head=`<div class="ac-dup-hint">👥 <b>${q}</b> 동명이인 ${exactDup}명 — 연락처·주소로 구분해 선택하세요</div>`;
   box.innerHTML = head + list.map((c,i)=>{
-    const sub=[c.phone?formatPhone(c.phone):'', mkFullAddr(c)].filter(Boolean).join(' · ') || '정보 없음';
+    const info=mkCustomerBestInfo(c);
+    const sub=[info.phone?formatPhone(info.phone):'', info.addrFull].filter(Boolean).join(' · ') || '정보 없음';
     return `<div class="ac-item" onmousedown="event.preventDefault();mkPickCustomerById('${c.id}')">${c.name}<span class="ac-sub">${sub}</span></div>`;
   }).join('');
   box.classList.add('open');
@@ -8348,10 +8371,18 @@ function commitMilkitOrder(obj){
   }
   else { shipNow = obj.deliveryStatus==='배송중'; mkStampShip(obj); milkitOrders.push(obj); }
   DB.save('milkitOrders',milkitOrders);
-  // 신규 고객이면 고객DB에 자동 등록 (매장 익명 판매는 제외)
-  if(obj.channel!=='store' && obj.customer && !milkitCustomers.find(c=>c.name===obj.customer)){
-    milkitCustomers.push({id:uid(), name:obj.customer, phone:obj.phone, address:obj.address, addressDetail:obj.addressDetail||'', notes:''});
-    DB.save('milkitCustomers',milkitCustomers);
+  // 신규 고객이면 고객DB에 자동 등록, 기존 고객이면 비어 있던 연락처·주소를 이번 값으로 보완 (매장 익명 판매는 제외)
+  if(obj.channel!=='store' && obj.customer){
+    const exist=milkitCustomers.find(c=>c.name===obj.customer);
+    if(!exist){
+      milkitCustomers.push({id:uid(), name:obj.customer, phone:obj.phone, address:obj.address, addressDetail:obj.addressDetail||'', notes:''});
+      DB.save('milkitCustomers',milkitCustomers);
+    } else {
+      let upd=false;
+      if(!exist.phone && obj.phone){ exist.phone=obj.phone; upd=true; }
+      if(!exist.address && obj.address){ exist.address=obj.address; if(!exist.addressDetail && obj.addressDetail) exist.addressDetail=obj.addressDetail; upd=true; }
+      if(upd) DB.save('milkitCustomers',milkitCustomers);
+    }
   }
   closeModal('mk-order-modal');
   renderMilkitStats();
