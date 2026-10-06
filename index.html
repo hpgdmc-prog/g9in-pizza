@@ -348,6 +348,24 @@ tr:hover td{background:var(--bg2);}
 .req{color:var(--red);font-weight:700;}
 .req-note{font-size:11px;color:var(--sub2);font-weight:400;}
 .form-legend{font-size:12px;color:var(--sub);background:var(--acc-pale);border-radius:9px;padding:10px 13px;margin-bottom:16px;line-height:1.6;}
+/* 사진/텍스트 일괄 인식 — 저장 전 편집 카드 */
+.bp-card{border:1px solid var(--border);border-radius:12px;padding:12px 13px 4px;margin-bottom:12px;background:#fff;}
+.bp-card.bp-off{opacity:.5;}
+.bp-card.bp-dup{border-color:#E8B4B4;}
+.bp-card-hd{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;}
+.bp-no{font-weight:800;color:var(--acc-dark);font-size:15px;}
+.bp-inc{display:flex;align-items:center;gap:6px;font-size:12.5px;cursor:pointer;color:var(--txt);}
+.bp-inc input{width:18px;height:18px;}
+.bp-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;}
+.bp-f{min-width:0;}
+.bp-f label{display:block;font-size:11px;color:var(--sub);margin-bottom:3px;}
+.bp-f input,.bp-f select{width:100%;padding:8px 9px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;box-sizing:border-box;background:#fff;}
+.bp-f input.bp-warn{border-color:var(--red);background:#FCEDED;}
+.bp-prods{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;align-items:center;}
+.bp-prods .bp-plab{font-size:11px;color:var(--sub);}
+.bp-prod{display:flex;align-items:center;gap:5px;font-size:12px;border:1px solid var(--border);border-radius:7px;padding:3px 4px 3px 8px;}
+.bp-prod input{width:40px;text-align:right;border:1px solid var(--border);border-radius:5px;padding:3px 4px;font-size:12px;}
+.bp-noprod{font-size:11.5px;color:#9E2828;background:#FCEDED;border-radius:7px;padding:6px 9px;margin-bottom:8px;}
 /* form */
 .form-row{margin-bottom:14px;}
 .form-row label{display:block;font-size:11px;font-weight:600;color:var(--sub);letter-spacing:.12em;text-transform:uppercase;margin-bottom:6px;}
@@ -3176,15 +3194,13 @@ img{max-width:100%;height:auto;}
       <button class="btn btn-icon btn-out" onclick="closeModal('mk-bulkparse-modal')">✕</button>
     </div>
     <div class="modal-body">
-      <div id="mk-bulkparse-summary" style="font-size:13px;margin-bottom:12px;line-height:1.7;"></div>
-      <div class="mobile-scroll-hint">💡 표가 넓으면 좌우로 스크롤하세요</div>
-      <div class="table-wrap" style="max-height:340px;">
-        <table>
-          <thead><tr><th style="width:34px;"><input type="checkbox" id="mk-bulkparse-all" checked onchange="toggleMkBulkParseAll(this)"></th><th>주문자</th><th>연락처</th><th>주소</th><th>상품</th><th>확인</th></tr></thead>
-          <tbody id="mk-bulkparse-rows"></tbody>
-        </table>
+      <div id="mk-bulkparse-summary" style="font-size:13px;margin-bottom:10px;line-height:1.7;"></div>
+      <div class="sms-recip-bar" style="margin:0 0 10px;">
+        <label class="bp-inc"><input type="checkbox" id="mk-bulkparse-all" checked onchange="toggleMkBulkParseAll(this)"> 전체선택</label>
+        <span class="sms-count" id="mk-bulkparse-count"></span>
       </div>
-      <div style="font-size:11.5px;color:var(--sub2);margin-top:10px;line-height:1.6;">⚠️ 자동 인식 결과는 <b>저장 전에 반드시 확인</b>하세요. 등록 후 주문 내역에서 각 건을 눌러 수정할 수 있습니다.</div>
+      <div id="mk-bulkparse-rows"></div>
+      <div style="font-size:11.5px;color:var(--sub2);margin-top:4px;line-height:1.6;">💡 잘못 인식된 칸은 <b>여기서 바로 고칠 수 있어요.</b> 빨간 칸은 비어 있어 확인이 필요한 항목입니다.</div>
     </div>
     <div class="modal-footer-lg">
       <button class="btn btn-out" onclick="closeModal('mk-bulkparse-modal')">취소</button>
@@ -9050,35 +9066,84 @@ function showMkBulkParseModal(){
   const dupCount=flags.filter(f=>f.inBatch||f.existing.length).length;
 
   document.getElementById('mk-bulkparse-summary').innerHTML=
-    `주문 <b>${mkBulkParsed.length}건</b>을 인식했습니다. 등록할 항목을 확인 후 선택하세요.`+
-    (dupCount?`<div style="margin-top:6px;color:#9E2828;font-size:12px;">⚠️ 이미 등록된 주문과 겹치는 항목 <b>${dupCount}건</b>은 자동으로 체크 해제했습니다. 같은 사람이 다시 주문한 것이라면 직접 체크하세요.</div>`:'');
+    `주문 <b>${mkBulkParsed.length}건</b>을 인식했습니다. 아래에서 <b>한눈에 확인·수정</b>하고 등록하세요.`+
+    (dupCount?`<div style="margin-top:6px;color:#9E2828;font-size:12px;">⚠️ 이미 등록된 주문과 겹치는 항목 <b>${dupCount}건</b>은 자동으로 체크 해제했습니다. 같은 사람이 다시 주문한 것이라면 체크하세요.</div>`:'');
   document.getElementById('mk-bulkparse-all').checked = dupCount===0;
+
+  const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  const delOpts=m=>['택배발송','직접배송','직접수령'].map(x=>`<option ${((m||'택배발송')===x)?'selected':''}>${x}</option>`).join('');
+  const prodIds=new Set(milkitProducts.filter(p=>p.category==='피자').map(p=>p.id));
   document.getElementById('mk-bulkparse-rows').innerHTML=mkBulkParsed.map((r,i)=>{
-    const items=r.products.map(it=>{
-      const p=milkitProducts.find(x=>x.id===it.id);
-      return `${p?p.name:'?'}×${it.qty}`;
-    }).join(', ');
     const f=flags[i];
     const isDup=f.inBatch||f.existing.length>0;
-    const nameCell = (r.customer||'<span style="color:var(--sub2);">(미인식)</span>')
-      + (r.recipient?` <span style="color:var(--acc-dark);font-size:11px;">→ ${r.recipient}</span>`:'')
-      + (r.amount>0?`<div style="font-size:10.5px;color:var(--sub2);">${comma(r.amount)}원</div>`:'');
-    const phoneShown = r.recipientPhone || r.phone;
-    return `<tr>
-      <td><input type="checkbox" class="mk-bulkparse-chk" data-idx="${i}" ${isDup?'':'checked'}></td>
-      <td>${nameCell}</td>
-      <td>${phoneShown?formatPhone(phoneShown):'<span style="color:var(--sub2);">-</span>'}</td>
-      <td style="font-size:11.5px;">${r.address||'<span style="color:var(--sub2);">-</span>'}</td>
-      <td style="font-size:11.5px;">${items||'<span style="color:var(--sub2);">(미인식)</span>'}</td>
-      <td>${mkDupCellHtml(f)}</td>
-    </tr>`;
+    const ids=new Set(prodIds); (r.products||[]).forEach(it=>ids.add(it.id));
+    const plist=milkitProducts.filter(p=>ids.has(p.id));
+    const qtyOf=id=>(r.products||[]).filter(it=>it.id===id).reduce((s,it)=>s+(Number(it.qty)||0),0);
+    const prodHtml = plist.length ? plist.map(p=>`<span class="bp-prod">${esc(p.name)}<input type="text" inputmode="numeric" value="${qtyOf(p.id)||''}" placeholder="0" oninput="mkBulkEditProd(${i},'${p.id}',this.value)"></span>`).join('')
+      : '';
+    const totalQty=(r.products||[]).reduce((s,it)=>s+(Number(it.qty)||0),0);
+    return `<div class="bp-card${isDup?' bp-dup':''}" id="bp-card-${i}">
+      <div class="bp-card-hd">
+        <span class="bp-no">${i+1}</span>
+        <label class="bp-inc"><input type="checkbox" class="mk-bulkparse-chk" data-idx="${i}" ${isDup?'':'checked'} onchange="mkBulkToggleCard(${i},this.checked);mkBulkParseCount()"> 등록</label>
+        ${mkDupCellHtml(f)}
+      </div>
+      <div class="bp-grid">
+        <div class="bp-f"><label>주문자명 *</label><input value="${esc(r.customer)}" class="${r.customer?'':'bp-warn'}" oninput="mkBulkEdit(${i},'customer',this.value,this)"></div>
+        <div class="bp-f"><label>연락처</label><input inputmode="numeric" value="${esc(r.phone?formatPhone(r.phone):'')}" oninput="this.value=formatPhone(this.value);mkBulkEdit(${i},'phone',this.value)"></div>
+      </div>
+      <div class="bp-grid">
+        <div class="bp-f"><label>받는 분 <span style="color:var(--sub2);">(다를 때만)</span></label><input value="${esc(r.recipient)}" placeholder="주문자와 동일" oninput="mkBulkEdit(${i},'recipient',this.value)"></div>
+        <div class="bp-f"><label>받는 분 연락처</label><input inputmode="numeric" value="${esc(r.recipientPhone?formatPhone(r.recipientPhone):'')}" placeholder="주문자와 동일" oninput="this.value=formatPhone(this.value);mkBulkEdit(${i},'recipientPhone',this.value)"></div>
+      </div>
+      <div class="bp-f" style="margin-bottom:8px;"><label>배송주소 (도로명)</label><input value="${esc(r.address)}" oninput="mkBulkEdit(${i},'address',this.value)"></div>
+      <div class="bp-grid">
+        <div class="bp-f"><label>상세주소</label><input value="${esc(r.addressDetail)}" placeholder="동·호수 등" oninput="mkBulkEdit(${i},'addressDetail',this.value)"></div>
+        <div class="bp-f"><label>배송방법</label><select onchange="mkBulkEdit(${i},'deliveryMethod',this.value)">${delOpts(r.deliveryMethod)}</select></div>
+      </div>
+      <div class="bp-prods"><span class="bp-plab">상품 수량:</span>${prodHtml}</div>
+      ${totalQty<=0?`<div class="bp-noprod">⚠️ 인식된 상품이 없습니다. 위에서 수량을 넣어주세요.</div>`:''}
+      <div class="bp-grid">
+        <div class="bp-f"><label>금액 <span style="color:var(--sub2);">(비우면 자동계산)</span></label><input inputmode="numeric" value="${r.amount>0?comma(r.amount):''}" placeholder="자동" oninput="this.value=commaFmt(this.value);mkBulkEdit(${i},'amount',unComma(this.value))"></div>
+        <div class="bp-f"><label>희망수령일</label><input type="date" value="${esc(r.desiredDate)}" oninput="mkBulkEdit(${i},'desiredDate',this.value)"></div>
+      </div>
+    </div>`;
   }).join('');
+  mkBulkParsed.forEach((r,i)=>mkBulkToggleCard(i, !(flags[i].inBatch||flags[i].existing.length>0)));
+  mkBulkParseCount();
   closeModal('mk-ocr-modal');
   openModal('mk-bulkparse-modal');
 }
 
+function mkBulkEdit(i, field, val, el){
+  if(!mkBulkParsed[i]) return;
+  mkBulkParsed[i][field] = (field==='amount') ? (Number(val)||0) : val;
+  if(el && field==='customer') el.classList.toggle('bp-warn', !String(val||'').trim());
+}
+function mkBulkEditProd(i, prodId, val){
+  const r=mkBulkParsed[i]; if(!r) return;
+  r.products = (r.products||[]).filter(it=>it.id!==prodId);
+  const q=Number(String(val).replace(/[^\d]/g,''))||0;
+  if(q>0) r.products.push({id:prodId, qty:q});
+  // 상품 미인식 경고 토글
+  const card=document.getElementById('bp-card-'+i); if(!card) return;
+  const tot=r.products.reduce((s,it)=>s+(Number(it.qty)||0),0);
+  let w=card.querySelector('.bp-noprod');
+  if(tot>0){ if(w) w.remove(); }
+  else if(!w){ const d=document.createElement('div'); d.className='bp-noprod'; d.textContent='⚠️ 인식된 상품이 없습니다. 위에서 수량을 넣어주세요.'; card.querySelector('.bp-prods').after(d); }
+}
+function mkBulkToggleCard(i, on){
+  const card=document.getElementById('bp-card-'+i);
+  if(card) card.classList.toggle('bp-off', !on);
+}
+function mkBulkParseCount(){
+  const n=document.querySelectorAll('.mk-bulkparse-chk:checked').length;
+  const el=document.getElementById('mk-bulkparse-count'); if(el) el.textContent=`${n}건 등록 예정`;
+}
+
 function toggleMkBulkParseAll(el){
-  document.querySelectorAll('.mk-bulkparse-chk').forEach(c=>{ c.checked=el.checked; });
+  document.querySelectorAll('.mk-bulkparse-chk').forEach(c=>{ c.checked=el.checked; mkBulkToggleCard(Number(c.dataset.idx), el.checked); });
+  mkBulkParseCount();
 }
 
 function saveMkBulkParsed(){
@@ -9097,17 +9162,19 @@ function saveMkBulkParsed(){
     // 명시된 금액이 있으면 결제금액으로 반영(할인 역산)
     if(r.amount>0){ payTotal=r.amount; discount=Math.max(0, listTotal-r.amount); }
     nextNo+=1;
+    let recipient=r.recipient||'', recipientPhone=r.recipientPhone||'';
+    if(!recipient || recipient===r.customer){ recipient=''; recipientPhone=''; }
     milkitOrders.push({
       id:uid(), no:nextNo, orderDate:today,
-      customer:r.customer||'(미입력)', phone:r.phone||'', address:r.address||'',
-      recipient:r.recipient||'', recipientPhone:r.recipientPhone||'',
+      customer:r.customer||'(미입력)', phone:r.phone||'', address:r.address||'', addressDetail:r.addressDetail||'',
+      recipient, recipientPhone,
       qty, setType:st, setQty:sq, listTotal, discount, payTotal,
       payMethod:'', payStatus:'대기',
       desiredDate:r.desiredDate||'', deliveryMethod:r.deliveryMethod||'택배발송',
       deliveryStatus:'준비중', tracking:'', note:r.note||''
     });
     if(r.customer && !milkitCustomers.find(c=>c.name===r.customer)){
-      milkitCustomers.push({id:uid(), name:r.customer, phone:r.phone||'', address:r.address||'', notes:''});
+      milkitCustomers.push({id:uid(), name:r.customer, phone:r.phone||'', address:r.address||'', addressDetail:r.addressDetail||'', notes:''});
     }
   });
   DB.save('milkitOrders', milkitOrders);
