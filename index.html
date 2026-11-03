@@ -1811,6 +1811,13 @@ img{max-width:100%;height:auto;}
         <option value=""></option><option value="thisMonth"></option><option value="lastMonth"></option>
         <option value="7"></option><option value="30"></option><option value="custom"></option>
       </select>
+      <div class="f-quick" id="mk-stats-delfilter" style="margin:0 0 10px;align-items:center;">
+        <span style="font-size:12px;color:var(--sub2);margin-right:2px;">배송방법</span>
+        <button type="button" class="f-chip on" data-del="" onclick="setMkStatsDelFilter('')">전체</button>
+        <button type="button" class="f-chip del-chip" data-del="택배발송" onclick="setMkStatsDelFilter('택배발송')">🚚 택배발송</button>
+        <button type="button" class="f-chip del-chip" data-del="직접배송" onclick="setMkStatsDelFilter('직접배송')">🏠 직접배송</button>
+        <button type="button" class="f-chip del-chip" data-del="직접수령" onclick="setMkStatsDelFilter('직접수령')">🙋 직접수령</button>
+      </div>
       <div class="f-summary" id="mk-stats-filter-summary"></div>
       <div class="mobile-scroll-hint">💡 표가 넓으면 좌우로 스크롤하세요</div>
       <div class="table-wrap" style="margin-bottom:20px;">
@@ -10630,27 +10637,40 @@ function mkStatsPeriodRange(){
   }
   return null;
 }
+let _mkStatsDelFilter='';
+function setMkStatsDelFilter(v){ _mkStatsDelFilter=v||''; renderMilkitSalesStats(); }
+/* 배송방법별 색·라벨 (판매현황 색 구분) */
+function mkDelInfo(m){
+  if(m==='택배발송') return {label:'🚚 택배발송', color:'#1E5FA8', bg:'#E7EEF7'};
+  if(m==='직접배송') return {label:'🏠 직접배송', color:'#7A3FA8', bg:'#F1E9F7'};
+  if(m==='직접수령') return {label:'🙋 직접수령', color:'#1E7A6A', bg:'#E3F1EE'};
+  return {label:m||'-', color:'var(--sub)', bg:'var(--bg2)'};
+}
 function getStatsScopedOrders(){
   const range=mkStatsPeriodRange();
-  if(!range) return milkitOrders;
-  return milkitOrders.filter(o=>{
-    const d=o.orderDate||'';
-    return d && d>=range.from && d<=range.to;
-  });
+  let list = range
+    ? milkitOrders.filter(o=>{ const d=o.orderDate||''; return d && d>=range.from && d<=range.to; })
+    : milkitOrders.slice();
+  if(_mkStatsDelFilter) list=list.filter(o=>(o.deliveryMethod||'택배발송')===_mkStatsDelFilter);
+  return list;
 }
 
 function renderMilkitSalesStats(){
   const scoped=getStatsScopedOrders();
   const range=mkStatsPeriodRange();
   const period=document.getElementById('mk-stats-period')?.value||'';
-  document.querySelectorAll('#mk-pane-stats .f-chip').forEach(c=>{
+  document.querySelectorAll('#mk-pane-stats .f-chip[data-period]').forEach(c=>{
     c.classList.toggle('on', (c.dataset.period||'')===period);
+  });
+  document.querySelectorAll('#mk-stats-delfilter .f-chip').forEach(c=>{
+    c.classList.toggle('on', (c.dataset.del||'')===_mkStatsDelFilter);
   });
   const sumEl=document.getElementById('mk-stats-filter-summary');
   if(sumEl){
-    sumEl.innerHTML = range
+    const delLbl=_mkStatsDelFilter?` · <b style="color:${mkDelInfo(_mkStatsDelFilter).color};">${mkDelInfo(_mkStatsDelFilter).label}</b>만`:'';
+    sumEl.innerHTML = (range
       ? `<b>${range.label}</b> (${range.from} ~ ${range.to}) · 주문 <b>${scoped.length}건</b>`
-      : `전체 누적 · 주문 <b>${scoped.length}건</b>`;
+      : `전체 누적 · 주문 <b>${scoped.length}건</b>`) + delLbl;
   }
   const salesScoped = scoped.filter(mkIsSale);   // 홍보용 제외
   const rows = milkitProducts.map(p=>{
@@ -10679,6 +10699,11 @@ function renderMilkitSalesStats(){
   const cnt=(field,val)=>scoped.filter(o=>(o[field]||'')===val).length;
   const mini=(label,val,color)=>`<div class="mk-mini"><div class="m-label">${label}</div><div class="m-val"${color?` style="color:${color}"`:''}>${comma(val)}</div></div>`;
   const orange='var(--orange)';
+  // 배송방법 건수는 배송필터와 무관하게(기간만) 집계 → 클릭해서 필터
+  const periodScoped = range ? milkitOrders.filter(o=>{ const d=o.orderDate||''; return d && d>=range.from && d<=range.to; }) : milkitOrders;
+  const delCnt=(m)=>periodScoped.filter(o=>(o.deliveryMethod||'택배발송')===m).length;
+  const delMini=(m)=>{ const di=mkDelInfo(m), c=delCnt(m), on=_mkStatsDelFilter===m;
+    return `<div class="mk-mini" style="cursor:pointer;border:1.5px solid ${on?di.color:'var(--border)'};${on?`background:${di.bg};`:''}" onclick="setMkStatsDelFilter('${on?'':m}')"><div class="m-label" style="color:${di.color};font-weight:600;">${di.label}</div><div class="m-val" style="color:${di.color};">${comma(c)}</div></div>`; };
   document.getElementById('mk-summary-stats').innerHTML=`
     <div class="mk-sumgrp">
       <div class="mk-sumgrp-h">💰 매출 · 수익 <span style="font-weight:500;color:var(--sub2);">(${scopeLabel})</span></div>
@@ -10697,11 +10722,11 @@ function renderMilkitSalesStats(){
       </div>
     </div>
     <div class="mk-sumgrp">
-      <div class="mk-sumgrp-h">📦 배송 방법</div>
+      <div class="mk-sumgrp-h">📦 배송 방법 <span style="font-weight:500;color:var(--sub2);font-size:11px;">(눌러서 필터)</span></div>
       <div class="mk-mini-grid">
-        ${mini('택배발송', cnt('deliveryMethod','택배발송'))}
-        ${mini('직접배송', cnt('deliveryMethod','직접배송'))}
-        ${mini('직접수령', cnt('deliveryMethod','직접수령'))}
+        ${delMini('택배발송')}
+        ${delMini('직접배송')}
+        ${delMini('직접수령')}
       </div>
     </div>
     <div class="mk-sumgrp">
@@ -10786,13 +10811,14 @@ function renderMkSaleLog(sales){
   body.innerHTML = list.map(o=>{
     const recip=(o.recipient&&o.recipient!==o.customer)?` <span style="color:var(--sub2);">→ ${o.recipient}님께</span>`:'';
     const pay=(o.payStatus==='완료')?(o.payMethod||'결제완료'):'미납';
-    return `<div style="border:1px solid var(--border);border-radius:12px;padding:11px 13px;margin-bottom:8px;background:var(--card);cursor:pointer;" onclick="openMilkitOrderModal('${o.id}')">
+    const di=mkDelInfo(o.deliveryMethod);
+    return `<div style="border:1px solid var(--border);border-left:4px solid ${di.color};border-radius:12px;padding:11px 13px;margin-bottom:8px;background:var(--card);cursor:pointer;" onclick="openMilkitOrderModal('${o.id}')">
       <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline;">
         <div style="font-weight:700;min-width:0;">${o.customer||'(이름없음)'} <span style="font-size:11.5px;color:var(--sub);font-weight:400;">${mkOrderRegion(o)}</span></div>
         <div class="num" style="font-weight:700;color:var(--acc-dark);flex-shrink:0;">${comma(Number(o.payTotal)||0)}원</div>
       </div>
       <div style="font-size:12.5px;color:var(--text);margin-top:3px;">${mkOrderItemsText(o.qty)}${recip}</div>
-      <div style="font-size:11.5px;color:var(--sub2);margin-top:3px;">📅 ${fmtFull(o.orderDate)} · ${pay} · ${o.deliveryMethod||''}${o.deliveryStatus?' · '+o.deliveryStatus:''}</div>
+      <div style="font-size:11.5px;color:var(--sub2);margin-top:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">📅 ${fmtFull(o.orderDate)} · ${pay}<span style="background:${di.bg};color:${di.color};border-radius:6px;padding:1px 7px;font-weight:600;">${di.label}</span>${o.deliveryStatus?'<span style="color:var(--sub2);">· '+o.deliveryStatus+'</span>':''}</div>
     </div>`;
   }).join('') || `<div class="empty-state"><div class="empty-icon">🧾</div><p>이 기간에 판매 기록이 없습니다</p></div>`;
   const cntEl=document.getElementById('mk-salelog-count'); if(cntEl) cntEl.textContent=list.length?`${comma(list.length)}건`:'';
@@ -12168,7 +12194,7 @@ function registerServiceWorker(){
    배포될 때마다 index.html의 ETag/Last-Modified(또는 APP_BUILD)가 바뀌는 걸 감지해,
    "새 버전이 나왔어요" 배너를 띄우고 누르면 캐시를 비우고 새로고침한다.
    ============================ */
-const APP_BUILD='2026-10-06-01';   // ⚠️ 배포할 때마다 이 값을 새로 바꿔야 새 버전 배너가 뜹니다
+const APP_BUILD='2026-11-03-01';   // ⚠️ 배포할 때마다 이 값을 새로 바꿔야 새 버전 배너가 뜹니다
 let _updShown=false;
 /* 서버에 배포된 index.html의 APP_BUILD 값을 읽어온다 */
 async function _updRemoteBuild(){
