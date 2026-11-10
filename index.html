@@ -2766,10 +2766,10 @@ img{max-width:100%;height:auto;}
         <div style="font-size:11.5px;color:var(--sub);margin:-2px 0 10px;line-height:1.5;">💡 선물·대리주문 등 <b>받는 분이 다르면</b> 이름을 입력하세요. 비워두면 주문자와 동일하게 처리됩니다.</div>
         <div class="form-row">
           <label>배송주소 (도로명) <span class="req-note">(택배발송 시 필수)</span></label>
-          <div style="display:flex;gap:6px;flex-wrap:wrap;">
-            <input type="text" id="mk-order-address" placeholder="🔍 주소검색으로 도로명 주소 입력" style="flex:1;min-width:180px;" oninput="this.classList.remove('input-invalid')">
-            <button type="button" class="btn btn-out btn-sm" style="flex:0 0 auto;" onclick="openAddressSearch('mk-order-address','mk-order-address-detail')">🔍 주소</button>
-            <button type="button" class="btn btn-out btn-sm" style="flex:0 0 auto;" onclick="openPlaceSearch('mk-order-address','mk-order-address-detail')" title="가게 상호 검색 (스타벅스 강남역점 등)">🔍 상호</button>
+          <textarea id="mk-order-address" rows="2" placeholder="🔍 주소검색으로 도로명 주소 입력" style="width:100%;box-sizing:border-box;resize:vertical;line-height:1.55;min-height:46px;overflow:hidden;" oninput="this.classList.remove('input-invalid');mkAutoGrow(this)"></textarea>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">
+            <button type="button" class="btn btn-out btn-sm" onclick="openAddressSearch('mk-order-address','mk-order-address-detail')">🔍 주소검색</button>
+            <button type="button" class="btn btn-out btn-sm" onclick="openPlaceSearch('mk-order-address','mk-order-address-detail')" title="가게 상호 검색 (스타벅스 강남역점 등)">🔍 상호검색</button>
           </div>
         </div>
         <div class="form-grid">
@@ -7148,6 +7148,7 @@ function mkFillCustomerData(c){
   document.getElementById('mk-order-phone').value=formatPhone(info.phone||'');
   document.getElementById('mk-order-address').value=info.address||'';
   document.getElementById('mk-order-address-detail').value=info.addressDetail||'';
+  mkAutoGrow(document.getElementById('mk-order-address'));
   mkSyncRecipientPh();
 }
 function mkAutofillCustomer(){
@@ -7996,6 +7997,10 @@ function openMilkitOrderModal(id){
   mkDeliveryHint();
   mkDelStatusChanged(false);   // 발송일 칸 표시 상태만 동기화(값은 그대로)
   openModal('mk-order-modal');
+  // 주소 textarea 전체가 보이게 높이 맞춤 — 모달 레이아웃이 끝난 뒤 실행
+  const _grow=()=>mkAutoGrow(document.getElementById('mk-order-address'));
+  requestAnimationFrame(()=>requestAnimationFrame(_grow));
+  setTimeout(_grow,220);
 }
 
 /* 받는 분 칸의 안내(placeholder)를 주문자 이름·연락처로 자동 표기. 비워두면 주문자와 동일 */
@@ -8064,6 +8069,14 @@ function loadDaumPostcode(){
 }
 /* targetId 주소 입력칸을 도로명주소로 채운다. 닫기 버튼이 있는 오버레이(embed) 방식이라
    주소 입력 없이도 언제든 닫고 원래 화면으로 돌아갈 수 있다. */
+/* textarea 높이를 내용에 맞춰 자동으로 늘려 전체 내용이 보이게 */
+function mkAutoGrow(el){
+  if(!el || el.tagName!=='TEXTAREA') return;
+  // 모달이 아직 안 열려 폭이 비정상(좁음)이면 높이 폭주 방지 위해 건너뜀
+  if(el.offsetParent===null || el.clientWidth<80){ return; }
+  el.style.height='auto';
+  el.style.height=(Math.min(el.scrollHeight,300)+2)+'px';
+}
 function openAddressSearch(targetId, detailId){
   loadDaumPostcode().then(()=>{
     const old=document.getElementById('__addr-layer'); if(old) old.remove();
@@ -8092,7 +8105,7 @@ function openAddressSearch(targetId, detailId){
         const bn=(data.buildingName||'').trim();
         if(bn && addr && addr.indexOf(bn)<0){ addr += ' ('+bn+')'; }
         const el=document.getElementById(targetId);
-        if(el){ el.value=addr; el.classList.remove('input-invalid'); }
+        if(el){ el.value=addr; el.classList.remove('input-invalid'); mkAutoGrow(el); }
         layer.remove();
         const d=detailId && document.getElementById(detailId);
         if(d){ d.focus(); } else if(el){ el.focus(); try{ el.setSelectionRange(el.value.length, el.value.length); }catch(_){} }
@@ -9667,7 +9680,7 @@ function applyMkOcrResult(parsed){
   if(parsed.customer) document.getElementById('mk-order-customer').value=parsed.customer;
   mkAutofillCustomer();
   if(parsed.phone) document.getElementById('mk-order-phone').value=formatPhone(parsed.phone);
-  if(parsed.address) document.getElementById('mk-order-address').value=parsed.address;
+  if(parsed.address){ document.getElementById('mk-order-address').value=parsed.address; mkAutoGrow(document.getElementById('mk-order-address')); }
   const qty={};
   (parsed.products||[]).forEach(it=>{
     const p=milkitProducts.find(p=>p.name===it.name);
@@ -12194,7 +12207,7 @@ function registerServiceWorker(){
    배포될 때마다 index.html의 ETag/Last-Modified(또는 APP_BUILD)가 바뀌는 걸 감지해,
    "새 버전이 나왔어요" 배너를 띄우고 누르면 캐시를 비우고 새로고침한다.
    ============================ */
-const APP_BUILD='2026-11-03-01';   // ⚠️ 배포할 때마다 이 값을 새로 바꿔야 새 버전 배너가 뜹니다
+const APP_BUILD='2026-11-10-01';   // ⚠️ 배포할 때마다 이 값을 새로 바꿔야 새 버전 배너가 뜹니다
 let _updShown=false;
 /* 서버에 배포된 index.html의 APP_BUILD 값을 읽어온다 */
 async function _updRemoteBuild(){
