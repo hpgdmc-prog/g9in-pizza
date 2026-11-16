@@ -142,6 +142,9 @@ h1,h2,h3,h4{font-family:var(--sans);letter-spacing:-.01em;}
 }
 #app-toast{position:fixed;left:50%;bottom:calc(30px + var(--sai-bottom));transform:translateX(-50%);background:var(--dark);color:#fff;padding:11px 18px;border-radius:22px;font-size:13.5px;font-weight:600;z-index:9999;opacity:0;transition:opacity .2s;pointer-events:none;box-shadow:0 6px 22px rgba(0,0,0,.32);max-width:88vw;text-align:center;}
 #app-toast.show{opacity:1;}
+#app-undo{position:fixed;left:50%;bottom:calc(30px + var(--sai-bottom));transform:translateX(-50%);background:var(--dark);color:#fff;padding:9px 10px 9px 18px;border-radius:22px;font-size:13.5px;font-weight:600;z-index:10000;opacity:0;transition:opacity .2s;pointer-events:none;box-shadow:0 6px 22px rgba(0,0,0,.32);max-width:92vw;display:flex;align-items:center;gap:12px;}
+#app-undo.show{opacity:1;pointer-events:auto;}
+#app-undo .app-undo-btn{background:var(--acc);color:#fff;border:none;border-radius:16px;padding:7px 15px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;flex-shrink:0;}
 #back-btn{background:var(--bg2);border:1px solid var(--border);border-radius:8px;font-size:24px;line-height:1;cursor:pointer;padding:2px 12px 5px;color:var(--p);flex-shrink:0;}
 #back-btn:active{background:var(--acc-pale);}
 #back-btn:active{opacity:.5;}
@@ -1549,6 +1552,11 @@ img{max-width:100%;height:auto;}
             </div>
           </div>
         </div>
+      </div>
+      <div id="mk-backup-banner" style="display:none;align-items:center;gap:10px;background:#FEF3E2;border:1px solid #F0C98A;color:#8A5A1E;border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:12.5px;line-height:1.5;flex-wrap:wrap;">
+        <span style="flex:1;min-width:150px;" id="mk-backup-banner-text"></span>
+        <button class="btn btn-acc btn-sm" onclick="exportAllData()">지금 백업</button>
+        <button class="btn btn-out btn-sm" onclick="mkDismissBackupBanner()">나중에</button>
       </div>
       <div class="filter-bar">
         <input type="text" class="f-search" id="mk-order-search" placeholder="🔎 주문자명 · 연락처 검색…" oninput="renderMilkitOrders()">
@@ -3661,6 +3669,18 @@ function appToast(msg){
   if(!t){ t=document.createElement('div'); t.id='app-toast'; document.body.appendChild(t); }
   t.textContent=msg; t.classList.add('show');
   clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),1900);
+}
+/* 삭제 등 되돌릴 수 있는 작업 — "되돌리기" 버튼이 있는 토스트(약 7초) */
+function appUndoToast(msg, undoFn){
+  let t=document.getElementById('app-undo');
+  if(!t){ t=document.createElement('div'); t.id='app-undo'; document.body.appendChild(t); }
+  t.innerHTML='';
+  const span=document.createElement('span'); span.textContent=msg; t.appendChild(span);
+  const btn=document.createElement('button'); btn.className='app-undo-btn'; btn.textContent='↩ 되돌리기';
+  btn.onclick=()=>{ t.classList.remove('show'); try{ undoFn(); appToast('되돌렸습니다'); }catch(_){} };
+  t.appendChild(btn);
+  t.classList.add('show');
+  clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),7000);
 }
 /* 새로고침 */
 function appReload(){ appToast('새로고침 중…'); setTimeout(()=>location.reload(),120); }
@@ -6476,13 +6496,16 @@ function updateMkOrderBulkBtn(){
 }
 function bulkDeleteMkOrders(){
   if(!mkSelectedOrderIds.size) return;
-  if(!confirm(`선택한 주문 ${mkSelectedOrderIds.size}건을 삭제하시겠습니까?`)) return;
+  const cnt=mkSelectedOrderIds.size;
+  if(!confirm(`선택한 주문 ${cnt}건을 삭제하시겠습니까?`)) return;
+  const snapshot=milkitOrders.slice();
   milkitOrders=milkitOrders.filter(o=>!mkSelectedOrderIds.has(o.id));
   mkSelectedOrderIds.clear();
   mkRenumberOrders();
   DB.save('milkitOrders',milkitOrders);
   renderMilkitStats();
   renderMilkitOrders();
+  appUndoToast(`주문 ${cnt}건 삭제됨`, ()=>{ milkitOrders=snapshot; mkRenumberOrders(); DB.save('milkitOrders',milkitOrders); renderMilkitStats(); renderMilkitOrders(); });
 }
 /* 선택한 여러 주문의 희망수령일을 한 번에 지정 */
 function mkBulkSetDesiredDate(){
@@ -6651,6 +6674,7 @@ function renderMilkitOrders(){
       ? `<b>${list.length}건</b> · 합계 <b>${comma(total)}원</b> <span style="color:var(--acc-dark);">— ${label}</span>`
       : `전체 <b>${list.length}건</b> · 합계 <b>${comma(total)}원</b>`;
   }
+  try{ mkCheckBackupReminder(); }catch(_){}
   const el=document.getElementById('mk-order-list');
   if(!list.length){
     el.innerHTML=`<div class="empty-state"><div class="empty-icon">🛒</div><p>${milkitOrders.length?'조건에 맞는 주문이 없습니다':'등록된 주문이 없습니다'}</p></div>`;
@@ -8559,12 +8583,15 @@ function deleteCurrentMilkitOrder(){
   appToast('삭제되었습니다');
 }
 function deleteMilkitOrder(id){
+  const o=milkitOrders.find(x=>x.id===id); if(!o) return;
   if(!confirm('이 주문을 삭제하시겠습니까?')) return;
+  const snapshot=milkitOrders.slice();
   milkitOrders=milkitOrders.filter(x=>x.id!==id);
   mkRenumberOrders();
   DB.save('milkitOrders',milkitOrders);
   renderMilkitStats();
   renderMilkitOrders();
+  appUndoToast(`주문 삭제됨 — ${o.customer||'주문'}`, ()=>{ milkitOrders=snapshot; mkRenumberOrders(); DB.save('milkitOrders',milkitOrders); renderMilkitStats(); renderMilkitOrders(); });
 }
 
 function exportMilkitOrders(){
@@ -9805,11 +9832,14 @@ function mkCustomerRowClick(inner, id){
 }
 function bulkDeleteMkCustomers(){
   if(!mkSelectedCustomerIds.size) return;
-  if(!confirm(`선택한 고객 ${mkSelectedCustomerIds.size}명을 삭제하시겠습니까?`)) return;
+  const cnt=mkSelectedCustomerIds.size;
+  if(!confirm(`선택한 고객 ${cnt}명을 삭제하시겠습니까?`)) return;
+  const snapshot=milkitCustomers.slice();
   milkitCustomers=milkitCustomers.filter(c=>!mkSelectedCustomerIds.has(c.id));
   mkSelectedCustomerIds.clear();
   DB.save('milkitCustomers',milkitCustomers);
   renderMilkitCustomers();
+  appUndoToast(`고객 ${cnt}명 삭제됨`, ()=>{ milkitCustomers=snapshot; DB.save('milkitCustomers',milkitCustomers); renderMilkitCustomers(); });
 }
 
 function renderMilkitCustomers(){
@@ -9886,10 +9916,13 @@ function saveMilkitCustomer(){
 }
 
 function deleteMilkitCustomer(id){
+  const c=milkitCustomers.find(x=>x.id===id); if(!c) return;
   if(!confirm('이 고객을 삭제하시겠습니까?')) return;
+  const snapshot=milkitCustomers.slice();
   milkitCustomers=milkitCustomers.filter(x=>x.id!==id);
   DB.save('milkitCustomers',milkitCustomers);
   renderMilkitCustomers();
+  appUndoToast(`고객 삭제됨 — ${c.name||'고객'}`, ()=>{ milkitCustomers=snapshot; DB.save('milkitCustomers',milkitCustomers); renderMilkitCustomers(); });
 }
 
 /* --- 메뉴 · 가격 설정 --- */
@@ -12148,7 +12181,26 @@ function exportAllData(){
   a.href=url; a.download=`지구인피자_백업_${todayStr()}.json`;
   a.click();
   URL.revokeObjectURL(url);
+  DB.save('lastBackup', Date.now());           // 마지막 백업 시각 기록(이 기기 전용)
+  _mkBackupDismissed=false;
+  try{ mkCheckBackupReminder(); }catch(_){}
+  appToast('백업 파일을 내려받았어요');
 }
+/* ===== 백업 리마인더 (데이터 유실 방지) ===== */
+let _mkBackupDismissed=false;
+function mkBackupDaysAgo(){ const t=Number(DB.load('lastBackup',0))||0; return t? Math.floor((Date.now()-t)/86400000) : null; }
+function mkCheckBackupReminder(){
+  const b=document.getElementById('mk-backup-banner'); if(!b) return;
+  if(_mkBackupDismissed){ b.style.display='none'; return; }
+  const days=mkBackupDaysAgo();
+  const hasData=((typeof milkitOrders!=='undefined'?milkitOrders.length:0)+(typeof milkitCustomers!=='undefined'?milkitCustomers.length:0))>0;
+  let msg='';
+  if(hasData && days===null) msg='⚠️ 아직 데이터를 백업한 적이 없어요. 기기가 바뀌거나 브라우저 정보가 지워지면 사라질 수 있으니 지금 한 번 백업해 두세요.';
+  else if(days!==null && days>=14) msg=`⚠️ 마지막 백업이 ${days}일 전이에요. 최신 데이터를 백업해 두면 안전해요.`;
+  if(msg){ const t=document.getElementById('mk-backup-banner-text'); if(t) t.textContent=msg; b.style.display='flex'; }
+  else b.style.display='none';
+}
+function mkDismissBackupBanner(){ _mkBackupDismissed=true; const b=document.getElementById('mk-backup-banner'); if(b) b.style.display='none'; }
 
 function importAllData(input){
   const file=input.files[0]; if(!file) return;
@@ -12233,7 +12285,7 @@ function registerServiceWorker(){
    배포될 때마다 index.html의 ETag/Last-Modified(또는 APP_BUILD)가 바뀌는 걸 감지해,
    "새 버전이 나왔어요" 배너를 띄우고 누르면 캐시를 비우고 새로고침한다.
    ============================ */
-const APP_BUILD='2026-11-16-01';   // ⚠️ 배포할 때마다 이 값을 새로 바꿔야 새 버전 배너가 뜹니다
+const APP_BUILD='2026-11-16-02';   // ⚠️ 배포할 때마다 이 값을 새로 바꿔야 새 버전 배너가 뜹니다
 let _updShown=false;
 /* 서버에 배포된 index.html의 APP_BUILD 값을 읽어온다 */
 async function _updRemoteBuild(){
