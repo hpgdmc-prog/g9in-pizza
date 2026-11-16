@@ -1523,7 +1523,7 @@ img{max-width:100%;height:auto;}
       <div class="page-hdr" style="border-bottom:none;margin-bottom:10px;padding-bottom:0;">
         <h3 style="font-size:14px;">주문 내역</h3>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <button class="btn btn-acc btn-sm" onclick="openMilkitOrderModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>주문 등록</button>
+          <button class="btn btn-acc" onclick="openMilkitOrderModal()" style="padding:12px 22px;font-size:15px;font-weight:700;border-radius:12px;box-shadow:var(--shadow-sm);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" style="width:20px;height:20px;"><path d="M12 5v14M5 12h14"/></svg>주문 등록</button>
           <div class="mk-menu">
             <button class="btn btn-out btn-sm" onclick="mkToggleMenu(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h10M4 17h13"/></svg>간편등록 ▾</button>
             <div class="mk-menu-list">
@@ -1542,7 +1542,7 @@ img{max-width:100%;height:auto;}
           <div class="mk-menu">
             <button class="btn btn-out btn-sm" onclick="mkToggleMenu(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h11v9H3z"/><path d="M14 10.5h4l3 3V16h-7z"/><circle cx="7" cy="18" r="1.5"/><circle cx="17.5" cy="18" r="1.5"/></svg>배송·출력 ▾</button>
             <div class="mk-menu-list">
-              <button onclick="closeMkMenus();openMkLogenModal()">📦 로젠 대량등록</button>
+              <button onclick="closeMkMenus();openMkLogenModal()">📦 택배 대량등록</button>
               <button onclick="closeMkMenus();document.getElementById('mk-trk-import-file').click()">📥 송장번호 가져오기</button>
               <button onclick="closeMkMenus();previewMilkitOrderPrint()">🖨️ 주문서 인쇄</button>
               <button onclick="closeMkMenus();exportMilkitOrders()">📥 엑셀 내보내기</button>
@@ -1645,8 +1645,14 @@ img{max-width:100%;height:auto;}
       </div>
       <!-- 여러 건 일괄 처리 바 (선택 시 표시) -->
       <div id="mk-order-bulkbar" class="mk-bulkbar" style="display:none;">
-        <div class="mk-bulkbar-title"><b id="mk-bulk-count">0</b>건 선택 — 한 번에 변경</div>
-        <div class="mk-bulkbar-actions">
+        <div class="mk-bulkbar-title" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+          <span><b id="mk-bulk-count">0</b>건 선택</span>
+          <div style="display:flex;gap:7px;">
+            <button class="btn btn-out btn-sm" id="mk-bulk-shipexport" onclick="mkExportSelectedShipping()" style="font-weight:600;">📦 배송 대량등록</button>
+            <button class="btn btn-acc btn-sm" onclick="mkSetSelectMode(false)" style="font-weight:700;">✓ 완료</button>
+          </div>
+        </div>
+        <div class="mk-bulkbar-actions" id="mk-bulkbar-actions">
           <select id="mk-bulk-action" onchange="mkBulkApply(this)">
             <option value="">일괄 변경 선택…</option>
             <optgroup label="🚚 배송상태">
@@ -2933,7 +2939,7 @@ img{max-width:100%;height:auto;}
 <div class="modal-bg" id="mk-logen-modal">
   <div class="modal" style="max-width:520px;">
     <div class="modal-hdr">
-      <h4>🚚 로젠 대량등록 엑셀</h4>
+      <h4>🚚 택배 대량등록 엑셀</h4>
       <button class="btn btn-icon btn-out" onclick="closeModal('mk-logen-modal')">✕</button>
     </div>
     <div class="modal-body">
@@ -2949,9 +2955,9 @@ img{max-width:100%;height:auto;}
         <div class="form-row"><label>물품명(품목명)</label><input type="text" id="mk-logen-item" placeholder="냉동피자"></div>
         <div class="form-row"><label>택배운임(원)</label><input type="text" id="mk-logen-freight" inputmode="numeric" placeholder="3000" oninput="this.value=commaFmt(this.value)"></div>
       </div>
-      <div style="font-size:11.5px;color:var(--sub2);margin:6px 0 4px;line-height:1.6;">운임구분은 <b>선불(코드 010)</b>로, 보내는 분은 로젠 계정에 등록된 정보로 자동 처리됩니다.</div>
+      <div style="font-size:11.5px;color:var(--sub2);margin:6px 0 4px;line-height:1.6;">운임구분은 <b>선불(코드 010)</b>로, 보내는 분은 택배사 계정에 등록된 정보로 자동 처리됩니다.</div>
 
-      <div class="sms-note" style="margin-top:12px;">엑셀을 받은 뒤 로젠 <b>예약관리 → 주문등록/출력(복수건)</b> → <b>엑셀 업로드</b>로 올리면 여러 건이 한 번에 등록됩니다. 우편번호는 로젠이 주소로 자동 변환합니다.</div>
+      <div class="sms-note" style="margin-top:12px;">엑셀을 받은 뒤 이용하는 <b>택배사 대량등록 화면</b>에서 <b>엑셀 업로드</b>로 올리면 여러 건이 한 번에 등록됩니다. 우편번호는 보통 주소로 자동 변환됩니다. <span style="color:var(--sub2);">(현재 양식은 로젠 기준 — 다른 택배사 양식이 필요하면 알려주세요.)</span></div>
     </div>
     <div class="modal-footer sms-footer">
       <button class="btn btn-out" onclick="closeModal('mk-logen-modal')">닫기</button>
@@ -6460,7 +6466,11 @@ function updateMkOrderBulkBtn(){
   const bar=document.getElementById('mk-order-bulkbar');
   const cnt=document.getElementById('mk-bulk-count');
   const sel=document.getElementById('mk-order-selcount');
-  if(bar) bar.style.display = (n>0 && mkSelectMode) ? '' : 'none';
+  const acts=document.getElementById('mk-bulkbar-actions');
+  const shipBtn=document.getElementById('mk-bulk-shipexport');
+  if(bar) bar.style.display = mkSelectMode ? '' : 'none';        // 선택 모드면 항상 하단 바 표시(완료 버튼 접근)
+  if(acts) acts.style.display = n>0 ? '' : 'none';               // 변경 액션은 1건 이상 선택 시만
+  if(shipBtn) shipBtn.style.display = n>0 ? '' : 'none';
   if(cnt) cnt.textContent=n;
   if(sel) sel.textContent = !mkSelectMode ? '' : (n>0 ? `${n}건 선택됨` : '목록을 탭해 선택하세요');
 }
@@ -8579,8 +8589,16 @@ function exportMilkitOrders(){
    택배발송 + 미발송(준비중) 주문을 로젠 '주문등록/출력(복수건)' 업로드용 엑셀로 내보낸다.
    받는 분(수하인) 정보는 주문에서, 보내는 분(송하인)은 저장된 설정에서 채운다. */
 function mkLogenTargets(){
-  // 현재 화면 필터(오늘 발송 등)에 걸린 목록 기준으로, 택배발송·미발송(준비중)만
+  // 판매목록에서 선택한 주문이 있으면 그 중 택배발송 건만 (상태 무관 — 사용자가 직접 고른 것)
+  if(mkSelectedOrderIds && mkSelectedOrderIds.size){
+    return getFilteredMilkitOrders().filter(o=>mkSelectedOrderIds.has(o.id) && o.deliveryMethod==='택배발송');
+  }
+  // 선택이 없으면: 현재 화면 필터 기준, 택배발송·미발송(준비중)만
   return getFilteredMilkitOrders().filter(o=>o.deliveryMethod==='택배발송' && (o.deliveryStatus||'준비중')==='준비중');
+}
+function mkExportSelectedShipping(){
+  if(!mkSelectedOrderIds.size){ alert('먼저 주문을 선택하세요.'); return; }
+  openMkLogenModal();
 }
 /* 희망배송일 기준 '오늘 발송할' 주문인지 — 희망일 없거나 발송 권장일(희망일 하루 전)이 오늘/지남이면 true */
 function mkLogenShipToday(o){
@@ -8596,14 +8614,22 @@ function openMkLogenModal(){
   document.getElementById('mk-logen-item').value=c.itemName||'냉동피자';
   document.getElementById('mk-logen-freight').value=commaFmt(c.freight!=null?c.freight:3000);
   const list=mkLogenTargets();
-  // 기본 선택: 오늘 발송할 주문만 체크 (희망일이 미래인 건은 자동 해제)
-  _mkLogenSel=new Set(list.filter(mkLogenShipToday).map(o=>o.id));
-  const holdN=list.length-_mkLogenSel.size;
-  const fLabel=mkOrderFilterLabel();
-  const fNote=fLabel?`<br><span style="color:var(--acc-dark);">🔎 현재 필터 적용됨: ${fLabel}</span>`:'';
-  document.getElementById('mk-logen-count').innerHTML = list.length
-    ? `택배발송 · 미발송(준비중) 주문 <b>${list.length}건</b>` + (holdN?` · <span style="color:var(--acc-dark);">희망일이 남은 ${holdN}건은 기본 제외</span>`:'') + fNote + `<br><span style="color:var(--sub2);">체크한 주문만 엑셀로 내보냅니다.</span>`
-    : `<span style="color:var(--orange);">내보낼 미발송(준비중) 택배 주문이 없습니다.</span>${fNote}`;
+  const bySelection = (mkSelectedOrderIds && mkSelectedOrderIds.size>0);
+  if(bySelection){
+    _mkLogenSel=new Set(list.map(o=>o.id));   // 선택한 건 전부 기본 체크
+    document.getElementById('mk-logen-count').innerHTML = list.length
+      ? `✅ <b>판매목록에서 선택한</b> 택배발송 주문 <b>${list.length}건</b><br><span style="color:var(--sub2);">체크한 주문만 엑셀로 내보냅니다. (택배발송 건만 포함)</span>`
+      : `<span style="color:var(--orange);">선택한 주문 중 <b>택배발송</b> 건이 없습니다.</span>`;
+  } else {
+    // 기본 선택: 오늘 발송할 주문만 체크 (희망일이 미래인 건은 자동 해제)
+    _mkLogenSel=new Set(list.filter(mkLogenShipToday).map(o=>o.id));
+    const holdN=list.length-_mkLogenSel.size;
+    const fLabel=mkOrderFilterLabel();
+    const fNote=fLabel?`<br><span style="color:var(--acc-dark);">🔎 현재 필터 적용됨: ${fLabel}</span>`:'';
+    document.getElementById('mk-logen-count').innerHTML = list.length
+      ? `택배발송 · 미발송(준비중) 주문 <b>${list.length}건</b>` + (holdN?` · <span style="color:var(--acc-dark);">희망일이 남은 ${holdN}건은 기본 제외</span>`:'') + fNote + `<br><span style="color:var(--sub2);">체크한 주문만 엑셀로 내보냅니다.</span>`
+      : `<span style="color:var(--orange);">내보낼 미발송(준비중) 택배 주문이 없습니다.</span>${fNote}`;
+  }
   renderMkLogenList();
   openModal('mk-logen-modal');
 }
@@ -8637,7 +8663,7 @@ function renderMkLogenList(){
 }
 function mkLogenUpdateCount(total){
   const el=document.getElementById('mk-logen-selcount');
-  if(el) el.textContent=`${_mkLogenSel.size}건 선택 / 미발송 ${total}건`;
+  if(el) el.textContent=`${_mkLogenSel.size}건 선택 / 대상 ${total}건`;
   const sa=document.getElementById('mk-logen-selall');
   if(sa) sa.checked = total>0 && _mkLogenSel.size===total;
   const ok=document.getElementById('mk-logen-ok'); if(ok) ok.disabled=_mkLogenSel.size===0;
@@ -8659,10 +8685,10 @@ function exportMilkitLogen(){
   });
   const ws=XLSX.utils.aoa_to_sheet([header, ...rows]);
   const wb=XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb,ws,'로젠대량등록');
-  XLSX.writeFile(wb,'로젠_대량등록_'+todayStr()+'.xlsx');
+  XLSX.utils.book_append_sheet(wb,ws,'택배대량등록');
+  XLSX.writeFile(wb,'택배_대량등록_'+todayStr()+'.xlsx');
   closeModal('mk-logen-modal');
-  alert(`${list.length}건을 내보냈습니다.\n로젠 '주문등록/출력(복수건)' 화면에서 이 엑셀을 업로드하세요.`);
+  alert(`${list.length}건을 내보냈습니다.\n이용하는 택배사 대량등록 화면에서 이 엑셀을 업로드하세요.`);
 }
 
 /* --- 엑셀 업로드 일괄 등록 --- */
@@ -8733,7 +8759,7 @@ function parseMkTrackingRows(aoa){
     const row=aoa[i].map(c=>mkNormalizeHeader(c));
     if(row.some(c=>/운송장번호/.test(c))){ hIdx=i; row.forEach((c,ci)=>{ if(c) H[c]=ci; }); break; }
   }
-  if(hIdx<0){ alert('운송장번호 열을 찾지 못했습니다.\n로젠에서 「운송장 출력」 후 목록을 엑셀저장한 파일인지 확인해 주세요.'); return; }
+  if(hIdx<0){ alert('운송장번호 열을 찾지 못했습니다.\n택배사에서 운송장 출력 후 목록을 엑셀저장한 파일인지 확인해 주세요.'); return; }
   const col=(...names)=>{ for(const n of names){ for(const k in H){ if(k===n) return H[k]; } } for(const n of names){ for(const k in H){ if(k.indexOf(n)>=0) return H[k]; } } return -1; };
   const cTrk=col('운송장번호'), cName=col('수하인명','수하인','받는분','받는분성명'),
         cTel=col('수하인전화','수하인전화번호'), cMob=col('수하인휴대폰','수하인핸드폰번호','수하인핸드폰'),
@@ -8783,7 +8809,7 @@ function matchMkTracking(parsed){
 function renderMkTrackingImport(){
   const matched=_mkTrkImport.filter(x=>x.orderId);
   document.getElementById('mk-trkimport-summary').innerHTML =
-    `로젠 목록 <b>${_mkTrkImport.length}건</b> 중 <b style="color:var(--acc-dark);">${matched.length}건</b>이 주문과 매칭됐습니다.`;
+    `택배 목록 <b>${_mkTrkImport.length}건</b> 중 <b style="color:var(--acc-dark);">${matched.length}건</b>이 주문과 매칭됐습니다.`;
   document.getElementById('mk-trkimport-list').innerHTML=_mkTrkImport.map((x,i)=>{
     if(!x.orderId){
       return `<div class="ship-row"><div class="shr-info">
@@ -12207,7 +12233,7 @@ function registerServiceWorker(){
    배포될 때마다 index.html의 ETag/Last-Modified(또는 APP_BUILD)가 바뀌는 걸 감지해,
    "새 버전이 나왔어요" 배너를 띄우고 누르면 캐시를 비우고 새로고침한다.
    ============================ */
-const APP_BUILD='2026-11-10-01';   // ⚠️ 배포할 때마다 이 값을 새로 바꿔야 새 버전 배너가 뜹니다
+const APP_BUILD='2026-11-16-01';   // ⚠️ 배포할 때마다 이 값을 새로 바꿔야 새 버전 배너가 뜹니다
 let _updShown=false;
 /* 서버에 배포된 index.html의 APP_BUILD 값을 읽어온다 */
 async function _updRemoteBuild(){
