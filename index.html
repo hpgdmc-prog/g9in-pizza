@@ -22,6 +22,7 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <style>
 :root{
   --acc:#D94F2B;
@@ -342,6 +343,8 @@ tr:hover td{background:var(--bg2);}
 .stl-daterow td{padding:5px 6px;}
 .stl-file{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--sub);margin-top:12px;background:var(--bg2);border-radius:9px;padding:10px 13px;}
 #mk-order-qty-rows.input-invalid{border-radius:9px;padding:6px;}
+.mk-boxopt{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:7px 11px;cursor:pointer;line-height:1.35;}
+.mk-boxopt input{margin:0;}
 .modal-error{margin:0 24px 4px;background:#FCEDED;border:1px solid #E8B4B4;color:#B23B3B;border-radius:9px;padding:11px 14px;font-size:13px;line-height:1.55;display:none;}
 .modal-error.show{display:block;}
 /* 폼 섹션 구분 (입력 항목 그룹핑) */
@@ -2010,6 +2013,37 @@ img{max-width:100%;height:auto;}
     </div>
 
     <div class="page-hdr" style="border-bottom:none;margin-bottom:10px;padding-bottom:0;margin-top:28px;">
+      <h3 style="font-size:14px;">🔒 로그인 보안 (고객정보 보호)</h3>
+    </div>
+    <div id="mk-auth-panel" style="font-size:12px;color:var(--sub);line-height:1.6;margin-bottom:16px;">
+      <div style="background:var(--bg2);border-radius:var(--r-md);padding:12px 14px;margin-bottom:10px;">
+        실시간 동기화를 켜면 고객 <b>이름·연락처·주소</b>가 클라우드(Firestore)에 저장됩니다. 보안을 켜면 <b>사장님 계정으로 로그인했을 때만</b> 그 데이터를 읽고 쓸 수 있어, 주소를 아는 다른 사람이 접근하지 못합니다. <b>앱 자체는 로그인과 상관없이 이 기기에서 그대로 작동</b>합니다.
+      </div>
+      <div id="mk-auth-toggle" style="margin-bottom:10px;"></div>
+      <div id="mk-auth-body" style="display:none;">
+        <div id="mk-auth-status" style="margin-bottom:8px;"></div>
+        <div id="mk-auth-loginbox">
+          <div class="form-grid" style="margin-bottom:8px;">
+            <div class="form-row"><label>사장님 이메일</label><input type="email" id="mk-auth-email" placeholder="owner@example.com" autocomplete="username" oninput="renderAuthPanel()"></div>
+            <div class="form-row"><label>비밀번호</label><input type="password" id="mk-auth-pw" placeholder="6자 이상" autocomplete="current-password"></div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+            <button class="btn btn-acc" onclick="mkSignIn()">로그인</button>
+            <button class="btn btn-out" onclick="mkSignUp()">계정 만들기 (처음)</button>
+          </div>
+        </div>
+        <div style="background:var(--bg2);border-radius:var(--r-md);padding:12px 14px;line-height:1.7;">
+          <b>콘솔에서 2가지만 해주세요 (한 번만):</b><br>
+          <b>①</b> <a href="https://console.firebase.google.com/" target="_blank" rel="noopener">Firebase 콘솔</a> → Authentication → Sign-in method → <b>이메일/비밀번호</b> → 사용 설정<br>
+          <b>②</b> Firestore Database → <b>규칙(Rules)</b> 탭 → 아래 내용으로 교체 후 <b>게시</b>:
+          <pre id="mk-auth-rules" style="white-space:pre-wrap;word-break:break-all;background:var(--dark);color:#E8EEF5;border-radius:8px;padding:10px;margin:8px 0;font-size:11px;line-height:1.5;"></pre>
+          <button class="btn btn-out btn-sm" onclick="copyMkRules()">📋 규칙 복사</button>
+          <div style="margin-top:8px;color:var(--sub2);">※ 이메일을 입력하면 그 계정만 허용하는 규칙으로 바뀝니다. 규칙을 교체하기 <b>전에</b> 이 기기에서 먼저 로그인해두면 동기화가 끊기지 않습니다.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-hdr" style="border-bottom:none;margin-bottom:10px;padding-bottom:0;margin-top:28px;">
       <h3 style="font-size:14px;">💾 데이터 · 새로고침</h3>
     </div>
     <div class="stat-grid" id="settings-data-stats" style="margin-bottom:16px;"></div>
@@ -2961,9 +2995,16 @@ img{max-width:100%;height:auto;}
 
       <div class="form-grid" style="margin-top:4px;">
         <div class="form-row"><label>물품명(품목명)</label><input type="text" id="mk-logen-item" placeholder="냉동피자"></div>
-        <div class="form-row"><label>택배운임(원)</label><input type="text" id="mk-logen-freight" inputmode="numeric" placeholder="3000" oninput="this.value=commaFmt(this.value)"></div>
+        <div class="form-row"><label>택배운임(원) <span style="font-weight:400;color:var(--sub2);">— 박스 1개당</span></label><input type="text" id="mk-logen-freight" inputmode="numeric" placeholder="3000" oninput="this.value=commaFmt(this.value)"></div>
       </div>
-      <div style="font-size:11.5px;color:var(--sub2);margin:6px 0 4px;line-height:1.6;">운임구분은 <b>선불(코드 010)</b>로, 보내는 분은 택배사 계정에 등록된 정보로 자동 처리됩니다.</div>
+      <div class="form-row" style="margin-top:4px;">
+        <label>📦 박스가 2개 이상인 주문 <span style="font-weight:400;color:var(--sub2);">(세트 여러 개·세트수량 2+)</span></label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;">
+          <label class="mk-boxopt"><input type="radio" name="mk-logen-boxmode" value="split" checked onchange="renderMkLogenList()"> 행을 나눠서 <span style="color:var(--sub2);">(박스마다 1줄 · 권장)</span></label>
+          <label class="mk-boxopt"><input type="radio" name="mk-logen-boxmode" value="qty" onchange="renderMkLogenList()"> 한 줄에 택배수량으로</label>
+        </div>
+      </div>
+      <div style="font-size:11.5px;color:var(--sub2);margin:6px 0 4px;line-height:1.6;">운임구분은 <b>선불(코드 010)</b>로, 보내는 분은 택배사 계정에 등록된 정보로 자동 처리됩니다. <b>박스가 2개 이상</b>이면 택배비가 박스 수만큼 늘어납니다 — <b>행을 나누면</b> 송장(운임)이 박스마다 따로 발급되고, <b>택배수량으로</b> 하면 한 줄에 합포장(수량 N·운임도 N배)으로 들어갑니다.</div>
 
       <div class="sms-note" style="margin-top:12px;">엑셀을 받은 뒤 이용하는 <b>택배사 대량등록 화면</b>에서 <b>엑셀 업로드</b>로 올리면 여러 건이 한 번에 등록됩니다. 우편번호는 보통 주소로 자동 변환됩니다. <span style="color:var(--sub2);">(현재 양식은 로젠 기준 — 다른 택배사 양식이 필요하면 알려주세요.)</span></div>
     </div>
@@ -6194,6 +6235,18 @@ function mkOrderLines(o){
   return [{ setType:o&&o.setType||'낱개', setQty:Number(o&&o.setQty)||1,
             qty:Object.assign({}, o&&o.qty), manualDiscount:Number(o&&o.manualDiscount)||0 }];
 }
+// 📦 주문의 택배 박스(소포) 수 — 세트는 세트수량만큼 각각 1박스, 낱개(혼합) 구성은 1박스.
+//    택배비는 박스 수에 비례하므로, 같은 사람이 2종+4종 세트나 세트수량 2개 이상을 주문하면 박스가 2개 이상이 된다.
+function mkOrderBoxCount(o){
+  const lines=mkOrderLines(o);
+  let boxes=0;
+  lines.forEach(ln=>{
+    const rule=milkitSetRules.find(r=>r.name===ln.setType);
+    const isSet=rule && mkSetRuleSize(rule)>=2;
+    boxes += isSet ? Math.max(1, Number(ln.setQty)||1) : 1;
+  });
+  return Math.max(1, boxes);
+}
 // 구성 배열 → 세트 요약 문자열(카드·목록 표시용)
 function mkLinesSetSummary(lines){
   const sets=(lines||[]).filter(ln=>{ const r=milkitSetRules.find(x=>x.name===ln.setType); return r&&mkSetRuleSize(r)>=2; });
@@ -8667,6 +8720,8 @@ function renderMkLogenList(){
   document.getElementById('mk-logen-list').innerHTML = list.map(o=>{
     const on=_mkLogenSel.has(o.id);
     const recip=(o.recipient && o.recipient!==o.customer) ? o.recipient : (o.customer||'(이름없음)');
+    const boxes=mkOrderBoxCount(o);
+    const boxBadge = boxes>1 ? ` <span style="color:var(--acc-dark);font-weight:700;">📦 ${boxes}박스</span>` : '';
     const noAddr=!mkFullAddr(o).trim();
     let dline='<span style="color:var(--sub2);">희망일 없음 · 즉시 발송</span>';
     if(o.desiredDate){
@@ -8680,7 +8735,7 @@ function renderMkLogenList(){
     return `<label class="sms-recip" style="align-items:flex-start;">
       <input type="checkbox" ${on?'checked':''} onchange="mkLogenToggle('${o.id}',this.checked)" style="margin-top:2px;">
       <div style="flex:1;min-width:0;">
-        <div class="sr-name">No.${o.no||'-'} ${recip}${noAddr?' <span style="color:var(--orange);font-weight:600;">⚠️주소없음</span>':''}</div>
+        <div class="sr-name">No.${o.no||'-'} ${recip}${boxBadge}${noAddr?' <span style="color:var(--orange);font-weight:600;">⚠️주소없음</span>':''}</div>
         <div style="font-size:11.5px;color:var(--sub);line-height:1.4;word-break:break-all;">${mkFullAddr(o)||''}</div>
         <div style="font-size:11px;margin-top:1px;">${dline}</div>
       </div>
@@ -8688,12 +8743,20 @@ function renderMkLogenList(){
   }).join('');
   mkLogenUpdateCount(list.length);
 }
+function mkLogenBoxMode(){ const r=document.querySelector('input[name="mk-logen-boxmode"]:checked'); return r?r.value:'split'; }
 function mkLogenUpdateCount(total){
+  const sel=mkLogenTargets().filter(o=>_mkLogenSel.has(o.id));
+  const boxes=sel.reduce((s,o)=>s+mkOrderBoxCount(o),0);
+  const split=mkLogenBoxMode()==='split';
+  const rowCnt = split ? boxes : sel.length;            // 엑셀에 찍힐 줄 수
   const el=document.getElementById('mk-logen-selcount');
-  if(el) el.textContent=`${_mkLogenSel.size}건 선택 / 대상 ${total}건`;
+  if(el) el.textContent = (boxes>sel.length)
+    ? `${sel.length}건 선택 · 📦 ${boxes}박스 → 엑셀 ${rowCnt}줄 / 대상 ${total}건`
+    : `${sel.length}건 선택 / 대상 ${total}건`;
   const sa=document.getElementById('mk-logen-selall');
   if(sa) sa.checked = total>0 && _mkLogenSel.size===total;
-  const ok=document.getElementById('mk-logen-ok'); if(ok) ok.disabled=_mkLogenSel.size===0;
+  const ok=document.getElementById('mk-logen-ok');
+  if(ok){ ok.disabled=_mkLogenSel.size===0; ok.textContent = _mkLogenSel.size? `📥 엑셀 다운로드 (${rowCnt}줄)` : '📥 엑셀 다운로드'; }
 }
 function mkLogenToggle(id,on){ if(on) _mkLogenSel.add(id); else _mkLogenSel.delete(id); mkLogenUpdateCount(mkLogenTargets().length); }
 function mkLogenToggleAll(cb){ const list=mkLogenTargets(); _mkLogenSel = cb.checked ? new Set(list.map(o=>o.id)) : new Set(); renderMkLogenList(); }
@@ -8703,19 +8766,38 @@ function exportMilkitLogen(){
   const itemName=(document.getElementById('mk-logen-item').value||'냉동피자').trim();
   const freight=numVal('mk-logen-freight')||0;
   mkLogenCfg={itemName, freight}; DB.save('mkLogenCfg', mkLogenCfg);
+  const splitRows = mkLogenBoxMode()==='split';
   // 로젠 대량등록 양식(단일주소): 수하인명·(빈)·수하인주소·전화·핸드폰·수량·운임·운임구분·품목명·(빈)·배송메세지
   const header=['수하인명','','수하인주소','수하인전화번호','수하인핸드폰번호','택배수량','택배운임','운임구분','품목명','','배송메세지'];
-  const rows=list.map(o=>{
+  const rows=[];
+  let totalBoxes=0;
+  list.forEach(o=>{
     const recip=(o.recipient && o.recipient!==o.customer) ? o.recipient : (o.customer||'');
     const rphone=formatPhone((o.recipient && o.recipientPhone) ? o.recipientPhone : (o.phone||''));
-    return [recip, '', mkFullAddr(o), rphone, rphone, 1, freight, '010', itemName, '', o.note||''];
+    const addr=mkFullAddr(o);
+    const note=o.note||'';
+    const boxes=mkOrderBoxCount(o);
+    totalBoxes+=boxes;
+    if(boxes<=1){
+      rows.push([recip, '', addr, rphone, rphone, 1, freight, '010', itemName, '', note]);
+    } else if(splitRows){
+      // 박스마다 한 줄(각 1수량·운임 1배) → 송장이 박스 수만큼 발급, 택배비가 박스 수만큼 늘어남
+      for(let i=0;i<boxes;i++){
+        const bnote=(note?note+' ':'')+`[${i+1}/${boxes}박스]`;
+        rows.push([recip, '', addr, rphone, rphone, 1, freight, '010', itemName, '', bnote]);
+      }
+    } else {
+      // 한 줄에 합포장(수량 N·운임도 N배) → 같은 사람 정보에 택배수량·운임을 박스 수만큼
+      rows.push([recip, '', addr, rphone, rphone, boxes, freight*boxes, '010', itemName, '', note]);
+    }
   });
   const ws=XLSX.utils.aoa_to_sheet([header, ...rows]);
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,'택배대량등록');
   XLSX.writeFile(wb,'택배_대량등록_'+todayStr()+'.xlsx');
   closeModal('mk-logen-modal');
-  alert(`${list.length}건을 내보냈습니다.\n이용하는 택배사 대량등록 화면에서 이 엑셀을 업로드하세요.`);
+  const boxNote = totalBoxes>list.length ? `\n📦 총 ${totalBoxes}박스 · 엑셀 ${rows.length}줄 (택배비 박스 수만큼 반영됨)` : '';
+  alert(`${list.length}건을 내보냈습니다.${boxNote}\n이용하는 택배사 대량등록 화면에서 이 엑셀을 업로드하세요.`);
 }
 
 /* --- 엑셀 업로드 일괄 등록 --- */
@@ -12285,7 +12367,7 @@ function registerServiceWorker(){
    배포될 때마다 index.html의 ETag/Last-Modified(또는 APP_BUILD)가 바뀌는 걸 감지해,
    "새 버전이 나왔어요" 배너를 띄우고 누르면 캐시를 비우고 새로고침한다.
    ============================ */
-const APP_BUILD='2026-11-16-02';   // ⚠️ 배포할 때마다 이 값을 새로 바꿔야 새 버전 배너가 뜹니다
+const APP_BUILD='2026-11-17-01';   // ⚠️ 배포할 때마다 이 값을 새로 바꿔야 새 버전 배너가 뜹니다
 let _updShown=false;
 /* 서버에 배포된 index.html의 APP_BUILD 값을 읽어온다 */
 async function _updRemoteBuild(){
@@ -12341,9 +12423,14 @@ const SYNC_KEYS = [
   'milkitProduction','cheeseSplits','labels',
   'mkShipSmsTpl','mkShipSmsAuto','mkSetSim'
 ];
-let fbDb=null, fbConnected=false;
+// ⚠️ var로 선언(호이스팅): 테마 마이그레이션 등 top-level DB.save가 이 줄보다 먼저
+//    syncPush를 호출해도 fbConnected가 TDZ로 터지지 않도록(최초 로드 안전).
+var fbDb=null, fbConnected=false;
+var fbAuth=null, fbUser=null;   // 🔒 로그인 보안(Firebase Auth)
+var _fsStarted=false;           // Firestore 리스너 중복 부착 방지
 let _mkOrderShadow={};      // 주문 id -> 마지막 동기화된 JSON (변경분만 전송)
 let _mkOrdersSeeded=false;  // 첫 스냅샷 병합 완료 여부
+function mkAuthRequired(){ return localStorage.getItem('jgp_authRequired')==='1'; }
 
 function _cleanCfgValue(s){
   if(s==null) return '';
@@ -12461,6 +12548,18 @@ function mkOrdersSyncPush(){
   }catch(e){ console.warn('주문 동기화 오류', e); }
 }
 
+// 동기화 수신 오류 공통 처리 — 규칙이 로그인(인증)을 요구하는데 로그인 전이면 안내
+let _mkPermWarned=false;
+function _mkSyncErr(scope, err){
+  console.warn(scope, err);
+  if(err && err.code==='permission-denied' && !_mkPermWarned){
+    _mkPermWarned=true;
+    const el=document.getElementById('sync-status-banner');
+    if(el) el.innerHTML='🔒 <b style="color:#B23B3B;">클라우드가 로그인을 요구합니다.</b> — 설정 → 로그인 보안에서 <b>로그인</b>해 주세요. (앱은 이 기기에 계속 저장됩니다.)';
+    try{ if(!mkAuthRequired()){ localStorage.setItem('jgp_authRequired','1'); } }catch(_){}
+    renderAuthPanel();
+  }
+}
 function attachOrdersListener(){
   fbDb.collection('sync').where('type','==','order').onSnapshot(function(snap){
     const remote=[];
@@ -12485,7 +12584,7 @@ function attachOrdersListener(){
     remote.forEach(o=>{ _mkOrderShadow[o.id]=JSON.stringify(o); });
     localStorage.setItem('jgp_milkitOrders', JSON.stringify(milkitOrders));
     refreshActiveSectionView();
-  }, function(err){ console.warn('주문 수신 오류', err); });
+  }, function(err){ _mkSyncErr('주문 수신 오류', err); });
 }
 
 function attachSyncListener(key){
@@ -12501,9 +12600,20 @@ function attachSyncListener(key){
     const data=doc.data();
     if(!data || data.value===undefined) return;
     applySyncedData(key, data.value);
-  }, err=>{ console.warn('동기화 수신 오류', key, err); });
+  }, err=>{ _mkSyncErr('동기화 수신 오류 '+key, err); });
 }
 
+// Firestore 리스너를 실제로 부착(연결) — 보안 꺼짐이면 즉시, 켜짐이면 로그인 성공 후 호출됨
+function _startFirestoreSync(){
+  if(_fsStarted) return;         // 중복 부착 방지 (onAuthStateChanged가 여러 번 불려도 1회만)
+  _fsStarted=true;
+  fbConnected=true;
+  syncPanelExpanded=false;
+  _mkOrdersSeeded=false; _mkOrderShadow={};
+  SYNC_KEYS.forEach(attachSyncListener);
+  attachOrdersListener();
+  renderSyncStatusBanner();
+}
 function connectFirebase(cfg){
   try{
     if(typeof firebase==='undefined') throw new Error('Firebase 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인하세요.');
@@ -12511,12 +12621,22 @@ function connectFirebase(cfg){
     fbDb=firebase.firestore();
     try{ fbDb.settings({experimentalAutoDetectLongPolling:true, merge:true, ignoreUndefinedProperties:true}); }catch(e){}
     try{ fbDb.enablePersistence({synchronizeTabs:true}).catch(()=>{}); }catch(e){}
-    fbConnected=true;
-    syncPanelExpanded=false;
-    _mkOrdersSeeded=false; _mkOrderShadow={};
-    SYNC_KEYS.forEach(attachSyncListener);
-    attachOrdersListener();
-    renderSyncStatusBanner();
+    try{ fbAuth=firebase.auth(); }catch(e){ fbAuth=null; }
+    // 🔒 로그인 보안이 켜져 있으면: 로그인된 상태에서만 Firestore에 연결한다.
+    if(mkAuthRequired() && fbAuth){
+      fbAuth.onAuthStateChanged(function(u){
+        fbUser=u||null;
+        if(u) _startFirestoreSync();   // 로그인됨 → 동기화 시작
+        renderSyncStatusBanner();
+        renderAuthPanel();
+      });
+      // 아직 로그인 전이면 Firestore 리스너를 붙이지 않음 (앱은 로컬로 정상 작동)
+      renderSyncStatusBanner();
+      renderAuthPanel();
+      return;
+    }
+    // 보안 미사용(기존 방식): 바로 연결
+    _startFirestoreSync();
   }catch(e){
     fbConnected=false;
     alert('Firebase 연결 오류: '+e.message);
@@ -12549,6 +12669,84 @@ function disconnectFirebase(){
   if(!confirm('실시간 동기화를 해제하시겠습니까?\n이후 이 기기는 다시 로컬 저장만 사용하며, 다른 기기와 자동으로 공유되지 않습니다.')) return;
   localStorage.removeItem('jgp_firebaseConfig');
   location.reload();
+}
+
+/* ===== 🔒 로그인 보안 (Firebase Auth) ===== */
+function mkAuthEnable(){
+  const cfg=(()=>{ try{ return JSON.parse(localStorage.getItem('jgp_firebaseConfig')||'null'); }catch(e){ return null; } })();
+  if(!cfg || !cfg.apiKey){ alert('먼저 위에서 Firebase(실시간 동기화)를 연결해 주세요.\n로그인 보안은 클라우드에 올라간 고객정보를 보호하는 기능입니다.'); return; }
+  localStorage.setItem('jgp_authRequired','1');
+  alert('🔒 로그인 보안을 켰습니다.\n\n① 아래에서 사장님 계정으로 로그인(처음이면 "계정 만들기")\n② Firebase 콘솔에서 이메일/비밀번호 로그인 켜기 + 보안 규칙 교체\n\n위 2가지를 마치면 클라우드의 고객정보가 로그인한 분만 볼 수 있게 보호됩니다. (지금 바로 안 끊기게, 규칙 교체 전에 먼저 로그인해두세요.)');
+  renderAuthPanel(); renderSyncStatusBanner();
+}
+function mkAuthDisable(){
+  if(!confirm('로그인 보안을 끄시겠습니까?\n\n주의: Firebase 콘솔의 보안 규칙이 "로그인 필요"로 되어 있으면, 앱에서 보안을 꺼도 동기화가 되지 않습니다. 콘솔 규칙도 공개(테스트 모드)로 함께 되돌려야 합니다.')) return;
+  localStorage.removeItem('jgp_authRequired');
+  if(fbAuth){ try{ fbAuth.signOut(); }catch(e){} }
+  location.reload();
+}
+function mkAuthField(id){ const el=document.getElementById(id); return el? el.value.trim() : ''; }
+function mkAuthErrMsg(e){
+  const c=(e&&e.code)||'';
+  if(c==='auth/operation-not-allowed') return 'Firebase 콘솔에서 "이메일/비밀번호" 로그인을 먼저 켜야 합니다.\n(Authentication → Sign-in method → 이메일/비밀번호 → 사용 설정)';
+  if(c==='auth/email-already-in-use') return '이미 등록된 이메일입니다. "로그인"을 눌러주세요.';
+  if(c==='auth/invalid-email') return '이메일 형식이 올바르지 않습니다.';
+  if(c==='auth/weak-password') return '비밀번호가 너무 약합니다. 6자 이상으로 해주세요.';
+  if(c==='auth/wrong-password'||c==='auth/invalid-credential') return '이메일 또는 비밀번호가 올바르지 않습니다.';
+  if(c==='auth/user-not-found') return '등록되지 않은 계정입니다. "계정 만들기"를 먼저 해주세요.';
+  if(c==='auth/too-many-requests') return '시도가 너무 많습니다. 잠시 후 다시 시도하세요.';
+  return '처리 중 오류: '+((e&&e.message)||c);
+}
+function mkSignIn(){
+  if(!fbAuth){ alert('인증 모듈을 불러오지 못했습니다. 새로고침 후 다시 시도하세요.'); return; }
+  const email=mkAuthField('mk-auth-email'), pw=document.getElementById('mk-auth-pw').value;
+  if(!email||!pw){ alert('이메일과 비밀번호를 입력하세요.'); return; }
+  fbAuth.signInWithEmailAndPassword(email, pw)
+    .then(()=>{ document.getElementById('mk-auth-pw').value=''; _mkPermWarned=false; appToast('로그인되었습니다'); })
+    .catch(e=>alert(mkAuthErrMsg(e)));
+}
+function mkSignUp(){
+  if(!fbAuth){ alert('인증 모듈을 불러오지 못했습니다. 새로고침 후 다시 시도하세요.'); return; }
+  const email=mkAuthField('mk-auth-email'), pw=document.getElementById('mk-auth-pw').value;
+  if(!email||!pw){ alert('이메일과 비밀번호를 입력하세요.'); return; }
+  if(pw.length<6){ alert('비밀번호는 6자 이상이어야 합니다.'); return; }
+  if(!confirm('이 Firebase 프로젝트에 사장님 계정을 만듭니다.\n\n이메일: '+email+'\n\n※ Firebase 콘솔에서 "이메일/비밀번호" 로그인을 먼저 켜두어야 합니다.')) return;
+  fbAuth.createUserWithEmailAndPassword(email, pw)
+    .then(()=>{ document.getElementById('mk-auth-pw').value=''; _mkPermWarned=false; appToast('계정이 만들어지고 로그인되었습니다'); })
+    .catch(e=>alert(mkAuthErrMsg(e)));
+}
+function mkSignOut(){ if(fbAuth){ fbAuth.signOut().then(()=>location.reload()).catch(()=>location.reload()); } }
+function mkSecureRulesText(email){
+  const line = email
+    ? '      // 이 이메일로 로그인한 사장님만 허용\n      allow read, write: if request.auth != null && request.auth.token.email == "'+email+'";'
+    : '      // 로그인한 사용자만 허용\n      allow read, write: if request.auth != null;';
+  return "rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    match /sync/{doc} {\n"+line+"\n    }\n  }\n}";
+}
+function copyMkRules(){
+  const email=mkAuthField('mk-auth-email')||(fbUser&&fbUser.email)||'';
+  const rules=mkSecureRulesText(email);
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(rules).then(()=>appToast('보안 규칙을 복사했어요')).catch(()=>alert('복사에 실패했어요. 규칙 상자를 길게 눌러 직접 복사하세요.'));
+  } else { alert('이 브라우저에서는 자동 복사가 안 됩니다. 규칙 상자를 길게 눌러 직접 복사하세요.'); }
+}
+function renderAuthPanel(){
+  const wrap=document.getElementById('mk-auth-panel'); if(!wrap) return;
+  const on=mkAuthRequired();
+  const email=(fbUser&&fbUser.email)||'';
+  const toggle=document.getElementById('mk-auth-toggle');
+  if(toggle) toggle.innerHTML = on
+    ? '🔒 <b style="color:var(--acc-dark);">로그인 보안 켜짐</b> <button class="btn btn-out btn-sm" onclick="mkAuthDisable()" style="margin-left:6px;">끄기</button>'
+    : '🔓 로그인 보안 꺼짐 <span style="color:var(--sub2);">(클라우드가 공개 상태)</span> <button class="btn btn-acc btn-sm" onclick="mkAuthEnable()" style="margin-left:6px;">🔒 보안 켜기</button>';
+  const body=document.getElementById('mk-auth-body');
+  if(body) body.style.display = on ? '' : 'none';
+  const status=document.getElementById('mk-auth-status');
+  if(status) status.innerHTML = fbUser
+    ? '✅ <b>'+email+'</b> 로그인됨 <button class="btn btn-out btn-sm" onclick="mkSignOut()" style="margin-left:6px;">로그아웃</button>'
+    : '<span style="color:#B23B3B;">로그인되어 있지 않습니다. (동기화 대기 중)</span>';
+  const loginBox=document.getElementById('mk-auth-loginbox');
+  if(loginBox) loginBox.style.display = fbUser ? 'none' : '';
+  const pre=document.getElementById('mk-auth-rules');
+  if(pre) pre.textContent = mkSecureRulesText(email || mkAuthField('mk-auth-email'));
 }
 
 let syncPanelExpanded=false;
@@ -12587,6 +12785,7 @@ function renderSyncStatusBanner(){
     if(connectedActions) connectedActions.style.display='none';
     if(configPanel) configPanel.style.display='';
   }
+  try{ renderAuthPanel(); }catch(_){}
 }
 
 function initSyncOnBoot(){
