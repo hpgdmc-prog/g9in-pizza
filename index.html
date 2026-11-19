@@ -9437,19 +9437,22 @@ function mkpStripNameTail(s){
   return v;
 }
 
-/* 상품 약칭 매칭: "치즈"→허니리얼치즈, "고르곤"→고르곤졸라 */
-function mkpMatchProduct(token, products){
+/* 상품 약칭 매칭: "치즈"→허니리얼치즈, "고르곤"→고르곤졸라
+   strict=true(엄격): 완전일치/유일한 포함만 허용 — 모호하면 매칭 안 함(오인식 방지).
+   맨-단어 스캔처럼 신호가 약한 곳에서는 strict로 불러 유령 품목을 막는다. */
+function mkpMatchProduct(token, products, strict){
   const t=mkpNorm(token);
   if(!t) return null;
   // 1) 완전 일치
   let hit=products.find(p=>mkpNorm(p.name)===t);
   if(hit) return hit;
-  // 2) 상품명이 검색어 포함 (내가 상품명 안에)
+  // 2) 상품명이 검색어 포함 (내가 상품명 안에) — 유일할 때만
   const contains=products.filter(p=>mkpNorm(p.name).includes(t));
   if(contains.length===1) return contains[0];
-  // 3) 검색어가 상품명 포함 (상품명이 내 안에)
+  // 3) 검색어가 상품명 포함 (상품명이 내 안에) — 유일할 때만
   const rev=products.filter(p=>t.includes(mkpNorm(p.name)));
   if(rev.length===1) return rev[0];
+  if(strict) return null;   // 🔒 엄격 모드: 여기까지 못 맞추면 포기(애매한 유사도 매칭 금지)
   if(contains.length>1) return contains.sort((a,b)=>mkpNorm(b.name).length-mkpNorm(a.name).length)[0];
 
   // 4) 🆕 토큰 유사도 매칭 — 상품명 단어들이 검색어에 얼마나 나타나는지 (60% 이상)
@@ -9586,19 +9589,24 @@ function mkpParseProducts(text, products){
       if(p && !found[p.id]) found[p.id]=q>0?q:1;
     });
   });
-  // "치즈 2개" 형태
+  // 품목 스캔에서 제외할 줄: 전화번호 줄 · 주소로 보이는 줄(오인식 방지)
+  const skipLine=l=>{ const s=String(l||''); return MKP_PHONE_RE.test(s) || mkpAddressScore(s, products)>=3; };
+  // "치즈 2개" 형태 — 수량·단위가 분명한 신호
   text.split(/[\n,·]/).forEach(line=>{
+    if(skipLine(line)) return;
     const m=line.match(/([가-힣A-Za-z]{2,10})\s*[xX×]?\s*(\d{1,3})\s*(개|판|ea|EA)/);
     if(m){ const p=mkpMatchProduct(m[1], products); if(p) found[p.id]=Number(m[2]); }
   });
   // 줄임말(별칭) 토큰 매칭: "불고기 2개", "치즈x1", "고르곤 하나" 등 — 전체 이름이 아니어도 인식
+  //   🔒 엄격 매칭(strict)만 사용 → 주소·이름 등 무관한 단어가 유사도로 엉뚱한 메뉴로 잡히는 것을 방지
   text.split(/[\n,·]/).forEach(seg=>{
+    if(skipLine(seg)) return;
     const re=/([가-힣A-Za-z]{2,12})\s*[xX×*]?\s*(\d{1,3}|하나|한개|한판|둘|두개|두판|셋|세개|세판|넷|네개|다섯)?\s*(개|판|세트|ea|EA|봉|박스)?/g;
     let m;
     while((m=re.exec(seg))){
       const word=m[1]; if(!word || MKP_NAME_STOP.test(word)) continue;
       if(/^(택배|직접|배송|방문|수령|아파트|빌라|오피스텔|타워|단지|주소|번지|호수|주문|결제|입금|계좌|카드|현금)$/.test(word)) continue;
-      const p=mkpMatchProduct(word, products);
+      const p=mkpMatchProduct(word, products, true);   // strict
       if(p && found[p.id]==null){
         let q=1;
         if(m[2]) q = /^\d+$/.test(m[2]) ? Number(m[2]) : (numWord[m[2]]||1);
@@ -12367,7 +12375,7 @@ function registerServiceWorker(){
    배포될 때마다 index.html의 ETag/Last-Modified(또는 APP_BUILD)가 바뀌는 걸 감지해,
    "새 버전이 나왔어요" 배너를 띄우고 누르면 캐시를 비우고 새로고침한다.
    ============================ */
-const APP_BUILD='2026-11-17-01';   // ⚠️ 배포할 때마다 이 값을 새로 바꿔야 새 버전 배너가 뜹니다
+const APP_BUILD='2026-11-19-01';   // ⚠️ 배포할 때마다 이 값을 새로 바꿔야 새 버전 배너가 뜹니다
 let _updShown=false;
 /* 서버에 배포된 index.html의 APP_BUILD 값을 읽어온다 */
 async function _updRemoteBuild(){
