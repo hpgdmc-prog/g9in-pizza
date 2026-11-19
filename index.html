@@ -9431,6 +9431,28 @@ const MKP_NAME_STOP = /^(연락처|전화|전화번호|휴대폰|핸드폰|번�
 
 function mkpNorm(s){ return String(s||'').replace(/[\s·・]/g,''); }
 
+/* 전각 숫자·기호 → 반각 정규화 ("２개"→"2개", "ｘ２"→"x2") */
+function mkpNormWidth(s){
+  return String(s||'').replace(/[０-９]/g,d=>String.fromCharCode(d.charCodeAt(0)-0xFF10+0x30))
+    .replace(/[ｘＸ✕✖]/g,'x').replace(/[＋]/g,'+').replace(/[，]/g,',').replace(/[．]/g,'.');
+}
+/* 문자 bigram Dice 유사도 (0~1) — 오타·띄어쓰기에 강함 */
+function mkpBigrams(s){ s=mkpNorm(s).toLowerCase(); const g=[]; if(s.length<2) return s?[s]:[]; for(let i=0;i<s.length-1;i++) g.push(s.slice(i,i+2)); return g; }
+function mkpDice(a,b){
+  const A=mkpBigrams(a), B=mkpBigrams(b);
+  if(!A.length||!B.length) return 0;
+  const bc={}; B.forEach(x=>bc[x]=(bc[x]||0)+1);
+  let hit=0; A.forEach(x=>{ if(bc[x]>0){ bc[x]--; hit++; } });
+  return (2*hit)/(A.length+B.length);
+}
+/* 유사도 기반 best 상품 — 임계값 이상이고 2위와 마진이 충분할 때만 (애매하면 null) */
+function mkpFuzzyProduct(token, products, minScore, margin){
+  const scored=products.map(p=>({p, s:mkpDice(token, p.name)})).sort((a,b)=>b.s-a.s);
+  const best=scored[0], second=scored[1];
+  if(best && best.s>=(minScore||0.5) && (!second || best.s-second.s>=(margin||0.12))) return best.p;
+  return null;
+}
+
 function mkpStripNameTail(s){
   let v=String(s||'').trim();
   for(let i=0;i<3;i++){ const n=v.replace(MKP_NAME_TAIL,''); if(n===v) break; v=n.trim(); }
@@ -9454,41 +9476,8 @@ function mkpMatchProduct(token, products, strict){
   if(rev.length===1) return rev[0];
   if(strict) return null;   // 🔒 엄격 모드: 여기까지 못 맞추면 포기(애매한 유사도 매칭 금지)
   if(contains.length>1) return contains.sort((a,b)=>mkpNorm(b.name).length-mkpNorm(a.name).length)[0];
-
-  // 4) 🆕 토큰 유사도 매칭 — 상품명 단어들이 검색어에 얼마나 나타나는지 (60% 이상)
-  //    예: "허니 치즈" 로 "허니 리얼 치즈피자" 매칭. subsequence 보다 안전 (관련 없는 매칭 억제)
-  const tokenize=s=>String(s||'').toLowerCase()
-    .replace(/[^\w가-힣a-z0-9]+/g,' ')
-    .split(/\s+/).filter(w=>w.length>=2);
-  const tokTokens=tokenize(token);
-  const tokJoined=tokTokens.join('');   // 공백 무시 검색용
-  if(tokTokens.length>=1){
-    let bestScore=0, bestProd=null, bestLen=0;
-    products.forEach(p=>{
-      const nameTokens=tokenize(p.name);
-      if(!nameTokens.length) return;
-      const nameJoined=nameTokens.join('');
-      // 매칭 카운트: 검색어 각 토큰이 상품명(공백 무시)에 들어있는지
-      const matched=tokTokens.filter(tk=> nameJoined.includes(tk) || tokJoined.includes(tk)).length;
-      const score=matched/Math.max(tokTokens.length, nameTokens.length);
-      if(score>=0.6 && matched>=1){
-        const nl=String(p.name||'').length;
-        if(score>bestScore || (score===bestScore && nl>bestLen)){
-          bestScore=score; bestProd=p; bestLen=nl;
-        }
-      }
-    });
-    if(bestProd) return bestProd;
-  }
-
-  // 5) 부분 순서(subsequence) 매칭: "허니치즈"→"허니리얼치즈" (최후 폴백)
-  if(t.length>=2){
-    const isSub=(s,l)=>{ let i=0; for(const c of l){ if(c===s[i]) i++; if(i>=s.length) break; } return i>=s.length; };
-    const sub=products.filter(p=>isSub(t, mkpNorm(p.name)));
-    if(sub.length===1) return sub[0];
-    if(sub.length>1) return sub.sort((a,b)=>mkpNorm(a.name).length-mkpNorm(b.name).length)[0];
-  }
-  return null;
+  // 4) 유사도(Dice) 매칭 — 오타·변형 흡수, 단 2위와 마진이 충분할 때만(과인식 방지)
+  return mkpFuzzyProduct(token, products, 0.5, 0.12);
 }
 
 /* 주소 가능성 점수 — 대화체·상품 나열 줄을 주소로 오인하지 않도록 */
@@ -9562,8 +9551,11 @@ function mkpParseDelivery(text){
 
 function mkpParseProducts(text, products){
   const found={};
-  const numWord={'하나':1,'한개':1,'한판':1,'둘':2,'두개':2,'두판':2,'셋':3,'세개':3,'세판':3,'넷':4,'네개':4,'다섯':5};
+  const numWord={'하나':1,'한개':1,'한판':1,'한':1,'둘':2,'두개':2,'두판':2,'두':2,'셋':3,'세개':3,'세판':3,'세':3,'넷':4,'네개':4,'네판':4,'네':4,'다섯':5,'여섯':6,'일곱':7,'여덟':8,'아홉':9,'열':10};
+  const numWordRe='하나|한개|한판|둘|두개|두판|셋|세개|세판|넷|네개|네판|다섯|여섯|일곱|여덟|아홉|열';
+  text = mkpNormWidth(text);   // 전각 숫자·기호 정규화
   const norm=mkpNorm(text);
+  // 1) 상품 전체이름이 텍스트에 그대로 있는 경우 (가장 확실)
   products.forEach(p=>{
     const v=mkpNorm(p.name);
     const idx=norm.indexOf(v);
@@ -9572,11 +9564,11 @@ function mkpParseProducts(text, products){
       let q=null;
       const qm=after.match(/^[^0-9가-힣]{0,2}(\d{1,3})\s*(개|판|ea|EA|x|X)?/);
       if(qm) q=Number(qm[1]);
-      if(q==null){ const wm=after.match(/^(하나|한개|한판|둘|두개|두판|셋|세개|세판|넷|네개|다섯)/); if(wm) q=numWord[wm[1]]; }
+      if(q==null){ const wm=after.match(new RegExp('^('+numWordRe+')')); if(wm) q=numWord[wm[1]]; }
       found[p.id]=(found[p.id]||0)+(q>0?q:1);
     }
   });
-  // 괄호 안 약칭 나열: (치즈 + 고르곤)
+  // 2) 괄호 안 약칭 나열: (치즈 + 고르곤) — 명시적 나열이라 유사도까지 허용
   (text.match(/[（(\[]([^)）\]]+)[)）\]]/g)||[]).forEach(b=>{
     const inner=b.replace(/[（()）\[\]]/g,'');
     if(MKP_PHONE_RE.test(inner)) return;
@@ -9585,34 +9577,33 @@ function mkpParseProducts(text, products){
       const qm=t.match(/(\d{1,3})\s*(개|판|ea|EA)?$/);
       const q=qm?Number(qm[1]):1;
       const nameOnly=t.replace(/(\d{1,3})\s*(개|판|ea|EA)?$/,'').trim();
-      const p=mkpMatchProduct(nameOnly, products);
+      const p=mkpMatchProduct(nameOnly, products) || mkpFuzzyProduct(nameOnly, products, 0.5, 0.12);
       if(p && !found[p.id]) found[p.id]=q>0?q:1;
     });
   });
-  // 품목 스캔에서 제외할 줄: 전화번호 줄 · 주소로 보이는 줄(오인식 방지)
-  const skipLine=l=>{ const s=String(l||''); return MKP_PHONE_RE.test(s) || mkpAddressScore(s, products)>=3; };
-  // "치즈 2개" 형태 — 수량·단위가 분명한 신호
-  text.split(/[\n,·]/).forEach(line=>{
-    if(skipLine(line)) return;
-    const m=line.match(/([가-힣A-Za-z]{2,10})\s*[xX×]?\s*(\d{1,3})\s*(개|판|ea|EA)/);
-    if(m){ const p=mkpMatchProduct(m[1], products); if(p) found[p.id]=Number(m[2]); }
-  });
-  // 줄임말(별칭) 토큰 매칭: "불고기 2개", "치즈x1", "고르곤 하나" 등 — 전체 이름이 아니어도 인식
-  //   🔒 엄격 매칭(strict)만 사용 → 주소·이름 등 무관한 단어가 유사도로 엉뚱한 메뉴로 잡히는 것을 방지
-  text.split(/[\n,·]/).forEach(seg=>{
-    if(skipLine(seg)) return;
-    const re=/([가-힣A-Za-z]{2,12})\s*[xX×*]?\s*(\d{1,3}|하나|한개|한판|둘|두개|두판|셋|세개|세판|넷|네개|다섯)?\s*(개|판|세트|ea|EA|봉|박스)?/g;
+  // 3) 토큰 스캔: "불고기 2개", "치즈x1", "소불고기피자 3개" 등
+  //    핵심 규칙 — 단위(개/판/세트…)나 ×배수가 붙으면 유사도 매칭 허용(오타·변형 흡수),
+  //    아무 신호도 없는 맨 단어는 엄격 매칭 + 주소줄 제외 → 주소·이름 단어의 오인식 방지.
+  const scanText = text.replace(new RegExp(MKP_PHONE_RE.source,'g'),' ');   // 전화번호 제거
+  scanText.split(/[\n,·]/).forEach(seg=>{
+    if(!seg.trim()) return;
+    const isAddrSeg = mkpAddressScore(seg, products) >= 3;
+    const re=new RegExp('([가-힣A-Za-z]{2,12})\\s*([xX×*])?\\s*(\\d{1,3}|'+numWordRe+')?\\s*(개|판|세트|ea|EA|봉|박스)?','g');
     let m;
     while((m=re.exec(seg))){
+      if(m.index===re.lastIndex) re.lastIndex++;
       const word=m[1]; if(!word || MKP_NAME_STOP.test(word)) continue;
-      if(/^(택배|직접|배송|방문|수령|아파트|빌라|오피스텔|타워|단지|주소|번지|호수|주문|결제|입금|계좌|카드|현금)$/.test(word)) continue;
-      const p=mkpMatchProduct(word, products, true);   // strict
+      if(/^(택배|직접|배송|방문|수령|아파트|빌라|오피스텔|타워|단지|주소|번지|호수|주문|결제|입금|계좌|카드|현금|사장|고객|감사)$/.test(word)) continue;
+      const hasMult = !!m[2], hasUnit = !!m[4];
+      const signal = hasUnit || hasMult;            // 수량 신호(단위·배수)
+      let p;
+      if(signal){ p = mkpMatchProduct(word, products) || mkpFuzzyProduct(word, products, 0.5, 0.12); }
+      else { if(isAddrSeg) continue; p = mkpMatchProduct(word, products, true); }  // 맨 단어는 엄격
       if(p && found[p.id]==null){
         let q=1;
-        if(m[2]) q = /^\d+$/.test(m[2]) ? Number(m[2]) : (numWord[m[2]]||1);
+        if(m[3]) q = /^\d+$/.test(m[3]) ? Number(m[3]) : (numWord[m[3]]||1);
         found[p.id]=q>0?q:1;
       }
-      if(m.index===re.lastIndex) re.lastIndex++;
     }
   });
   return found;
@@ -9742,6 +9733,8 @@ function mkpSplitBlocks(text){
     let wm=bym.filter(p=>MKP_PHONE_RE.test(p));
     if(wm.length>=2) return wm;
   }
+  // 받는분·수령인 라벨이 있으면 '주문자+받는분'이 한 주문 — 전화가 2개여도 쪼개지 않음
+  if(/(받는\s*분|받는\s*사람|받으실|수령인|수취인|수신인|보내는\s*분)/.test(text)) return [text];
   // ③ 폴백: 전화번호로 끝나는 블록 (전화가 각 주문 끝에 오는 경우)
   const lines=text.split('\n'); const blocks=[]; let cur=[];
   for(const line of lines){ cur.push(line); if(MKP_PHONE_RE.test(line)){ blocks.push(cur.join('\n')); cur=[]; } }
@@ -12375,7 +12368,7 @@ function registerServiceWorker(){
    배포될 때마다 index.html의 ETag/Last-Modified(또는 APP_BUILD)가 바뀌는 걸 감지해,
    "새 버전이 나왔어요" 배너를 띄우고 누르면 캐시를 비우고 새로고침한다.
    ============================ */
-const APP_BUILD='2026-11-19-01';   // ⚠️ 배포할 때마다 이 값을 새로 바꿔야 새 버전 배너가 뜹니다
+const APP_BUILD='2026-11-19-02';   // ⚠️ 배포할 때마다 이 값을 새로 바꿔야 새 버전 배너가 뜹니다
 let _updShown=false;
 /* 서버에 배포된 index.html의 APP_BUILD 값을 읽어온다 */
 async function _updRemoteBuild(){
